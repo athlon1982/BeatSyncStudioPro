@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="BeatSync Studio Pro" Icon="/Assets/app.ico" Height="800" Width="1400" WindowState="Maximized" MinWidth="900" MinHeight="600"
+        PreviewKeyDown="Window_PreviewKeyDown"
         Background="#14171E" Foreground="#FFFFFF" SnapsToDevicePixels="True" WindowStartupLocation="CenterScreen">
     <Grid>
         <Grid.ColumnDefinitions>
@@ -19,10 +20,10 @@
         <!-- Main menu bar -->
         <Menu Grid.Row="0" Grid.ColumnSpan="2" Background="#1E222B" Foreground="White" Padding="6,2" BorderBrush="#333" BorderThickness="0,0,0,1">
             <MenuItem Header="_File" Padding="10,4">
-                <MenuItem Header="📂 Open Project..." Click="BtnOpenProject_Click"/>
-                <MenuItem Header="💾 Save Project" Click="BtnSave_Click"/>
+                <MenuItem Header="📂 Open Project..." Click="BtnOpenProject_Click" InputGestureText="Ctrl+O"/>
+                <MenuItem Header="💾 Save Project" Click="BtnSave_Click" InputGestureText="Ctrl+S"/>
                 <Separator/>
-                <MenuItem Header="💾 Export Audio (WAV / MP3)..." Click="BtnExportAudio_Click"/>
+                <MenuItem Header="💾 Export Audio (WAV / MP3)..." Click="BtnExportAudio_Click" InputGestureText="Ctrl+E"/>
                 <MenuItem Header="🎬 Export Video..." Click="BtnExport_Click"/>
                 <Separator/>
                 <MenuItem Header="Exit" Click="MenuExit_Click"/>
@@ -39,10 +40,10 @@
                 <MenuItem Header="🎬 Add Video to Timeline" Click="BtnAddVideoToTimeline_Click"/>
                 <MenuItem Header="🗑️ Remove Video Track" Click="BtnRemoveVideo_Click"/>
                 <Separator/>
-                <MenuItem Header="Auto-Crossfade" IsCheckable="True" IsChecked="True" Click="MenuAutoCrossfade_Click"/>
+                <MenuItem x:Name="AutoCrossfadeMenuItem" Header="Auto-Crossfade" IsCheckable="True" IsChecked="True" Click="MenuAutoCrossfade_Click"/>
                 <Separator/>
                 <MenuItem Header="🥁 Beat Grid…" Click="MenuBeatGrid_Click"/>
-                <MenuItem Header="🧲 Snap to Beat" IsCheckable="True" IsChecked="True" Click="MenuSnap_Click"/>
+                <MenuItem x:Name="SnapMenuItem" Header="🧲 Snap to Beat" IsCheckable="True" IsChecked="True" Click="MenuSnap_Click"/>
             </MenuItem>
             <MenuItem Header="_View" Padding="10,4">
                 <MenuItem Header="🎚️ Mixer" Click="BtnMixer_Click"/>
@@ -51,7 +52,8 @@
                 <MenuItem Header="🔊 Monitor FX" Click="BtnMonitorFx_Click"/>
             </MenuItem>
             <MenuItem Header="_Help" Padding="10,4">
-                <MenuItem Header="About BeatSync Studio Pro" Click="MenuAbout_Click"/>
+                <MenuItem Header="⌨️ Command Palette..." Click="MenuPalette_Click" InputGestureText="Ctrl+K"/>
+                <MenuItem Header="About BeatSync Studio Pro" Click="MenuAbout_Click" InputGestureText="F1"/>
             </MenuItem>
         </Menu>
 

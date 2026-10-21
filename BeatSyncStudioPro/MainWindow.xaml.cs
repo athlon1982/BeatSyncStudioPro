@@ -971,6 +971,118 @@ namespace BeatSyncStudioPro
             }
         }
 
+        // =========================
+        // COMMANDS + HOTKEYS
+        // =========================
+
+        private CommandPaletteWindow? _paletteWindow;
+
+        private void PlayPauseToggle()
+        {
+            if (isPlayingTimeline && !_isPaused) BtnPause_Click(this, new RoutedEventArgs());
+            else BtnPlay_Click(this, new RoutedEventArgs());
+        }
+
+        private async void DetectAndApplyGrid()
+        {
+            var result = await DetectBeatsForGridAsync();
+            if (result == null)
+            {
+                MessageBox.Show("No audio clip to detect from, or no steady beat found in it.", "Detect Beats");
+                return;
+            }
+            ProjectBpm = result.Value.Bpm;
+            BeatOffsetSeconds = result.Value.OffsetTimeline;
+            RenderStudioGridLanes();
+            MessageBox.Show($"Beat grid set: {result.Value.Bpm:0.0} BPM (confidence {result.Value.Confidence * 100:0}%).", "Detect Beats");
+        }
+
+        private void ToggleAutoCrossfade()
+        {
+            AutoCrossfadeEnabled = !AutoCrossfadeEnabled;
+            if (AutoCrossfadeMenuItem != null) AutoCrossfadeMenuItem.IsChecked = AutoCrossfadeEnabled;
+        }
+
+        private void ToggleSnap()
+        {
+            SnapToBeatEnabled = !SnapToBeatEnabled;
+            if (SnapMenuItem != null) SnapMenuItem.IsChecked = SnapToBeatEnabled;
+        }
+
+        public List<AppCommand> BuildCommands()
+        {
+            var ev = new RoutedEventArgs();
+            return new List<AppCommand>
+            {
+                new("Play / Pause", "Transport", "Space", PlayPauseToggle),
+                new("Stop", "Transport", "Esc", () => BtnStop_Click(this, ev)),
+                new("Set Loop A", "Loop", "A", () => BtnSetA_Click(this, ev)),
+                new("Set Loop B", "Loop", "B", () => BtnSetB_Click(this, ev)),
+                new("Toggle A–B Loop", "Loop", "L", () => BtnLoopToggle_Click(this, ev)),
+                new("Save Project", "File", "Ctrl+S", () => BtnSave_Click(this, ev)),
+                new("Open Project", "File", "Ctrl+O", () => BtnOpenProject_Click(this, ev)),
+                new("Export Audio…", "File", "Ctrl+E", () => BtnExportAudio_Click(this, ev)),
+                new("Export Video…", "File", "", () => BtnExport_Click(this, ev)),
+                new("Import Audio / ZIP", "File", "", () => BtnImportAudioOrZip_Click(this, ev)),
+                new("Add Audio Track", "Tracks", "Ctrl+T", () => BtnAddTrack_Click(this, ev)),
+                new("Remove Audio Track", "Tracks", "Ctrl+Shift+T", () => BtnRemoveTrack_Click(this, ev)),
+                new("Beat Grid…", "Tracks", "", () => MenuBeatGrid_Click(this, ev)),
+                new("Detect Beats → Set Grid", "Tracks", "", DetectAndApplyGrid),
+                new("Toggle Auto-Crossfade", "Tracks", "", ToggleAutoCrossfade),
+                new("Toggle Snap to Beat", "Tracks", "", ToggleSnap),
+                new("Mixer", "View", "Ctrl+M", () => BtnMixer_Click(this, ev)),
+                new("DJ Decks", "View", "Ctrl+Shift+D", () => BtnDj_Click(this, ev)),
+                new("Output Window", "View", "Ctrl+Shift+O", () => BtnOutput_Click(this, ev)),
+                new("Monitor FX", "View", "Ctrl+Shift+M", () => BtnMonitorFx_Click(this, ev)),
+                new("About BeatSync", "Help", "F1", () => MenuAbout_Click(this, ev)),
+                new("Exit", "File", "", () => MenuExit_Click(this, ev)),
+            };
+        }
+
+        private void OpenCommandPalette()
+        {
+            if (_paletteWindow != null) { _paletteWindow.Activate(); return; }
+            _paletteWindow = new CommandPaletteWindow(BuildCommands()) { Owner = this };
+            _paletteWindow.Closed += (s, e) => _paletteWindow = null;
+            _paletteWindow.Show();
+        }
+
+        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            bool ctrl = (Keyboard.Modifiers & ModifierKeys.Control) != 0;
+            bool shift = (Keyboard.Modifiers & ModifierKeys.Shift) != 0;
+            var ev = new RoutedEventArgs();
+
+            if (ctrl && e.Key == Key.K) { OpenCommandPalette(); e.Handled = true; return; }
+            if (ctrl && shift && e.Key == Key.P) { OpenCommandPalette(); e.Handled = true; return; }
+            if (ctrl && shift && e.Key == Key.D) { BtnDj_Click(this, ev); e.Handled = true; return; }
+            if (ctrl && shift && e.Key == Key.O) { BtnOutput_Click(this, ev); e.Handled = true; return; }
+            if (ctrl && shift && e.Key == Key.M) { BtnMonitorFx_Click(this, ev); e.Handled = true; return; }
+            if (ctrl && shift && e.Key == Key.T) { BtnRemoveTrack_Click(this, ev); e.Handled = true; return; }
+            if (ctrl && e.Key == Key.S) { BtnSave_Click(this, ev); e.Handled = true; return; }
+            if (ctrl && e.Key == Key.O) { BtnOpenProject_Click(this, ev); e.Handled = true; return; }
+            if (ctrl && e.Key == Key.E) { BtnExportAudio_Click(this, ev); e.Handled = true; return; }
+            if (ctrl && e.Key == Key.M) { BtnMixer_Click(this, ev); e.Handled = true; return; }
+            if (ctrl && e.Key == Key.T) { BtnAddTrack_Click(this, ev); e.Handled = true; return; }
+
+            // Single keys never fire while typing in a text box
+            if (Keyboard.FocusedElement is TextBox) return;
+
+            switch (e.Key)
+            {
+                case Key.Space: PlayPauseToggle(); e.Handled = true; break;
+                case Key.A: BtnSetA_Click(this, ev); e.Handled = true; break;
+                case Key.B: BtnSetB_Click(this, ev); e.Handled = true; break;
+                case Key.L: BtnLoopToggle_Click(this, ev); e.Handled = true; break;
+                case Key.F1: MenuAbout_Click(this, ev); e.Handled = true; break;
+                case Key.Escape:
+                    if (isPlayingTimeline) { BtnStop_Click(this, ev); e.Handled = true; }
+                    break;
+            }
+        }
+
+        private void MenuPalette_Click(object sender, RoutedEventArgs e) => OpenCommandPalette();
+
         private void BtnMonitorFx_Click(object sender, RoutedEventArgs e)
         {
             if (_monitorFxWindow == null)
