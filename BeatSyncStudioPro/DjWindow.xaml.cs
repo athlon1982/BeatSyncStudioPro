@@ -495,6 +495,8 @@ namespace BeatSyncStudioPro
             private float[]? _pristine;
             private float[][]? _pristineStems;
             private bool _keyBusy;
+            private bool _quantize = true;
+            private readonly Button _quantizeBtn;
             private int _loadGen;
             internal string PanelName => _name;
             internal int TempoSemitones => (int)Math.Round(12 * Math.Log2(Math.Max(0.5, _deck.Tempo)));
@@ -877,6 +879,30 @@ namespace BeatSyncStudioPro
                     loopRow.Children.Add(btn);
                 }
                 root.Children.Add(loopRow);
+
+                // Beat jump row (v3.30): whole-beat jumps + quantize toggle
+                var jumpRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
+                jumpRow.Children.Add(new TextBlock { Text = "Jump", Foreground = MutedText, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Width = 48 });
+                foreach (int jb in new[] { -16, -8, -4, 4, 8, 16 })
+                {
+                    int beatsJump = jb;
+                    var jbtn = MakeButton(jb > 0 ? $"+{jb}" : $"{jb}", 40);
+                    jbtn.Margin = new Thickness(4, 0, 0, 0);
+                    jbtn.Click += (s, e) => BeatJump(beatsJump);
+                    jumpRow.Children.Add(jbtn);
+                }
+                _quantizeBtn = MakeButton("Quantize: ON", 96);
+                _quantizeBtn.Margin = new Thickness(10, 0, 0, 0);
+                _quantizeBtn.Background = _accent;
+                _quantizeBtn.ToolTip = "Quantize: hot cues, the CUE point and beat jumps snap to the beat grid (anchored at the track start). Needs the BPM.";
+                _quantizeBtn.Click += (s, e) =>
+                {
+                    _quantize = !_quantize;
+                    _quantizeBtn.Content = _quantize ? "Quantize: ON" : "Quantize: OFF";
+                    _quantizeBtn.Background = _quantize ? _accent : PanelBtn;
+                };
+                jumpRow.Children.Add(_quantizeBtn);
+                root.Children.Add(jumpRow);
 
                 // Gain
                 var gainRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
@@ -1892,7 +1918,7 @@ namespace BeatSyncStudioPro
                 }
                 else
                 {
-                    _deck.CueSeconds = _deck.PositionSeconds;
+                    _deck.CueSeconds = SnapToBeat(_deck.PositionSeconds);
                     _window.SetStatus($"{_name}: cue point set at {FmtTime(_deck.CueSeconds)}.");
                 }
             }
@@ -1957,9 +1983,29 @@ namespace BeatSyncStudioPro
                 }
                 else
                 {
-                    _deck.HotCues[idx] = _deck.PositionSeconds;
-                    _window.SetStatus($"{_name}: hot cue {idx + 1} set at {FmtTime(_deck.PositionSeconds)}.");
+                    _deck.HotCues[idx] = SnapToBeat(_deck.PositionSeconds);
+                    _window.SetStatus($"{_name}: hot cue {idx + 1} set at {FmtTime(_deck.HotCues[idx] ?? 0)}.");
                 }
+            }
+
+            private double BeatLenSeconds => _deck.EffectiveBpm > 0 ? 60.0 / _deck.EffectiveBpm : 0;
+
+            private double SnapToBeat(double seconds)
+            {
+                double bl = BeatLenSeconds;
+                if (!_quantize || bl <= 0) return seconds;
+                return Math.Round(seconds / bl) * bl;
+            }
+
+            private void BeatJump(int beats)
+            {
+                if (!_deck.IsLoaded) return;
+                double bl = BeatLenSeconds;
+                if (bl <= 0) { _window.SetStatus($"{_name}: beat jump needs the BPM first - type it or TAP it in."); return; }
+                double target = _quantize
+                    ? (Math.Round(_deck.PositionSeconds / bl) + beats) * bl
+                    : _deck.PositionSeconds + beats * bl;
+                _deck.PositionSeconds = Math.Clamp(target, 0, Math.Max(0, _deck.TotalSeconds - 0.05));
             }
 
             private void SetLoop(int beats)

@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.30 — ⏭️ Beat Jump + Quantized Cues
+### New
+- **Beat Jump row on each deck** (feature 6 of the DJ mega-queue): **-16 / -8 / -4 / +4 / +8 / +16** buttons hop the playhead by whole beats at the deck's effective BPM — skip the long intro, jump back 16 to re-drop the chorus — without ever losing the beat. No BPM set? The deck tells you to type or TAP one first.
+- **Quantize (on by default)**: hot cues and the CUE point now **snap to the nearest beat** when you set them, and beat jumps land exactly on the grid, so everything you trigger fires on the beat, every time. One click turns quantize off for raw, unsnapped placement.
+
 ## Version 3.29 — 🌀 Slip Mode
 ### New
 - **Slip mode on each DJ deck** (feature 5 of the DJ mega-queue): a **🌀 Slip** toggle sits right next to the Scratch button. Turn it on, grab the record and scratch, juggle, hold it still — underneath, the song keeps playing in perfect time on a shadow clock.
