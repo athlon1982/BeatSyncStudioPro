@@ -64,6 +64,10 @@ namespace BeatSyncStudioPro
         private DeckPanel? _cruisePanel;
         private DeckPanel? _cruiseFadePanel;
         private bool _cruiseFading;
+        internal sealed record KeyCacheEntry(int Pc, bool Minor);
+        private static readonly Brush KeyOkBrush = new SolidColorBrush(Color.FromRgb(0x1D, 0xB9, 0x54));
+        private static readonly Brush KeyClashBrush = new SolidColorBrush(Color.FromRgb(0xE8, 0xC7, 0x66));
+        private static readonly Brush KeyNeutralBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
         private double _fadeFrom, _fadeTo, _fadeElapsed, _fadeDuration = 8;
         private string _fxTarget = "";
 
@@ -219,6 +223,61 @@ namespace BeatSyncStudioPro
         internal void CruiseManualOverride()
         {
             if (_cruiseOn) TurnCruiseOff("\U0001F6A2 Cruise off - manual control.");
+        }
+
+        private DeckPanel OtherPanel(DeckPanel p) => p == _panelA ? _panelB : _panelA;
+
+        internal void RefreshKeyCompatibility()
+        {
+            string? ca = _panelA.EffectiveCamelot, cb = _panelB.EffectiveCamelot;
+            if (ca != null && cb != null)
+            {
+                var brush = KeyDetector.CamelotCompatible(ca, cb) ? KeyOkBrush : KeyClashBrush;
+                _panelA.SetKeyTextBrush(brush);
+                _panelB.SetKeyTextBrush(brush);
+            }
+            else
+            {
+                if (ca != null) _panelA.SetKeyTextBrush(KeyNeutralBrush);
+                if (cb != null) _panelB.SetKeyTextBrush(KeyNeutralBrush);
+            }
+            _panelA.UpdateKeyLabel();
+            _panelB.UpdateKeyLabel();
+        }
+
+        private void ShowCamelotWheel(DeckPanel from)
+        {
+            var other = OtherPanel(from);
+            var w = new CamelotWheelWindow(from.PanelName, from.EffectiveCamelot, other.EffectiveCamelot) { Owner = this };
+            w.Show();
+        }
+
+        private static string KeyCachePath => System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BeatSyncStudioPro", "key-cache.json");
+
+        internal static System.Collections.Generic.Dictionary<string, KeyCacheEntry> LoadKeyCache()
+        {
+            try
+            {
+                if (File.Exists(KeyCachePath))
+                {
+                    var map = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, KeyCacheEntry>>(File.ReadAllText(KeyCachePath));
+                    if (map != null) return map;
+                }
+            }
+            catch { }
+            return new System.Collections.Generic.Dictionary<string, KeyCacheEntry>();
+        }
+
+        internal static void SaveKeyCache(System.Collections.Generic.Dictionary<string, KeyCacheEntry> map)
+        {
+            try
+            {
+                var dir = System.IO.Path.GetDirectoryName(KeyCachePath);
+                if (dir != null) Directory.CreateDirectory(dir);
+                File.WriteAllText(KeyCachePath, System.Text.Json.JsonSerializer.Serialize(map));
+            }
+            catch { }
         }
 
         private void CruiseTick()
@@ -429,6 +488,26 @@ namespace BeatSyncStudioPro
             private string _stemKey = "";
             private int _stemGeneration;
             private bool _stemBusy;
+            private readonly Button _keySyncBtn;
+            private readonly TextBlock _keyText;
+            internal KeyDetector.KeyResult? DetectedKey;
+            internal int KeyShiftSemitones;
+            private float[]? _pristine;
+            private float[][]? _pristineStems;
+            private bool _keyBusy;
+            private int _loadGen;
+            internal string PanelName => _name;
+            internal int TempoSemitones => (int)Math.Round(12 * Math.Log2(Math.Max(0.5, _deck.Tempo)));
+            internal int EffectivePitchClass => DetectedKey == null ? -1 : KeyDetector.Mod12(DetectedKey.PitchClass + KeyShiftSemitones + TempoSemitones);
+            internal string? EffectiveCamelot => DetectedKey == null ? null : KeyDetector.CamelotFor(EffectivePitchClass, DetectedKey.IsMinor);
+            internal void SetKeyTextBrush(Brush b) { _keyText.Foreground = b; }
+
+            internal void UpdateKeyLabel()
+            {
+                if (DetectedKey == null) { _keyText.Text = "not detected"; return; }
+                string suffix = KeyShiftSemitones != 0 ? $" ({KeyShiftSemitones:+0;-0} st)" : "";
+                _keyText.Text = $"{KeyDetector.KeyNameFor(EffectivePitchClass, DetectedKey.IsMinor)} - {EffectiveCamelot}{suffix}";
+            }
             private readonly TrackFxSettings _fx;
             private readonly string _name;
             private readonly SolidColorBrush _accent;
@@ -747,6 +826,20 @@ namespace BeatSyncStudioPro
                 _effBpmText = new TextBlock { Text = "", FontSize = 11, Foreground = MutedText, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
                 bpmRow.Children.Add(_effBpmText);
                 root.Children.Add(bpmRow);
+
+                // Key row (v3.28): detected key + Camelot, key sync, wheel
+                var keyRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+                keyRow.Children.Add(new TextBlock { Text = "Key", Foreground = MutedText, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Width = 42 });
+                _keyText = new TextBlock { Text = "-", Foreground = MutedText, FontSize = 11, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Width = 118 };
+                keyRow.Children.Add(_keyText);
+                _keySyncBtn = MakeButton("\U0001F3B5 Key Sync", 92);
+                _keySyncBtn.Click += async (s, e) => await ToggleKeySyncAsync();
+                keyRow.Children.Add(_keySyncBtn);
+                var wheelBtn = MakeButton("\U0001F3A1", 34);
+                wheelBtn.Margin = new Thickness(6, 0, 0, 0);
+                wheelBtn.Click += (s, e) => _window.ShowCamelotWheel(this);
+                keyRow.Children.Add(wheelBtn);
+                root.Children.Add(keyRow);
 
                 // Hot cues
                 var hotRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
@@ -1458,6 +1551,7 @@ namespace BeatSyncStudioPro
                     _stemGeneration++;
                     ShowStemChips(false, "");
                     _ = TryLoadCachedStemsAsync();
+                    StartKeyDetection();
                     return true;
                 }
                 catch (Exception ex)
@@ -1555,6 +1649,99 @@ namespace BeatSyncStudioPro
                 catch (OperationCanceledException) { _stemStatus.Text = "stem split cancelled"; }
                 catch (Exception ex) { _stemStatus.Text = "stem split failed: " + ex.Message; }
                 finally { _stemBusy = false; _stemBtn.IsEnabled = true; }
+            }
+
+            private void StartKeyDetection()
+            {
+                int gen = ++_loadGen;
+                DetectedKey = null;
+                KeyShiftSemitones = 0;
+                _pristine = null;
+                _pristineStems = null;
+                _keySyncBtn.Background = PanelBtn;
+                _keyText.Text = "detecting...";
+                _keyText.Foreground = MutedText;
+                string cacheKey = _stemKey;
+                _ = Task.Run(() =>
+                {
+                    KeyDetector.KeyResult? result = null;
+                    var cache = DjWindow.LoadKeyCache();
+                    if (cacheKey.Length > 0 && cache.TryGetValue(cacheKey, out var hit))
+                        result = new KeyDetector.KeyResult(hit.Pc, hit.Minor, KeyDetector.KeyNameFor(hit.Pc, hit.Minor), KeyDetector.CamelotFor(hit.Pc, hit.Minor), 1);
+                    if (result == null)
+                    {
+                        var (l, r) = _deck.GetChannelBuffers();
+                        var mono = new float[l.Length];
+                        for (int i = 0; i < l.Length; i++) mono[i] = (l[i] + r[i]) * 0.5f;
+                        result = KeyDetector.Detect(mono);
+                        if (result != null && cacheKey.Length > 0)
+                        {
+                            cache[cacheKey] = new KeyCacheEntry(result.PitchClass, result.IsMinor);
+                            DjWindow.SaveKeyCache(cache);
+                        }
+                    }
+                    var res = result;
+                    _window.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        if (gen != _loadGen) return;
+                        DetectedKey = res;
+                        if (res == null) _keyText.Text = "not detected";
+                        _window.RefreshKeyCompatibility();
+                    }));
+                });
+            }
+
+            private async Task ToggleKeySyncAsync()
+            {
+                if (_keyBusy) return;
+                if (KeyShiftSemitones != 0)
+                {
+                    if (_pristine != null) _deck.SwapBuffers(_pristine, _pristineStems);
+                    KeyShiftSemitones = 0;
+                    _pristine = null;
+                    _pristineStems = null;
+                    _keySyncBtn.Background = PanelBtn;
+                    _window.SetStatus($"{_name}: key sync off - original key restored.");
+                    _window.RefreshKeyCompatibility();
+                    return;
+                }
+                var otherPanel = _window.OtherPanel(this);
+                if (DetectedKey == null) { _window.SetStatus($"{_name}: key sync needs a detected key on this deck first."); return; }
+                if (otherPanel.DetectedKey == null) { _window.SetStatus($"{_name}: key sync needs the other deck's key too - load a track there."); return; }
+                int dd = KeyDetector.Mod12(otherPanel.EffectivePitchClass - DetectedKey.PitchClass);
+                int shift = dd > 6 ? dd - 12 : dd;
+                if (shift == 0) { _window.SetStatus($"{_name}: already in key with the other deck."); return; }
+                _keyBusy = true;
+                _keySyncBtn.IsEnabled = false;
+                int gen = _loadGen;
+                int deckGen = _deck.LoadGeneration;
+                try
+                {
+                    _window.SetStatus($"{_name}: shifting key {shift:+0;-0} semitones - rendering...");
+                    var mix = _deck.SnapshotInterleaved();
+                    var stems = _deck.SnapshotStemsInterleaved();
+                    var shiftedMix = await Task.Run(() => PitchShifter.Shift(mix, shift));
+                    float[][]? shiftedStems = null;
+                    if (stems != null)
+                    {
+                        var ss = stems;
+                        shiftedStems = await Task.Run(() => ss.Select(b => PitchShifter.Shift(b, shift)).ToArray());
+                    }
+                    if (gen != _loadGen || deckGen != _deck.LoadGeneration)
+                    {
+                        _window.SetStatus($"{_name}: key shift discarded - the track changed.");
+                        return;
+                    }
+                    _pristine = mix;
+                    _pristineStems = stems;
+                    _deck.SwapBuffers(shiftedMix, shiftedStems);
+                    KeyShiftSemitones = shift;
+                    _keySyncBtn.Background = _accent;
+                    _window.SetStatus($"{_name}: key synced {shift:+0;-0} semitones to match the other deck.");
+                    _window.RefreshKeyCompatibility();
+                }
+                catch (Exception ex) { _window.SetStatus($"{_name}: key shift failed: " + ex.Message); }
+                finally { _keyBusy = false; _keySyncBtn.IsEnabled = true; }
             }
 
             private void RefreshQueueList()
@@ -1713,6 +1900,7 @@ namespace BeatSyncStudioPro
             {
                 _deck.Tempo = 1 + percent / 100.0;
                 _tempoLabel.Text = $"{percent:+0.0;-0.0;0.0}%";
+                _window.RefreshKeyCompatibility();
             }
 
             private void ApplyBpmBox()

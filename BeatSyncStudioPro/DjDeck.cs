@@ -31,6 +31,36 @@ namespace BeatSyncStudioPro
         private readonly float[] _stemGain = { 1f, 1f, 1f, 1f };
 
         public bool StemModeActive { get { lock (_lock) { return _stems != null; } } }
+
+        /// <summary>Bumps on every Load, so async work (key shifts) can tell the track changed under it.</summary>
+        public int LoadGeneration { get; private set; }
+
+        public float[] SnapshotInterleaved()
+        {
+            lock (_lock) { var copy = new float[_samples.Length]; Array.Copy(_samples, copy, _samples.Length); return copy; }
+        }
+
+        public float[][]? SnapshotStemsInterleaved()
+        {
+            lock (_lock)
+            {
+                if (_stems == null) return null;
+                var result = new float[4][];
+                for (int i = 0; i < 4; i++) { result[i] = new float[_stems[i].Length]; Array.Copy(_stems[i], result[i], _stems[i].Length); }
+                return result;
+            }
+        }
+
+        /// <summary>Swap playback buffers (key-shifted copies) without touching position or play state.</summary>
+        public void SwapBuffers(float[] newSamples, float[][]? newStems)
+        {
+            lock (_lock)
+            {
+                _samples = newSamples;
+                if (newStems != null && _stems != null) _stems = newStems;
+                if (_positionFrames > TotalFrames) _positionFrames = TotalFrames;
+            }
+        }
         public bool IsLoaded => _samples.Length > 0;
         public bool IsPlaying { get; set; }
 
@@ -83,6 +113,7 @@ namespace BeatSyncStudioPro
             lock (_lock)
             {
                 _samples = decoded;
+                LoadGeneration++;
                 _stems = null;
                 for (int i = 0; i < 4; i++) { _stemTarget[i] = 1f; _stemGain[i] = 1f; }
                 Title = Path.GetFileNameWithoutExtension(filename);

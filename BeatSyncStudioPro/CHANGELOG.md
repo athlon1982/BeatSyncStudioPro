@@ -3,6 +3,13 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.28 — 🎵 Key Detection, Camelot Wheel & Key Sync
+### New
+- **Every deck detects its track's key** (feature 4 of the DJ mega-queue): a chromagram + key-profile analysis runs in the background on load, and the deck shows the key and its Camelot code — "A min - 8A". Results are cached per file, so a song's key is instant next time.
+- **Harmonic mixing at a glance**: when both decks have keys, the key readouts light **green** when the two tracks mix harmonically (same Camelot, one step either way, or relative major/minor) and **amber** when they clash.
+- **🎡 Camelot wheel window** on each deck: the full 24-key wheel with your key in green, the other deck's in purple, and every compatible key tinted — picking the next song becomes a visual decision.
+- **🎵 Key Sync**: one click shifts this deck's pitch to the other deck's key *without changing tempo* (offline WSOLA pitch shift; stem buffers shift too when stems are loaded). Click again to restore the original, untouched audio. Effective key readouts account for the tempo slider as well, since tempo bends pitch.
+
 ## Version 3.27 — 🎛️ Sampler Pads
 ### New
 - **Sampler strip in the DJ window** (feature 3 of the DJ mega-queue): 8 one-shot pads in a full-width strip under the decks, mixed into the DJ master — so pads are heard live **and captured in Record Mix**.

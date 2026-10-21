@@ -1,0 +1,20 @@
+<Window x:Class="BeatSyncStudioPro.CamelotWheelWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Camelot Wheel — BeatSync Studio Pro" Icon="/Assets/app.ico"
+        Width="400" Height="472" WindowStartupLocation="CenterOwner"
+        Foreground="#FFFFFF" ResizeMode="NoResize">
+    <Window.Background>
+        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#0B0E14" Offset="0"/>
+            <GradientStop Color="#131926" Offset="0.55"/>
+            <GradientStop Color="#0D1420" Offset="1"/>
+        </LinearGradientBrush>
+    </Window.Background>
+    <StackPanel Margin="12">
+        <TextBlock Text="🎡 CAMELOT WHEEL" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center"/>
+        <TextBlock Text="Outer ring: major (B) · Inner ring: minor (A)" Foreground="#A0A5B5" FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+        <Canvas x:Name="WheelCanvas" Width="336" Height="336" Margin="0,8,0,0" HorizontalAlignment="Center"/>
+        <TextBlock x:Name="LegendText" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center" Foreground="#A0A5B5" FontSize="12" Margin="0,8,0,0"/>
+    </StackPanel>
+</Window>
