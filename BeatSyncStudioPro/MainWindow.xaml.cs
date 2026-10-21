@@ -957,7 +957,13 @@ namespace BeatSyncStudioPro
             };
             if (dialog.ShowDialog() != true) return;
 
+            var options = new ExportOptionsWindow { Owner = this };
+            if (options.ShowDialog() != true) return;
+
             var job = BuildExportJob();
+            job.MasteringPreset = options.Preset;
+            job.MasteringIntensity = options.Intensity;
+            job.NormalizeLoudness = options.NormalizeLoudness;
             var progressWindow = new ExportProgressWindow { Owner = this };
             progressWindow.Show();
             try

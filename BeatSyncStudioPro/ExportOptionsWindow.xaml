@@ -1,0 +1,33 @@
+<Window x:Class="BeatSyncStudioPro.ExportOptionsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Export Options" Icon="/Assets/app.ico"
+        Width="430" Height="480" ResizeMode="NoResize"
+        Background="#1E222B" Foreground="#FFFFFF" WindowStartupLocation="CenterOwner">
+    <StackPanel Margin="16">
+        <TextBlock Text="💾 Export Options" FontSize="15" FontWeight="Bold"/>
+        <TextBlock Text="Mastering preset" FontWeight="Bold" Margin="0,12,0,4"/>
+        <RadioButton x:Name="PresetNone" Content="None — export the mix as-is" Foreground="White" IsChecked="True" Margin="0,2"/>
+        <RadioButton x:Name="PresetUniversal" Content="Universal — balanced polish for any song" Foreground="White" Margin="0,2"/>
+        <RadioButton x:Name="PresetFire" Content="Fire — loud, bright, punchy (hip-hop energy)" Foreground="White" Margin="0,2"/>
+        <RadioButton x:Name="PresetClarity" Content="Clarity — vocals forward, mud cut" Foreground="White" Margin="0,2"/>
+        <RadioButton x:Name="PresetTape" Content="Tape — warm and vintage, soft top end" Foreground="White" Margin="0,2"/>
+
+        <Grid Margin="0,14,0,0">
+            <TextBlock Text="Intensity" FontWeight="Bold"/>
+            <TextBlock x:Name="IntensityLabel" Text="70%" HorizontalAlignment="Right" Foreground="#A0A5B5" FontSize="11"/>
+        </Grid>
+        <Slider x:Name="IntensitySlider" Minimum="0" Maximum="100" Value="70" Margin="0,4,0,0"/>
+        <TextBlock Text="One slider scales the whole preset — EQ, compression and width together."
+                   Foreground="#666666" FontSize="10" TextWrapping="Wrap"/>
+
+        <CheckBox x:Name="LoudnessCheck" Content="Normalize loudness for streaming (-14 LUFS)" Foreground="White" Margin="0,16,0,0"/>
+        <TextBlock Text="Measures the finished mix and sets its overall loudness to the Spotify/streaming standard, keeping 1 dB of peak headroom."
+                   Foreground="#666666" FontSize="10" TextWrapping="Wrap" Margin="16,2,0,0"/>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+            <Button Content="Cancel" Click="Cancel_Click" Width="84" Height="32" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="Export" Click="Ok_Click" Width="84" Height="32" Margin="8,0,0,0" Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+        </StackPanel>
+    </StackPanel>
+</Window>
