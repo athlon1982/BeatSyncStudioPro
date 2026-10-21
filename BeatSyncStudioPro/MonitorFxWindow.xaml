@@ -1,0 +1,69 @@
+<Window x:Class="BeatSyncStudioPro.MonitorFxWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Monitor FX — BeatSync Studio Pro" Icon="/Assets/app.ico"
+        Width="430" Height="560" MinWidth="400" MinHeight="520"
+        Background="#1E222B" Foreground="#FFFFFF" WindowStartupLocation="CenterOwner">
+    <StackPanel Margin="16">
+        <TextBlock Text="🔊 MONITOR FX" FontSize="15" FontWeight="Bold"/>
+        <TextBlock Text="Shapes what YOU hear while you work. Monitor only — it never prints into exports."
+                   Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,10"/>
+
+        <TextBlock Text="Presets" Foreground="#A0A5B5" FontSize="11" Margin="0,0,0,4"/>
+        <UniformGrid Columns="4" Margin="0,0,0,12">
+            <Button Content="Flat" Click="Preset_Click" Tag="flat" Height="30" Margin="0,0,4,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="Vocal Clarity" Click="Preset_Click" Tag="vocal" Height="30" Margin="0,0,4,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="Bass Boost" Click="Preset_Click" Tag="bass" Height="30" Margin="0,0,4,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="Wide Stage" Click="Preset_Click" Tag="wide" Height="30" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+        </UniformGrid>
+
+        <TextBlock Text="EQ" FontWeight="Bold" Margin="0,2,0,2"/>
+        <Grid Margin="0,2,0,0">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="46"/><ColumnDefinition Width="*"/><ColumnDefinition Width="52"/></Grid.ColumnDefinitions>
+            <TextBlock Text="Low" Foreground="#A0A5B5" FontSize="11" VerticalAlignment="Center"/>
+            <Slider x:Name="LowSlider" Grid.Column="1" Minimum="-15" Maximum="15" Value="0" VerticalAlignment="Center"/>
+            <TextBlock x:Name="LowLabel" Grid.Column="2" Text="0 dB" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+        </Grid>
+        <Grid Margin="0,2,0,0">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="46"/><ColumnDefinition Width="*"/><ColumnDefinition Width="52"/></Grid.ColumnDefinitions>
+            <TextBlock Text="Mid" Foreground="#A0A5B5" FontSize="11" VerticalAlignment="Center"/>
+            <Slider x:Name="MidSlider" Grid.Column="1" Minimum="-15" Maximum="15" Value="0" VerticalAlignment="Center"/>
+            <TextBlock x:Name="MidLabel" Grid.Column="2" Text="0 dB" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+        </Grid>
+        <Grid Margin="0,2,0,8">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="46"/><ColumnDefinition Width="*"/><ColumnDefinition Width="52"/></Grid.ColumnDefinitions>
+            <TextBlock Text="High" Foreground="#A0A5B5" FontSize="11" VerticalAlignment="Center"/>
+            <Slider x:Name="HighSlider" Grid.Column="1" Minimum="-15" Maximum="15" Value="0" VerticalAlignment="Center"/>
+            <TextBlock x:Name="HighLabel" Grid.Column="2" Text="0 dB" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+        </Grid>
+
+        <CheckBox x:Name="CompCheck" Content="Compressor" Foreground="White" FontWeight="Bold" Margin="0,4,0,2"/>
+        <Grid Margin="0,2,0,0">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/><ColumnDefinition Width="52"/></Grid.ColumnDefinitions>
+            <TextBlock Text="Threshold" Foreground="#A0A5B5" FontSize="11" VerticalAlignment="Center"/>
+            <Slider x:Name="ThrSlider" Grid.Column="1" Minimum="-48" Maximum="0" Value="-18" VerticalAlignment="Center"/>
+            <TextBlock x:Name="ThrLabel" Grid.Column="2" Text="-18 dB" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+        </Grid>
+        <Grid Margin="0,2,0,0">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/><ColumnDefinition Width="52"/></Grid.ColumnDefinitions>
+            <TextBlock Text="Ratio" Foreground="#A0A5B5" FontSize="11" VerticalAlignment="Center"/>
+            <Slider x:Name="RatioSlider" Grid.Column="1" Minimum="1" Maximum="10" Value="3" VerticalAlignment="Center"/>
+            <TextBlock x:Name="RatioLabel" Grid.Column="2" Text="3.0 : 1" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+        </Grid>
+        <Grid Margin="0,2,0,8">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/><ColumnDefinition Width="52"/></Grid.ColumnDefinitions>
+            <TextBlock Text="Makeup" Foreground="#A0A5B5" FontSize="11" VerticalAlignment="Center"/>
+            <Slider x:Name="MakeupSlider" Grid.Column="1" Minimum="0" Maximum="12" Value="0" VerticalAlignment="Center"/>
+            <TextBlock x:Name="MakeupLabel" Grid.Column="2" Text="0 dB" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+        </Grid>
+
+        <TextBlock Text="Stereo Width" FontWeight="Bold" Margin="0,4,0,2"/>
+        <Grid Margin="0,2,0,0">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/><ColumnDefinition Width="52"/></Grid.ColumnDefinitions>
+            <TextBlock Text="Width" Foreground="#A0A5B5" FontSize="11" VerticalAlignment="Center"/>
+            <Slider x:Name="WidthSlider" Grid.Column="1" Minimum="0" Maximum="2" Value="1" VerticalAlignment="Center"/>
+            <TextBlock x:Name="WidthLabel" Grid.Column="2" Text="100%" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+        </Grid>
+        <TextBlock Text="0% = mono • 100% = unchanged • 200% = extra wide" Foreground="#666666" FontSize="10" Margin="70,2,0,0"/>
+    </StackPanel>
+</Window>

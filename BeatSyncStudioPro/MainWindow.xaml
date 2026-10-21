@@ -45,6 +45,7 @@
                 <MenuItem Header="🎚️ Mixer" Click="BtnMixer_Click"/>
                 <MenuItem Header="📺 Output Window" Click="BtnOutput_Click"/>
                 <MenuItem Header="🎧 DJ Decks" Click="BtnDj_Click"/>
+                <MenuItem Header="🔊 Monitor FX" Click="BtnMonitorFx_Click"/>
             </MenuItem>
             <MenuItem Header="_Help" Padding="10,4">
                 <MenuItem Header="About BeatSync Studio Pro" Click="MenuAbout_Click"/>
@@ -153,6 +154,9 @@
                         <Button Content="▶ Play" Click="BtnPlay_Click" Width="100" Height="40" Margin="0,0,8,0" Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
                         <Button Content="⏸ Pause" Click="BtnPause_Click" Width="100" Height="40" Margin="0,0,8,0" Background="#1568DB" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
                         <Button Content="⏹ Stop" Click="BtnStop_Click" Width="100" Height="40" Background="#A12424" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                        <Button x:Name="SetABtn" Content="Set A" Click="BtnSetA_Click" Width="80" Height="40" Margin="16,0,0,0" Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                        <Button x:Name="SetBBtn" Content="Set B" Click="BtnSetB_Click" Width="80" Height="40" Margin="8,0,0,0" Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                        <Button x:Name="LoopToggleBtn" Content="🔁 Loop" Click="BtnLoopToggle_Click" Width="100" Height="40" Margin="8,0,0,0" Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
                         <Button Content="🎚️ Mixer" Click="BtnMixer_Click" Width="100" Height="40" Margin="8,0,0,0" Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
                         <Button Content="💾 Export" Click="BtnExportAudio_Click" Width="100" Height="40" Margin="8,0,0,0" Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
                         <Button Content="📺 Output" Click="BtnOutput_Click" Width="100" Height="40" Margin="8,0,0,0" Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>

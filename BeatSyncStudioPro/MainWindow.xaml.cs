@@ -49,6 +49,16 @@ namespace BeatSyncStudioPro
 
         /// <summary>Master-bus tap feeding the Output window's visualizations.</summary>
         public AudioTapSampleProvider? AudioTap { get; private set; }
+
+        /// <summary>Monitor-bus FX settings (EQ + compressor + width) — what you hear only, never exported.</summary>
+        public MonitorFxSettings MonitorSettings { get; private set; } = new MonitorFxSettings();
+        private MonitorFxWindow? _monitorFxWindow;
+
+        // ---- A–B loop region (pixels on the timeline) ----
+        public double? LoopStartX { get; private set; }
+        public double? LoopEndX { get; private set; }
+        public bool LoopEnabled { get; private set; }
+        private double _currentPlayX;
         private bool _djAttached;
 
         /// <summary>Route the DJ decks' master mix into the main engine (once).</summary>
@@ -96,7 +106,11 @@ namespace BeatSyncStudioPro
             {
                 outputDevice = new WaveOutEvent();
                 mixerEngine = new MixingSampleProvider(WaveFormat.CreateIeeeFloatWaveFormat(44100, 2)) { ReadFully = true };
-                AudioTap = new AudioTapSampleProvider(mixerEngine);
+                // Monitor chain: EQ -> compressor -> width -> tap (visuals hear what you hear)
+                var monitorEq = new EqSampleProvider(mixerEngine, MonitorSettings.Eq);
+                var monitorComp = new CompressorSampleProvider(monitorEq, MonitorSettings);
+                var monitorWidth = new StereoWidthSampleProvider(monitorComp, MonitorSettings);
+                AudioTap = new AudioTapSampleProvider(monitorWidth);
                 outputDevice.Init(AudioTap);
                 outputDevice.Play();
                 BuildTrackChains();
@@ -858,6 +872,56 @@ namespace BeatSyncStudioPro
             }
         }
 
+        private void BtnMonitorFx_Click(object sender, RoutedEventArgs e)
+        {
+            if (_monitorFxWindow == null)
+            {
+                _monitorFxWindow = new MonitorFxWindow(MonitorSettings) { Owner = this };
+                _monitorFxWindow.Closed += (s, ev) => _monitorFxWindow = null;
+                _monitorFxWindow.Show();
+            }
+            else
+            {
+                _monitorFxWindow.Activate();
+            }
+        }
+
+        private void BtnSetA_Click(object sender, RoutedEventArgs e)
+        {
+            LoopStartX = _currentPlayX;
+            if (LoopEndX.HasValue && LoopEndX.Value <= LoopStartX.Value) LoopEndX = null;
+            UpdateLoopButtons();
+        }
+
+        private void BtnSetB_Click(object sender, RoutedEventArgs e)
+        {
+            LoopEndX = _currentPlayX;
+            if (LoopStartX.HasValue && LoopEndX.Value <= LoopStartX.Value) LoopStartX = null;
+            UpdateLoopButtons();
+        }
+
+        private void BtnLoopToggle_Click(object sender, RoutedEventArgs e)
+        {
+            if (!LoopEnabled && !(LoopStartX.HasValue && LoopEndX.HasValue))
+            {
+                MessageBox.Show("Set an A point and a B point first: play the song, click Set A where the loop should start and Set B where it should end.", "A–B Loop");
+                return;
+            }
+            LoopEnabled = !LoopEnabled;
+            UpdateLoopButtons();
+        }
+
+        private void UpdateLoopButtons()
+        {
+            if (SetABtn != null) SetABtn.Content = LoopStartX.HasValue ? $"A · {FmtTime(LoopStartX.Value / 100.0)}" : "Set A";
+            if (SetBBtn != null) SetBBtn.Content = LoopEndX.HasValue ? $"B · {FmtTime(LoopEndX.Value / 100.0)}" : "Set B";
+            if (LoopToggleBtn != null)
+            {
+                LoopToggleBtn.Content = LoopEnabled ? "🔁 Loop ON" : "🔁 Loop";
+                LoopToggleBtn.Background = new SolidColorBrush(LoopEnabled ? Color.FromRgb(0x1D, 0xB9, 0x54) : Color.FromRgb(0x2A, 0x30, 0x3C));
+            }
+        }
+
         private void BtnOutput_Click(object sender, RoutedEventArgs e)
         {
             if (_outputWindow == null)
@@ -1008,6 +1072,7 @@ namespace BeatSyncStudioPro
         private async Task TimelinePlaybackEngineLoop(CancellationToken token)
         {
             HashSet<FixedBlock> playedBlocks = new HashSet<FixedBlock>();
+            double originOffsetX = 0;
 
             Dispatcher.Invoke(() =>
             {
@@ -1017,11 +1082,31 @@ namespace BeatSyncStudioPro
 
             while (isPlayingTimeline && !token.IsCancellationRequested)
             {
-                double currentX = ((_playStopwatch?.ElapsedMilliseconds ?? 0) * 100) / 1000.0;
+                double currentX = ((_playStopwatch?.ElapsedMilliseconds ?? 0) * 100) / 1000.0 - originOffsetX;
+                _currentPlayX = currentX;
+
+                // A–B loop: at B, jump the clock back to A and re-arm the
+                // blocks inside the region (blocks spanning the loop point
+                // keep playing out — their start sits before A).
+                bool didWrap = false;
+                if (LoopEnabled && LoopStartX.HasValue && LoopEndX.HasValue && currentX >= LoopEndX.Value)
+                {
+                    originOffsetX += LoopEndX.Value - LoopStartX.Value;
+                    currentX -= LoopEndX.Value - LoopStartX.Value;
+                    _currentPlayX = currentX;
+                    didWrap = true;
+                    var rearmed = playedBlocks.Where(b => b.EffectiveStartX >= LoopStartX.Value && b.EffectiveStartX < LoopEndX.Value).ToList();
+                    foreach (var b in rearmed) playedBlocks.Remove(b);
+                }
+
                 if (currentX > GetContentEndX() + 200) break;
 
                 Dispatcher.Invoke(() =>
                 {
+                    if (didWrap && MasterVideoPlayer?.Source != null && LoopStartX.HasValue)
+                    {
+                        try { MasterVideoPlayer.Position = TimeSpan.FromSeconds(LoopStartX.Value / 100.0); } catch { }
+                    }
                     if (playhead != null)
                     {
                         playhead.X1 = currentX;

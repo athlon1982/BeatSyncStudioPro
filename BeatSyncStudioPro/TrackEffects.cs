@@ -262,4 +262,98 @@ namespace BeatSyncStudioPro
             return read;
         }
     }
+
+    // =========================
+    // MONITOR BUS (what you hear — never printed to exports)
+    // =========================
+
+    /// <summary>Monitor chain settings: 3-band EQ (reuses TrackFxSettings) + compressor + stereo width.</summary>
+    public class MonitorFxSettings
+    {
+        public TrackFxSettings Eq { get; } = new TrackFxSettings();
+        public bool CompOn { get; set; }
+        public double CompThresholdDb { get; set; } = -18;
+        public double CompRatio { get; set; } = 3;
+        public double CompMakeupDb { get; set; }
+        public double Width { get; set; } = 1.0;
+    }
+
+    /// <summary>Simple feed-forward compressor for the monitor bus.</summary>
+    public class CompressorSampleProvider : ISampleProvider
+    {
+        private readonly ISampleProvider _source;
+        private readonly MonitorFxSettings _settings;
+        private double _env;
+        private double _gainSmooth = 1.0;
+
+        public CompressorSampleProvider(ISampleProvider source, MonitorFxSettings settings)
+        {
+            _source = source;
+            _settings = settings;
+            WaveFormat = source.WaveFormat;
+        }
+
+        public WaveFormat WaveFormat { get; }
+
+        public int Read(float[] buffer, int offset, int count)
+        {
+            int read = _source.Read(buffer, offset, count);
+            if (!_settings.CompOn) return read;
+            int channels = WaveFormat.Channels;
+            int sr = WaveFormat.SampleRate;
+            double attack = Math.Exp(-1.0 / (0.003 * sr));
+            double release = Math.Exp(-1.0 / (0.240 * sr));
+            double thr = Math.Pow(10, _settings.CompThresholdDb / 20.0);
+            double ratio = Math.Max(1.0, _settings.CompRatio);
+            double makeup = Math.Pow(10, _settings.CompMakeupDb / 20.0);
+            int frames = read / channels;
+            for (int f = 0; f < frames; f++)
+            {
+                double peak = 0;
+                for (int c = 0; c < channels; c++)
+                    peak = Math.Max(peak, Math.Abs(buffer[offset + f * channels + c]));
+                double coeff = peak > _env ? attack : release;
+                _env = coeff * _env + (1 - coeff) * peak;
+                double targetGain = 1.0;
+                if (_env > thr && _env > 1e-6)
+                    targetGain = Math.Pow(thr / _env, 1.0 - 1.0 / ratio);
+                _gainSmooth += (targetGain - _gainSmooth) * 0.02;
+                double g = _gainSmooth * makeup;
+                for (int c = 0; c < channels; c++)
+                    buffer[offset + f * channels + c] *= (float)g;
+            }
+            return read;
+        }
+    }
+
+    /// <summary>Mid/side stereo width for the monitor bus (1.0 = unchanged, 0 = mono, 2 = extra wide).</summary>
+    public class StereoWidthSampleProvider : ISampleProvider
+    {
+        private readonly ISampleProvider _source;
+        private readonly MonitorFxSettings _settings;
+
+        public StereoWidthSampleProvider(ISampleProvider source, MonitorFxSettings settings)
+        {
+            _source = source;
+            _settings = settings;
+            WaveFormat = source.WaveFormat;
+        }
+
+        public WaveFormat WaveFormat { get; }
+
+        public int Read(float[] buffer, int offset, int count)
+        {
+            int read = _source.Read(buffer, offset, count);
+            double w = _settings.Width;
+            if (Math.Abs(w - 1.0) < 0.001 || WaveFormat.Channels != 2) return read;
+            for (int i = 0; i + 1 < read; i += 2)
+            {
+                double l = buffer[offset + i], r = buffer[offset + i + 1];
+                double mid = (l + r) * 0.5, side = (l - r) * 0.5 * w;
+                buffer[offset + i] = (float)(mid + side);
+                buffer[offset + i + 1] = (float)(mid - side);
+            }
+            return read;
+        }
+    }
 }
