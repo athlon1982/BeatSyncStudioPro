@@ -2284,7 +2284,35 @@ namespace BeatSyncStudioPro
 
         private void BtnExport_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("🎬 Video export feature coming soon!\n\nThis will render your entire timeline with all audio & video synchronized.", "Export Video", MessageBoxButton.OK, MessageBoxImage.Information);
+            var videoBlock = TimelineBlocks.FirstOrDefault(b => b.IsVideo);
+            if (videoBlock == null || VideoPath == null || !System.IO.File.Exists(VideoPath))
+            {
+                MessageBox.Show("Load a video onto the video lane first — video export combines that video (trim, speed and timeline position honored) with your full timeline mix.",
+                    "🎬 Export Video", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "Export video",
+                Filter = "MP4 video|*.mp4",
+                FileName = "BeatSync Video.mp4",
+                DefaultExt = ".mp4"
+            };
+            if (dialog.ShowDialog() != true) return;
+
+            var options = new ExportOptionsWindow(
+                System.IO.Path.GetFileNameWithoutExtension(dialog.FileName), ProjectBpm) { Owner = this };
+            if (options.ShowDialog() != true) return;
+
+            string finalPath = BuildExportPath(dialog.FileName, options);
+            var job = BuildExportJob();
+            job.MasteringPreset = options.Preset;
+            job.MasteringIntensity = options.Intensity;
+            job.NormalizeLoudness = options.NormalizeLoudness;
+
+            var win = new VideoExportWindow(this, job, videoBlock, finalPath) { Owner = this };
+            win.ShowDialog();
         }
 
         private void MenuExit_Click(object sender, RoutedEventArgs e)
