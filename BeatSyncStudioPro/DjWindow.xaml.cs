@@ -39,6 +39,14 @@ namespace BeatSyncStudioPro
         private readonly DeckPanel _panelB;
         private readonly DispatcherTimer _timer;
         private TrackFxWindow? _fxWindow;
+        // Cruise mode (v3.26): hands-free auto-DJ across both deck queues
+        private bool _cruiseOn;
+        private readonly System.Collections.Generic.List<string> _cruisePlaylist = new System.Collections.Generic.List<string>();
+        private int _cruiseIndex = -1;
+        private DeckPanel? _cruisePanel;
+        private DeckPanel? _cruiseFadePanel;
+        private bool _cruiseFading;
+        private double _fadeFrom, _fadeTo, _fadeElapsed, _fadeDuration = 8;
         private string _fxTarget = "";
 
         public DjWindow(MainWindow owner)
@@ -67,7 +75,7 @@ namespace BeatSyncStudioPro
             UpdateCrossfader();
 
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
-            _timer.Tick += (s, e) => { _panelA.Refresh(); _panelB.Refresh(); };
+            _timer.Tick += (s, e) => { _panelA.Refresh(); _panelB.Refresh(); CruiseTick(); };
             _timer.Start();
 
             // Never open larger than the screen's work area (scaled displays
@@ -135,6 +143,109 @@ namespace BeatSyncStudioPro
             else
             {
                 _fxWindow.Activate();
+            }
+        }
+
+        private double CruiseFadeSeconds => CruiseFadePicker.SelectedIndex switch { 0 => 2, 1 => 4, 3 => 12, _ => 8 };
+
+        private void CruiseButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_cruiseOn) TurnCruiseOff("\U0001F6A2 Cruise off.");
+            else StartCruise();
+        }
+
+        private void StartCruise()
+        {
+            _cruisePlaylist.Clear();
+            _cruisePlaylist.AddRange(_panelA.QueuePathsSnapshot);
+            _cruisePlaylist.AddRange(_panelB.QueuePathsSnapshot);
+            if (_cruisePlaylist.Count == 0)
+            {
+                SetStatus("\U0001F6A2 Cruise needs songs - add tracks to a deck's TRACK LIST first.");
+                return;
+            }
+            _panelA.SetAutoNext(false);
+            _panelB.SetAutoNext(false);
+            _cruiseOn = true;
+            _cruiseFading = false;
+            _cruiseIndex = 0;
+            _cruisePanel = _panelA;
+            CruiseButton.Content = "\U0001F6A2 CRUISE: ON";
+            CruiseButton.Background = new SolidColorBrush(Color.FromRgb(0x1D, 0xB9, 0x54));
+            while (_cruiseIndex < _cruisePlaylist.Count && !_panelA.LoadPathForCruise(_cruisePlaylist[_cruiseIndex]))
+                _cruiseIndex++;
+            if (_cruiseIndex >= _cruisePlaylist.Count)
+            {
+                TurnCruiseOff("\U0001F6A2 Cruise stopped - none of the queued tracks could be loaded.");
+                return;
+            }
+            XfadeSlider.Value = 0;
+            _panelA.StartForCruise();
+            SetStatus($"\U0001F6A2 Cruise on - {_cruisePlaylist.Count} track(s) queued. Now playing: {_panelA.CurrentTitle}");
+        }
+
+        private void TurnCruiseOff(string reason)
+        {
+            _cruiseOn = false;
+            _cruiseFading = false;
+            _cruisePanel = null;
+            _cruiseFadePanel = null;
+            CruiseButton.Content = "\U0001F6A2 CRUISE: OFF";
+            CruiseButton.Background = new SolidColorBrush(Color.FromRgb(0x2A, 0x30, 0x3C));
+            SetStatus(reason);
+        }
+
+        internal void CruiseManualOverride()
+        {
+            if (_cruiseOn) TurnCruiseOff("\U0001F6A2 Cruise off - manual control.");
+        }
+
+        private void CruiseTick()
+        {
+            if (!_cruiseOn || _cruisePanel == null) return;
+            if (_cruiseFading)
+            {
+                _fadeElapsed += 0.1;
+                double t = Math.Clamp(_fadeElapsed / _fadeDuration, 0, 1);
+                XfadeSlider.Value = _fadeFrom + (_fadeTo - _fadeFrom) * t;
+                if (t >= 1)
+                {
+                    _cruiseFading = false;
+                    var old = _cruisePanel;
+                    _cruisePanel = _cruiseFadePanel;
+                    _cruiseFadePanel = null;
+                    old.StopForCruise();
+                    if (_cruisePanel != null)
+                        SetStatus($"\U0001F6A2 Cruise: now playing {_cruisePanel.CurrentTitle} ({_cruiseIndex + 1}/{_cruisePlaylist.Count})");
+                }
+                return;
+            }
+            if (_cruiseIndex + 1 >= _cruisePlaylist.Count)
+            {
+                // last track: cruise ends when it does
+                if (!_cruisePanel.IsPlayingDeck && _cruisePanel.RemainingSeconds <= 1.0)
+                    TurnCruiseOff("\U0001F6A2 Cruise: playlist finished.");
+                return;
+            }
+            if (_cruisePanel.IsPlayingDeck && _cruisePanel.RemainingSeconds <= CruiseFadeSeconds + 2)
+            {
+                var next = _cruisePanel == _panelA ? _panelB : _panelA;
+                int nextIndex = _cruiseIndex + 1;
+                if (!next.LoadPathForCruise(_cruisePlaylist[nextIndex]))
+                {
+                    _cruisePlaylist.RemoveAt(nextIndex);   // skip the broken file, retry next tick
+                    return;
+                }
+                next.SyncForCruise();
+                next.StartForCruise();
+                _cruiseIndex = nextIndex;
+                _cruiseFadePanel = next;
+                _cruiseFading = true;
+                _fadeElapsed = 0;
+                _fadeDuration = CruiseFadeSeconds;
+                _fadeFrom = XfadeSlider.Value;
+                _fadeTo = next == _panelA ? 0 : 1000;
+                SetStatus($"\U0001F6A2 Cruise: fading to {(next == _panelA ? "DECK A" : "DECK B")} - {next.CurrentTitle}");
             }
         }
 
@@ -975,6 +1086,7 @@ namespace BeatSyncStudioPro
 
             private void LoadFromPicker()
             {
+                _window.CruiseManualOverride();
                 if (_loadPicker.SelectedItem is not string name) { _window.SetStatus("The library is empty — import a song in the main window first, or use 📁 File…"); return; }
                 if (!_window._owner.ZipSounds.TryGetValue(name, out var bytes)) return;
                 LoadBytes(bytes, name);
@@ -1201,6 +1313,7 @@ namespace BeatSyncStudioPro
 
             private void LoadFromFile()
             {
+                _window.CruiseManualOverride();
                 var dialog = new OpenFileDialog { Title = $"Load a song on {_name}", Filter = "Audio|*.mp3;*.wav" };
                 if (dialog.ShowDialog() != true) return;
                 try { LoadBytes(File.ReadAllBytes(dialog.FileName), dialog.FileName); }
@@ -1359,8 +1472,37 @@ namespace BeatSyncStudioPro
                 RefreshQueueList();
             }
 
+            internal System.Collections.Generic.IReadOnlyList<string> QueuePathsSnapshot => _queuePaths.ToArray();
+            internal string CurrentTitle => _deck.Title;
+            internal bool IsPlayingDeck => _deck.IsPlaying;
+            internal double RemainingSeconds => _deck.IsLoaded ? Math.Max(0, _deck.TotalSeconds - _deck.PositionSeconds) : 0;
+
+            internal void SetAutoNext(bool on) { if (_autoNextBox != null) _autoNextBox.IsChecked = on; }
+
+            internal bool LoadPathForCruise(string path)
+            {
+                try { return LoadBytes(File.ReadAllBytes(path), System.IO.Path.GetFileName(path)); }
+                catch { return false; }
+            }
+
+            internal void StartForCruise()
+            {
+                if (!_deck.IsLoaded) return;
+                if (_deck.PositionSeconds >= _deck.TotalSeconds - 0.05) _deck.PositionSeconds = 0;
+                _deck.IsPlaying = true;
+                _window._owner.EnsureOutputRunning();
+            }
+
+            internal void StopForCruise() { _deck.IsPlaying = false; }
+
+            internal void SyncForCruise()
+            {
+                if (_deck.Bpm > 0 && _other().EffectiveBpm > 0) SyncToOther();
+            }
+
             private void LoadQueueItem(int i, bool autoplay)
             {
+                _window.CruiseManualOverride();
                 if (i < 0 || i >= _queuePaths.Count) return;
                 try
                 {
@@ -1406,6 +1548,7 @@ namespace BeatSyncStudioPro
 
             private void PlayPause()
             {
+                _window.CruiseManualOverride();
                 if (!_deck.IsLoaded) return;
                 if (!_deck.IsPlaying && _deck.PositionSeconds >= _deck.TotalSeconds - 0.05)
                     _deck.PositionSeconds = 0;
@@ -1415,6 +1558,7 @@ namespace BeatSyncStudioPro
 
             private void Cue()
             {
+                _window.CruiseManualOverride();
                 if (!_deck.IsLoaded) return;
                 if (_deck.IsPlaying)
                 {

@@ -3,6 +3,12 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.26 — 🚢 Auto-DJ Cruise Mode
+### New
+- **Cruise mode in the DJ window** (feature 2 of the DJ mega-queue): hit **🚢 CRUISE** in the mixer column and BeatSync DJs for you. It builds one playlist from **Deck A's track list followed by Deck B's**, starts on Deck A, and works down the list hands-free.
+- **Real transitions, not hard cuts**: when the playing track has a fade's worth of time left, the next song loads on the *other* deck, **SYNCs automatically when both BPMs are known** (and just crossfades when they're not — missing BPM never blocks), starts playing, and the crossfader animates across over your chosen fade length — **2 / 4 / 8 / 12 seconds**. The old deck stops when the fade lands.
+- **You always outrank the machine**: loading a track, pressing PLAY or CUE on either deck turns cruise off instantly ("manual control"), turning cruise off mid-fade freezes everything exactly where it is, and cruise politely ends itself when the playlist runs out. Broken files in the list are skipped, not fatal.
+
 ## Version 3.25 — 🧬 Stem Decks
 ### New
 - **Stem decks in the DJ window** (first of the DJ mega-queue Michael greenlit): every deck gets a **🧬 Split Stems** button. It runs the same HTDemucs AI the Stem Splitter uses (one-time ~304 MB model download, same prompt) and splits the loaded track into **Vocals / Drums / Bass / Other** — then the four toggle chips appear under the deck.
