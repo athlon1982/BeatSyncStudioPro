@@ -27,6 +27,43 @@ namespace BeatSyncStudioPro
         public double ReverbMix { get; set; } = 0.3;
     }
 
+    /// <summary>
+    /// Stereo balance/pan for stereo sources. NAudio's PanningSampleProvider
+    /// only accepts mono input and throws on stereo — this is the stereo-safe
+    /// equivalent used by the mixer chains.
+    /// </summary>
+    public class StereoPanSampleProvider : ISampleProvider
+    {
+        private readonly ISampleProvider _source;
+
+        public StereoPanSampleProvider(ISampleProvider source)
+        {
+            _source = source;
+            WaveFormat = source.WaveFormat;
+        }
+
+        public WaveFormat WaveFormat { get; }
+
+        /// <summary>-1 = full left, 0 = center, +1 = full right.</summary>
+        public float Pan { get; set; }
+
+        public int Read(float[] buffer, int offset, int count)
+        {
+            int read = _source.Read(buffer, offset, count);
+            float pan = Math.Clamp(Pan, -1f, 1f);
+            if (Math.Abs(pan) < 0.001f || WaveFormat.Channels != 2) return read;
+
+            float leftGain = pan <= 0 ? 1f : 1f - pan;
+            float rightGain = pan >= 0 ? 1f : 1f + pan;
+            for (int i = 0; i + 1 < read; i += 2)
+            {
+                buffer[offset + i] *= leftGain;
+                buffer[offset + i + 1] *= rightGain;
+            }
+            return read;
+        }
+    }
+
     /// <summary>Three-band EQ (low shelf / peaking / high shelf) built on NAudio biquads.</summary>
     public class EqSampleProvider : ISampleProvider
     {

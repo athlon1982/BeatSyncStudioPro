@@ -90,7 +90,7 @@ namespace BeatSyncStudioPro
                 var eq = new EqSampleProvider(chainMixer, chain.Fx);
                 var delay = new DelaySampleProvider(eq, chain.Fx);
                 var reverb = new ReverbSampleProvider(delay, chain.Fx);
-                var pan = new PanningSampleProvider(reverb) { Pan = (float)chain.Pan };
+                var pan = new StereoPanSampleProvider(reverb) { Pan = (float)chain.Pan };
                 var gain = new VolumeSampleProvider(pan) { Volume = (float)chain.Volume };
                 root.AddMixerInput(gain);
                 chainMixers.Add(chainMixer);

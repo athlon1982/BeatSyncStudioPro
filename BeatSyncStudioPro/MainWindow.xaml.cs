@@ -38,7 +38,7 @@ namespace BeatSyncStudioPro
         // Per-track mixer chains (volume + pan per track; last chain = VIDEO AUDIO lane)
         private readonly List<MixingSampleProvider> _trackMixers = new List<MixingSampleProvider>();
         private readonly List<VolumeSampleProvider> _trackGains = new List<VolumeSampleProvider>();
-        private readonly List<PanningSampleProvider> _trackPanFx = new List<PanningSampleProvider>();
+        private readonly List<StereoPanSampleProvider> _trackPanFx = new List<StereoPanSampleProvider>();
         private readonly List<ISampleProvider> _trackChainOutputs = new List<ISampleProvider>();
         public List<double> TrackVolumeValues { get; } = new List<double>();
         public List<double> TrackPanValues { get; } = new List<double>();
@@ -721,7 +721,7 @@ namespace BeatSyncStudioPro
                 var eq = new EqSampleProvider(trackMixer, fx);
                 var delay = new DelaySampleProvider(eq, fx);
                 var reverb = new ReverbSampleProvider(delay, fx);
-                var pan = new PanningSampleProvider(reverb) { Pan = (float)TrackPanValues[i] };
+                var pan = new StereoPanSampleProvider(reverb) { Pan = (float)TrackPanValues[i] };
                 var gain = new VolumeSampleProvider(pan) { Volume = (float)TrackVolumeValues[i] };
                 _trackMixers.Add(trackMixer);
                 _trackPanFx.Add(pan);
