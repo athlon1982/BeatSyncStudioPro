@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -184,6 +186,15 @@ namespace BeatSyncStudioPro
             private readonly DjWindow _window;
             private readonly DjDeck _deck;
             private readonly Func<DjDeck> _other;
+            private readonly Button _stemBtn;
+            private readonly TextBlock _stemStatus;
+            private readonly StackPanel _stemChipRow;
+            private readonly Button[] _stemChips = new Button[4];
+            private readonly bool[] _stemOn = { true, true, true, true };
+            private CancellationTokenSource? _stemCts;
+            private string _stemKey = "";
+            private int _stemGeneration;
+            private bool _stemBusy;
             private readonly TrackFxSettings _fx;
             private readonly string _name;
             private readonly SolidColorBrush _accent;
@@ -409,6 +420,36 @@ namespace BeatSyncStudioPro
                 fileBtn.Click += (s, e) => LoadFromFile();
                 loadRow.Children.Add(fileBtn);
                 root.Children.Add(loadRow);
+
+                // Stems (v3.25): split the loaded track into 4 synced stems, toggled live
+                var stemRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
+                var stemLabel = new TextBlock { Text = "Stems", Foreground = MutedText, FontSize = 11, Width = 72, VerticalAlignment = VerticalAlignment.Center };
+                _stemBtn = MakeButton("\U0001F9EC Split Stems", 118);
+                _stemBtn.Click += async (s, e) => await SplitStemsAsync();
+                _stemStatus = new TextBlock { Foreground = MutedText, FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
+                stemRow.Children.Add(stemLabel);
+                stemRow.Children.Add(_stemBtn);
+                stemRow.Children.Add(_stemStatus);
+                root.Children.Add(stemRow);
+                _stemChipRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(72, 4, 0, 0), Visibility = Visibility.Collapsed };
+                string[] chipNames = { "\U0001F3A4 Vocals", "\U0001F941 Drums", "\U0001F3B8 Bass", "\U0001F3B9 Other" };
+                int[] chipStem = { 3, 0, 1, 2 };
+                for (int i = 0; i < 4; i++)
+                {
+                    int chip = i, stemIdx = chipStem[i];
+                    var b = MakeButton(chipNames[i], 76);
+                    b.Margin = new Thickness(0, 0, 6, 0);
+                    b.Background = _accent;
+                    b.Click += (s, e) =>
+                    {
+                        _stemOn[chip] = !_stemOn[chip];
+                        _deck.SetStemOn(stemIdx, _stemOn[chip]);
+                        b.Background = _stemOn[chip] ? _accent : PanelBtn;
+                    };
+                    _stemChips[i] = b;
+                    _stemChipRow.Children.Add(b);
+                }
+                root.Children.Add(_stemChipRow);
 
                 // Transport row
                 var transport = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 2) };
@@ -1177,6 +1218,10 @@ namespace BeatSyncStudioPro
                     RenderWaveform();
                     RenderPlatterRing();
                     _window.SetStatus($"{_name}: {_deck.Title} loaded ({FmtTime(_deck.TotalSeconds)}). Set the BPM to unlock SYNC and loops.");
+                    _stemKey = StemBaseName(name) + "-" + bytes.Length;
+                    _stemGeneration++;
+                    ShowStemChips(false, "");
+                    _ = TryLoadCachedStemsAsync();
                     return true;
                 }
                 catch (Exception ex)
@@ -1184,6 +1229,96 @@ namespace BeatSyncStudioPro
                     MessageBox.Show("Could not decode that song: " + ex.Message, _name);
                     return false;
                 }
+            }
+
+            private static string StemBaseName(string title)
+            {
+                var sb = new System.Text.StringBuilder();
+                foreach (char c in title) sb.Append(char.IsLetterOrDigit(c) || c == ' ' || c == '-' ? c : '_');
+                string s = sb.ToString().Trim();
+                return s.Length == 0 ? "track" : s;
+            }
+
+            private static string StemCacheFolder(string key) => System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "BeatSyncStudioPro", "stems", key);
+
+            private static bool StemCacheExists(string folder, string baseName)
+            {
+                foreach (var stem in StemSeparator.StemNames)
+                    if (!File.Exists(System.IO.Path.Combine(folder, baseName + " (" + stem + ").wav"))) return false;
+                return true;
+            }
+
+            private void ShowStemChips(bool ready, string status)
+            {
+                _stemChipRow.Visibility = ready ? Visibility.Visible : Visibility.Collapsed;
+                if (ready)
+                    for (int i = 0; i < 4; i++) { _stemOn[i] = true; _stemChips[i].Background = _accent; }
+                _stemStatus.Text = status;
+            }
+
+            private async Task TryLoadCachedStemsAsync()
+            {
+                int gen = ++_stemGeneration;
+                string key = _stemKey;
+                if (key.Length == 0) return;
+                string baseName = StemBaseName(_deck.Title);
+                string folder = StemCacheFolder(key);
+                if (!StemCacheExists(folder, baseName)) return;
+                _stemStatus.Text = "loading cached stems...";
+                bool ok = await Task.Run(() => _deck.LoadStemsFromFolder(folder, baseName));
+                if (gen != _stemGeneration) return;
+                ShowStemChips(ok, ok ? "stems ready (cached)" : "");
+            }
+
+            private async Task SplitStemsAsync()
+            {
+                if (_stemBusy) return;
+                if (!_deck.IsLoaded) { _stemStatus.Text = "load a track first"; return; }
+                string baseName = StemBaseName(_deck.Title);
+                string folder = StemCacheFolder(_stemKey.Length > 0 ? _stemKey : baseName);
+                if (StemCacheExists(folder, baseName))
+                {
+                    _stemStatus.Text = "loading cached stems...";
+                    bool okc = await Task.Run(() => _deck.LoadStemsFromFolder(folder, baseName));
+                    ShowStemChips(okc, okc ? "stems ready (cached)" : "cached stems failed to load");
+                    return;
+                }
+                string modelDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BeatSyncStudioPro", "models");
+                string modelPath = System.IO.Path.Combine(modelDir, "htdemucs.onnx");
+                if (!File.Exists(modelPath))
+                {
+                    var ask = MessageBox.Show("The stem splitter AI model (~304 MB) is not downloaded yet.\n\nDownload it once now?", "BeatSync Studio Pro", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                    if (ask != MessageBoxResult.Yes) { _stemStatus.Text = "stem model not downloaded"; return; }
+                    try
+                    {
+                        Directory.CreateDirectory(modelDir);
+                        _stemStatus.Text = "downloading stem model...";
+                        await DownloadManager.DownloadToFileAsync("https://huggingface.co/smank/htdemucs-onnx/resolve/main/htdemucs.onnx", "HTDemucs AI model (stem splitter)", modelPath,
+                            item => { _stemStatus.Text = $"downloading stem model... {item.Percent:0}%"; });
+                    }
+                    catch (Exception ex) { _stemStatus.Text = "model download failed: " + ex.Message; return; }
+                }
+                _stemBusy = true;
+                _stemBtn.IsEnabled = false;
+                _stemCts?.Cancel();
+                _stemCts = new CancellationTokenSource();
+                int gen = ++_stemGeneration;
+                try
+                {
+                    Directory.CreateDirectory(folder);
+                    var (left, right) = _deck.GetChannelBuffers();
+                    var progress = new Progress<double>(p => { if (gen == _stemGeneration) _stemStatus.Text = $"splitting stems... {p * 100:0}%"; });
+                    await StemSeparator.SplitAsync(left, right, modelPath, folder, baseName, progress, _stemCts.Token);
+                    if (gen != _stemGeneration) return;
+                    bool ok = await Task.Run(() => _deck.LoadStemsFromFolder(folder, baseName));
+                    if (gen != _stemGeneration) return;
+                    ShowStemChips(ok, ok ? $"stems ready (ran on {StemSeparator.LastComputeUsed})" : "split finished but the stems failed to load");
+                }
+                catch (OperationCanceledException) { _stemStatus.Text = "stem split cancelled"; }
+                catch (Exception ex) { _stemStatus.Text = "stem split failed: " + ex.Message; }
+                finally { _stemBusy = false; _stemBtn.IsEnabled = true; }
             }
 
             private void RefreshQueueList()

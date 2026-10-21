@@ -21,6 +21,16 @@ namespace BeatSyncStudioPro
         private double _loopStartSeconds = -1;
 
         public string Title { get; private set; } = "";
+
+        // Stem playback (v3.25): 4 interleaved buffers in StemSeparator.StemNames
+        // order, played through the SAME position clock as the full mix, so
+        // tempo, loops and scratching stay sample-accurate. Per-stem gains ramp
+        // click-free toward their toggle targets inside Read.
+        private float[][]? _stems;
+        private readonly float[] _stemTarget = { 1f, 1f, 1f, 1f };
+        private readonly float[] _stemGain = { 1f, 1f, 1f, 1f };
+
+        public bool StemModeActive { get { lock (_lock) { return _stems != null; } } }
         public bool IsLoaded => _samples.Length > 0;
         public bool IsPlaying { get; set; }
 
@@ -73,6 +83,8 @@ namespace BeatSyncStudioPro
             lock (_lock)
             {
                 _samples = decoded;
+                _stems = null;
+                for (int i = 0; i < 4; i++) { _stemTarget[i] = 1f; _stemGain[i] = 1f; }
                 Title = Path.GetFileNameWithoutExtension(filename);
                 _positionFrames = 0;
                 IsPlaying = false;
@@ -84,6 +96,59 @@ namespace BeatSyncStudioPro
                 Tempo = 1.0;
                 Bend = 1.0;
             }
+        }
+
+        /// <summary>Hand the deck 4 stem buffers (StemSeparator.StemNames order); they take over playback on the same clock.</summary>
+        public void LoadStems(float[][] stems)
+        {
+            lock (_lock)
+            {
+                if (stems.Length != 4) { _stems = null; return; }
+                foreach (var b in stems) if (b == null || b.Length < 4) { _stems = null; return; }
+                // stems must belong to the currently loaded track (guards a split
+                // finishing after the DJ already loaded a different song)
+                if (_samples.Length > 0)
+                    foreach (var b in stems)
+                        if (Math.Abs(b.Length - _samples.Length) > _samples.Length / 20) { _stems = null; return; }
+                _stems = stems;
+                for (int i = 0; i < 4; i++) { _stemTarget[i] = 1f; _stemGain[i] = 1f; }
+            }
+        }
+
+        public void ClearStems() { lock (_lock) { _stems = null; } }
+
+        public void SetStemOn(int stemIndex, bool on)
+        {
+            if (stemIndex < 0 || stemIndex > 3) return;
+            _stemTarget[stemIndex] = on ? 1f : 0f;
+        }
+
+        /// <summary>The loaded track decoded to separate channels - the input StemSeparator.SplitAsync wants.</summary>
+        public (float[] Left, float[] Right) GetChannelBuffers()
+        {
+            lock (_lock)
+            {
+                int frames = _samples.Length / 2;
+                var l = new float[frames];
+                var r = new float[frames];
+                for (int f = 0; f < frames; f++) { l[f] = _samples[f * 2]; r[f] = _samples[f * 2 + 1]; }
+                return (l, r);
+            }
+        }
+
+        /// <summary>Load the 4 stem WAVs the separator wrote ("name (stem).wav") as this deck's stem buffers.</summary>
+        public bool LoadStemsFromFolder(string folder, string baseName)
+        {
+            var stems = new float[4][];
+            for (int s = 0; s < 4; s++)
+            {
+                string p = Path.Combine(folder, baseName + " (" + StemSeparator.StemNames[s] + ").wav");
+                if (!File.Exists(p)) return false;
+                using var reader = new WaveFileReader(p);
+                stems[s] = ReadAll(reader);
+            }
+            LoadStems(stems);
+            return true;
         }
 
         private static float[] Decode(byte[] bytes, string filename)
@@ -231,8 +296,31 @@ namespace BeatSyncStudioPro
                     double frac = _positionFrames - idx;
                     int i0 = (int)(idx * 2);
                     int i1 = Math.Min(i0 + 2, _samples.Length - 2);
-                    buffer[offset + f * 2] = (float)(_samples[i0] * (1 - frac) + _samples[i1] * frac);
-                    buffer[offset + f * 2 + 1] = (float)(_samples[i0 + 1] * (1 - frac) + _samples[i1 + 1] * frac);
+                    if (_stems != null)
+                    {
+                        double mixL = 0, mixR = 0;
+                        for (int s = 0; s < 4; s++)
+                        {
+                            float g = _stemGain[s];
+                            float tg = _stemTarget[s];
+                            if (g < tg) g = Math.Min(tg, g + 0.004f);
+                            else if (g > tg) g = Math.Max(tg, g - 0.004f);
+                            _stemGain[s] = g;
+                            if (g <= 0.0001f) continue;
+                            float[] sb = _stems[s];
+                            int si0 = Math.Min(i0, sb.Length - 2);
+                            int si1 = Math.Min(si0 + 2, sb.Length - 2);
+                            mixL += g * (sb[si0] * (1 - frac) + sb[si1] * frac);
+                            mixR += g * (sb[si0 + 1] * (1 - frac) + sb[si1 + 1] * frac);
+                        }
+                        buffer[offset + f * 2] = (float)mixL;
+                        buffer[offset + f * 2 + 1] = (float)mixR;
+                    }
+                    else
+                    {
+                        buffer[offset + f * 2] = (float)(_samples[i0] * (1 - frac) + _samples[i1] * frac);
+                        buffer[offset + f * 2 + 1] = (float)(_samples[i0 + 1] * (1 - frac) + _samples[i1 + 1] * frac);
+                    }
                     float a0 = Math.Abs(buffer[offset + f * 2]);
                     float a1 = Math.Abs(buffer[offset + f * 2 + 1]);
                     if (a0 > peak) peak = a0;

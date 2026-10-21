@@ -3,6 +3,12 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.25 — 🧬 Stem Decks
+### New
+- **Stem decks in the DJ window** (first of the DJ mega-queue Michael greenlit): every deck gets a **🧬 Split Stems** button. It runs the same HTDemucs AI the Stem Splitter uses (one-time ~304 MB model download, same prompt) and splits the loaded track into **Vocals / Drums / Bass / Other** — then the four toggle chips appear under the deck.
+- **Stems play through the deck's own clock**: one shared position drives all four stems, so tempo, SYNC, beat loops and scratching stay perfectly in sync while you drop the vocals for an instrumental break or kill the drums under an acapella. Toggles ramp click-free (no pops), per deck independently.
+- **Splits are cached per track**: stems are saved under your app data, keyed to the exact file, so loading the same song again brings its stems back instantly — no re-splitting, no waiting.
+
 ## Version 3.24 — 🏠 Remote GPU ×2: Both PCs in the Pool
 ### New
 - **Two engine slots** (Michael: "I want to be able to use both PCs if possible — can we use both at the same time or separately?"). The 🏠 Remote GPU card in 🌐 Providers now takes **Engine 1 and Engine 2** addresses — one for the GTX 1660 desktop, one for the RTX 3050 laptop — each with its own 💾 Save and 🩺 Test. Create Song / AI Lab keep the same single "🏠 Remote GPU" provider pick; behind it, the app now carries both addresses.
