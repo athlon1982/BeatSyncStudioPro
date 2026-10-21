@@ -111,6 +111,46 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="🎬 Video" Foreground="White">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="4,2,4,4">
+                    <TextBlock Text="Describe a clip and an AI films it. Runs on fal.ai with the key from the Keys &amp; Compute tab (paid per clip — video is heavy, there's no free hosted tier that actually works yet; your home engine will be the free route once it's set up)."
+                               Foreground="#8A90A0" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <TextBlock Text="Video prompt" FontWeight="SemiBold" Margin="0,2,0,3"/>
+                    <TextBox x:Name="VideoPromptBox" Height="62" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                             ToolTip="e.g. A red pickup truck driving a Vermont dirt road at golden hour, dust kicking up, cinematic drone shot following behind"/>
+                    <TextBlock Text="Model" FontWeight="SemiBold" Margin="0,10,0,3"/>
+                    <ComboBox x:Name="VideoModelBox" SelectedIndex="0">
+                        <ComboBoxItem Content="MiniMax Video-01 — strong all-rounder (paid)" Tag="fal-ai/minimax/video-01"/>
+                        <ComboBoxItem Content="LTX-2 19B — fast &amp; cheaper (paid)" Tag="fal-ai/ltx-2-19b/text-to-video"/>
+                        <ComboBoxItem Content="LTX-2.3 22B — newest LTX, higher quality (paid)" Tag="fal-ai/ltx-2.3-22b/text-to-video"/>
+                    </ComboBox>
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <Button x:Name="VideoGenBtn" Content="🎬 Generate Video" Click="VideoGen_Click" Padding="16,8"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                        <ProgressBar x:Name="VideoProg" IsIndeterminate="True" Width="130" Height="8" Margin="12,0,0,0"
+                                     VerticalAlignment="Center" Visibility="Collapsed"/>
+                        <TextBlock Text="Clips usually take 1–5 minutes." Foreground="#666666" FontSize="10"
+                                   VerticalAlignment="Center" Margin="12,0,0,0"/>
+                    </StackPanel>
+                    <Border Background="Black" BorderBrush="#2A303C" BorderThickness="1" Height="252" Margin="0,12,0,0">
+                        <MediaElement x:Name="VideoPlayer" LoadedBehavior="Manual" UnloadedBehavior="Manual"
+                                      ScrubbingEnabled="True" Stretch="Uniform"/>
+                    </Border>
+                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                        <Button Content="▶ Play" Click="VideoPlay_Click" Padding="10,4" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        <Button Content="⏸ Pause" Click="VideoPause_Click" Padding="10,4" Margin="6,0,0,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        <Button Content="⏹ Stop" Click="VideoStop_Click" Padding="10,4" Margin="6,0,0,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        <Button x:Name="VideoAddBtn" Content="🎬 Add to my project" Click="VideoAdd_Click" Padding="12,4" Margin="16,0,0,0"
+                                Background="#7C5CFF" Foreground="White" BorderThickness="0" Cursor="Hand" IsEnabled="False"
+                                ToolTip="Files the clip in your asset library under Video, ready to drag onto the video track"/>
+                        <Button x:Name="VideoOpenBtn" Content="📂 Show file" Click="VideoOpen_Click" Padding="10,4" Margin="6,0,0,0"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" IsEnabled="False"/>
+                    </StackPanel>
+                    <TextBlock x:Name="VideoStatus" Text="No clip yet — write a prompt and hit Generate Video." Foreground="#8A90A0" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                </StackPanel>
+                </ScrollViewer>
+            </TabItem>
             <TabItem Header="🔑 Keys &amp; Compute" Foreground="White">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="10">

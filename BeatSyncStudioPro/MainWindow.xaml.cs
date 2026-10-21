@@ -617,6 +617,15 @@ namespace BeatSyncStudioPro
             }
         }
 
+        /// <summary>Register a generated video file in the library (AI Lab video tab).</summary>
+        public void AddGeneratedVideoToLibrary(string path)
+        {
+            string name = System.IO.Path.GetFileName(path);
+            VideoAssets[name] = path;
+            ListContainer.Children.Add(CreateAssetButton($"🎬 {name}", name));
+            ApplyLibraryFilter();
+        }
+
         private void BtnImportImages_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog dlg = new OpenFileDialog

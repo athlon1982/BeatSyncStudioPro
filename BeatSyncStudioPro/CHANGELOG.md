@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.18 — Video Generator in the AI Lab
+### New
+- **🎬 Video tab in the AI Lab**: describe a clip, pick a model, and an AI films it. Runs on **fal.ai** with the key from the Keys & Compute tab (paid per clip — stated plainly on the tab; there is no free hosted video tier that actually works yet, and the home engine will be the free route once it exists). Models, all confirmed against fal's own docs: **MiniMax Video-01** (strong all-rounder), **LTX-2 19B** (fast & cheaper), **LTX-2.3 22B** (newest LTX, higher quality).
+- Finished clips download through the **Downloads window** (progress, pause, cancel), preview right in the tab with play/pause/stop, and **🎬 Add to my project** files the clip in the asset library under Video, ready to drag onto the video track. Clips are kept in the app's Generated folder.
+
 ## Version 3.17 — Create Song Label Fix
 ### Fixed
 - The Create Song window's **"Length" label overlapped "Voice"** (spotted in Michael's screenshot of the fixed window): the label was missing its grid column, so it rendered on top of the Voice label. It now sits in its own column beside the duration picker.

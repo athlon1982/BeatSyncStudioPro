@@ -84,6 +84,33 @@ namespace BeatSyncStudioPro
             return (data, ext);
         }
 
+        /// <summary>Text-to-video on fal.ai. Returns the finished clip's URL
+        /// (the caller downloads it). Confirmed model ids (fal docs, Oct 2026):
+        /// fal-ai/minimax/video-01, fal-ai/ltx-2-19b/text-to-video,
+        /// fal-ai/ltx-2.3-22b/text-to-video — all return { video: { url } }.</summary>
+        public static async Task<string> GenerateVideoAsync(string key, string model, string prompt,
+            Action<string> status, CancellationToken ct)
+        {
+            using var doc = await RunQueueAsync(key, model, new { prompt }, status, ct, 600);
+            string? url = FindVideoUrl(doc.RootElement);
+            if (url == null && doc.RootElement.TryGetProperty("data", out var data))
+                url = FindVideoUrl(data);
+            if (url == null)
+                throw new InvalidOperationException("fal.ai finished but no video URL was in the result: " + Trim(doc.RootElement.GetRawText()));
+            return url;
+        }
+
+        private static string? FindVideoUrl(JsonElement el)
+        {
+            if (el.ValueKind != JsonValueKind.Object) return null;
+            if (el.TryGetProperty("video", out var v) && v.ValueKind == JsonValueKind.Object
+                && v.TryGetProperty("url", out var u) && u.ValueKind == JsonValueKind.String)
+                return u.GetString();
+            if (el.TryGetProperty("video_url", out var vs) && vs.ValueKind == JsonValueKind.String)
+                return vs.GetString();
+            return null;
+        }
+
         /// <summary>Demucs stem separation on fal.ai. Returns stem name → file.</summary>
         public static async Task<Dictionary<string, OnlineStems.StemFile>> RunDemucsAsync(
             byte[] audioBytes, string ext, string key, Action<string> status, CancellationToken ct)

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -92,6 +94,83 @@ namespace BeatSyncStudioPro
         }
 
         private CreateSongWindow? _createSong;
+        // ---------- 🎬 Video tab (fal.ai text-to-video) ----------
+        private string? _lastVideoPath;
+        private CancellationTokenSource? _videoCts;
+
+        private async void VideoGen_Click(object sender, RoutedEventArgs e)
+        {
+            string key = ComputeSettings.Load().GetFalKey();
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                VideoStatus.Text = "Video runs on fal.ai — add your fal.ai key first (Keys & Compute tab). It's paid per clip.";
+                return;
+            }
+            string prompt = VideoPromptBox.Text.Trim();
+            if (prompt.Length == 0)
+            {
+                VideoStatus.Text = "Write a prompt first — describe the shot: subject, place, camera move, mood.";
+                return;
+            }
+            string model = (VideoModelBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "fal-ai/minimax/video-01";
+            _videoCts?.Cancel();
+            _videoCts = new CancellationTokenSource();
+            var ct = _videoCts.Token;
+            VideoGenBtn.IsEnabled = false;
+            VideoProg.Visibility = Visibility.Visible;
+            try
+            {
+                string url = await FalOnline.GenerateVideoAsync(key, model, prompt,
+                    s => Dispatcher.Invoke(() => VideoStatus.Text = s), ct);
+                string dir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "BeatSyncStudioPro", "Generated");
+                Directory.CreateDirectory(dir);
+                string dest = Path.Combine(dir, "video-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".mp4");
+                VideoStatus.Text = "☁️ fal.ai: clip ready — downloading… (watch the ⬇ Downloads window too)";
+                await DownloadManager.DownloadToFileAsync(url, Path.GetFileName(dest), dest,
+                    p => Dispatcher.Invoke(() => VideoStatus.Text = $"⬇ Downloading your clip… {p.Percent:0}%"));
+                _lastVideoPath = dest;
+                VideoPlayer.Source = new Uri(dest);
+                VideoPlayer.Play();
+                VideoAddBtn.IsEnabled = true;
+                VideoOpenBtn.IsEnabled = true;
+                VideoStatus.Text = "Done — your clip is previewing above. 🎬 Add to my project files it in the library under Video.";
+            }
+            catch (OperationCanceledException)
+            {
+                VideoStatus.Text = "Video generation cancelled.";
+            }
+            catch (Exception ex)
+            {
+                VideoStatus.Text = ex.Message.Length > 320 ? ex.Message.Substring(0, 320) + "…" : ex.Message;
+            }
+            finally
+            {
+                VideoGenBtn.IsEnabled = true;
+                VideoProg.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void VideoPlay_Click(object sender, RoutedEventArgs e) { if (VideoPlayer.Source != null) VideoPlayer.Play(); }
+        private void VideoPause_Click(object sender, RoutedEventArgs e) { if (VideoPlayer.Source != null) VideoPlayer.Pause(); }
+        private void VideoStop_Click(object sender, RoutedEventArgs e) { if (VideoPlayer.Source != null) VideoPlayer.Stop(); }
+
+        private void VideoAdd_Click(object sender, RoutedEventArgs e)
+        {
+            if (_lastVideoPath != null && File.Exists(_lastVideoPath))
+            {
+                _owner.AddGeneratedVideoToLibrary(_lastVideoPath);
+                VideoStatus.Text = $"Filed in your library as 🎬 {Path.GetFileName(_lastVideoPath)} — drag it onto the video track in the main window.";
+            }
+        }
+
+        private void VideoOpen_Click(object sender, RoutedEventArgs e)
+        {
+            if (_lastVideoPath != null && File.Exists(_lastVideoPath))
+                Process.Start("explorer.exe", "/select,\"" + _lastVideoPath + "\"");
+        }
+
         private void CreateSongFromThis_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrWhiteSpace(OutputBox.Text))
