@@ -9,6 +9,15 @@ namespace BeatSyncStudioPro
         /// <summary>"builtin:kick" etc., or a library sound name (a ZipSounds key).</summary>
         public string Sound { get; set; } = "builtin:kick";
         public bool[] Steps { get; set; } = new bool[16];
+
+        /// <summary>Per-step velocity, 0–127 (100 = full). Older projects may lack it — readers must guard.</summary>
+        public int[] Velocities { get; set; } = { 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100 };
+
+        public double VelocityAt(int step)
+        {
+            if (Velocities == null || step < 0 || step >= Velocities.Length) return 1.0;
+            return Math.Clamp(Velocities[step], 1, 127) / 100.0;
+        }
     }
 
     /// <summary>A step-sequencer pattern. Saved inside the project file.</summary>

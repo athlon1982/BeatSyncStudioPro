@@ -73,6 +73,13 @@ namespace BeatSyncStudioPro
 
         // ---------- pattern / rows UI ----------
 
+        /// <summary>Focus the window on a specific pattern (used by the drum generator).</summary>
+        public void SelectPattern(PatternData pattern)
+        {
+            _current = pattern;
+            RefreshPatternPicker();
+        }
+
         private void RefreshPatternPicker()
         {
             _loading = true;
@@ -284,8 +291,11 @@ namespace BeatSyncStudioPro
                             var samples = GetSound(channel.Sound);
                             if (samples != null)
                             {
-                                _mixer.AddMixerInput(new StartDelayedSampleProvider(
-                                    new ArraySampleProvider(samples), delay));
+                                ISampleProvider src = new ArraySampleProvider(samples);
+                                double vel = channel.VelocityAt(step);
+                                if (Math.Abs(vel - 1.0) > 0.01)
+                                    src = new VolumeSampleProvider(src) { Volume = (float)vel };
+                                _mixer.AddMixerInput(new StartDelayedSampleProvider(src, delay));
                             }
                         }
                     }
@@ -352,59 +362,13 @@ namespace BeatSyncStudioPro
             if (BarsPicker.SelectedItem is ComboBoxItem item && item.Tag is string tag) int.TryParse(tag, out bars);
             try
             {
-                byte[] wav = RenderPatternWav(_current, bars);
+                byte[] wav = PatternRenderer.RenderWav(_owner, _current, bars);
                 string name = _owner.AddRenderedPatternToTimeline(wav, _current.Name + ".wav");
                 StatusText.Text = $"✅ Rendered {bars} bar(s) — '{name}' is on track 1 and in your library.";
             }
             catch (Exception ex)
             {
                 StatusText.Text = "Render failed: " + ex.Message;
-            }
-        }
-
-        private byte[] RenderPatternWav(PatternData pattern, int bars)
-        {
-            double stepDur = 60.0 / pattern.Bpm / 4.0;
-            int stepSamples = (int)(stepDur * 44100);
-            int totalFrames = stepSamples * 16 * bars;
-            var mix = new float[totalFrames * 2];
-
-            for (int bar = 0; bar < bars; bar++)
-            {
-                for (int step = 0; step < 16; step++)
-                {
-                    int at = (bar * 16 + step) * stepSamples;
-                    foreach (var channel in pattern.Channels)
-                    {
-                        if (!channel.Steps[step]) continue;
-                        var samples = GetSound(channel.Sound);
-                        if (samples == null) continue;
-                        int frames = Math.Min(samples.Length / 2, totalFrames - at);
-                        for (int i = 0; i < frames * 2; i++)
-                        {
-                            mix[at * 2 + i] += samples[i];
-                        }
-                    }
-                }
-            }
-
-            double peak = 0;
-            foreach (var v in mix) peak = Math.Max(peak, Math.Abs(v));
-            if (peak > 0.95)
-            {
-                float scale = (float)(0.95 / peak);
-                for (int i = 0; i < mix.Length; i++) mix[i] *= scale;
-            }
-
-            string temp = Path.Combine(Path.GetTempPath(), "beatsync-pattern-" + Guid.NewGuid().ToString("N") + ".wav");
-            try
-            {
-                WaveFileWriter.CreateWaveFile16(temp, new ArraySampleProvider(mix));
-                return File.ReadAllBytes(temp);
-            }
-            finally
-            {
-                try { File.Delete(temp); } catch { }
             }
         }
     }

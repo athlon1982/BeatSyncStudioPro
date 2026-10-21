@@ -1046,6 +1046,7 @@ namespace BeatSyncStudioPro
                 new("Stem Splitter…", "View", "", () => BtnStemSplit_Click(this, ev)),
                 new("Patterns (Step Sequencer)…", "View", "", () => BtnPatterns_Click(this, ev)),
                 new("Piano Roll…", "View", "", () => BtnPianoRoll_Click(this, ev)),
+                new("Drum Generator…", "Create", "", () => BtnDrumGenerator_Click(this, ev)),
                 new("Render Queue…", "File", "", () => BtnRenderQueue_Click(this, ev)),
                 new("Batch Convert…", "File", "", () => BtnBatchConvert_Click(this, ev)),
                 new("Start Screen…", "File", "", () => MenuStartScreen_Click(this, ev)),
@@ -1150,8 +1151,8 @@ namespace BeatSyncStudioPro
             _patternWindow.Show();
         }
 
-        /// <summary>Add a rendered pattern WAV to the library and drop it on track 1 at the start. Returns the final name.</summary>
-        public string AddRenderedPatternToTimeline(byte[] wavBytes, string desiredName)
+        /// <summary>Add a WAV to the asset library under a unique name. Returns the final name.</summary>
+        public string AddToLibraryOnly(byte[] wavBytes, string desiredName)
         {
             string name = desiredName;
             int n = 2;
@@ -1162,6 +1163,13 @@ namespace BeatSyncStudioPro
             }
             ZipSounds[name] = wavBytes;
             ListContainer.Children.Add(CreateAssetButton($"🎵 {name}", name));
+            return name;
+        }
+
+        /// <summary>Add a rendered pattern WAV to the library and drop it on track 1 at the start. Returns the final name.</summary>
+        public string AddRenderedPatternToTimeline(byte[] wavBytes, string desiredName)
+        {
+            string name = AddToLibraryOnly(wavBytes, desiredName);
             if (AudioTrackCount > 0 && TimelineCanvas != null)
             {
                 var block = new FixedBlock(this, TimelineCanvas, 0, name, 0, wavBytes, "wav");
@@ -1169,6 +1177,19 @@ namespace BeatSyncStudioPro
                 RenderStudioGridLanes();
             }
             return name;
+        }
+
+        /// <summary>Open the step sequencer focused on a specific pattern (drum generator hand-off).</summary>
+        public void OpenPatternsOn(PatternData pattern)
+        {
+            BtnPatterns_Click(this, new RoutedEventArgs());
+            _patternWindow?.SelectPattern(pattern);
+        }
+
+        private void BtnDrumGenerator_Click(object sender, RoutedEventArgs e)
+        {
+            var win = new DrumGeneratorWindow(this) { Owner = this };
+            win.ShowDialog();
         }
 
         private StemSplitWindow? _stemSplitWindow;
