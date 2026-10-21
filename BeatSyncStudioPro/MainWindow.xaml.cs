@@ -1042,6 +1042,7 @@ namespace BeatSyncStudioPro
                 new("DJ Decks", "View", "Ctrl+Shift+D", () => BtnDj_Click(this, ev)),
                 new("Output Window", "View", "Ctrl+Shift+O", () => BtnOutput_Click(this, ev)),
                 new("Monitor FX", "View", "Ctrl+Shift+M", () => BtnMonitorFx_Click(this, ev)),
+                new("Transcript…", "View", "", () => BtnTranscript_Click(this, ev)),
                 new("Render Queue…", "File", "", () => BtnRenderQueue_Click(this, ev)),
                 new("Batch Convert…", "File", "", () => BtnBatchConvert_Click(this, ev)),
                 new("Start Screen…", "File", "", () => MenuStartScreen_Click(this, ev)),
@@ -1110,6 +1111,25 @@ namespace BeatSyncStudioPro
             return System.IO.Path.Combine(
                 System.IO.Path.GetDirectoryName(chosenPath) ?? "",
                 expanded + System.IO.Path.GetExtension(chosenPath));
+        }
+
+        /// <summary>Set the A–B loop from timeline seconds and show it (transcript click-to-loop).</summary>
+        public void SetLoopRange(double startSec, double endSec)
+        {
+            LoopStartX = Math.Max(0, startSec * 100);
+            LoopEndX = Math.Max(LoopStartX.Value + 10, endSec * 100);
+            LoopEnabled = true;
+            UpdateLoopButtons();
+            TimelineScrollViewer.ScrollToHorizontalOffset(Math.Max(0, LoopStartX.Value - 200));
+        }
+
+        private TranscriptWindow? _transcriptWindow;
+        private void BtnTranscript_Click(object sender, RoutedEventArgs e)
+        {
+            if (_transcriptWindow != null) { _transcriptWindow.Activate(); return; }
+            _transcriptWindow = new TranscriptWindow(this) { Owner = this };
+            _transcriptWindow.Closed += (s, ev) => _transcriptWindow = null;
+            _transcriptWindow.Show();
         }
 
         private RenderQueueWindow? _renderQueueWindow;
