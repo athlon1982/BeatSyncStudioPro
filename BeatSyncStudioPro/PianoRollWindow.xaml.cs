@@ -411,10 +411,20 @@ namespace BeatSyncStudioPro
             if (_current == null) return;
             ReadBpm();
             int loops = 2;
-            if (LoopsPicker.SelectedItem is ComboBoxItem item && item.Tag is string tag) int.TryParse(tag, out loops);
+            if (LoopsPicker.SelectedItem is ComboBoxItem item && item.Tag is string tag && int.TryParse(tag, out int tagLoops))
+                loops = tagLoops;
+            else
+            {
+                // typed freehand: the number is TOTAL bars; the riff is 2 bars per loop
+                string digits = new string((LoopsPicker.Text ?? "").Where(char.IsDigit).ToArray());
+                if (int.TryParse(digits, out int barsTyped)) loops = Math.Clamp((barsTyped + 1) / 2, 1, 499);
+            }
             try
             {
                 double stepDur = 60.0 / _current.Bpm / 4.0;
+                // ~20-minute safety bound, same as the pattern renderer
+                int maxLoops = Math.Max(1, (int)(1200.0 / (stepDur * Steps)));
+                loops = Math.Clamp(loops, 1, Math.Min(499, maxLoops));
                 int stepSamples = (int)(stepDur * 44100);
                 int totalFrames = stepSamples * Steps * loops;
                 var mix = new float[totalFrames * 2];

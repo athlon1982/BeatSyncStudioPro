@@ -3,6 +3,15 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.2 — Your Style, More Drums, Turntables
+### Added
+- **Seven new built-in drum sounds** — open hat, rimshot, shaker, low tom, high tom, cowbell, and crash. The step sequencer now has 12 built-in drums.
+- **Six new drum generator styles** — Lo-Fi, UK Drill, Dancehall, West Coast / G-Funk, Techno, and Drum & Bass.
+- **Unlimited render length**: the sequencer and piano roll bar pickers are now type-any-number (presets up to 128 bars, type up to 999) — renders start at 4 bars and go as long as you want.
+### Improved
+- **Boom-Rap, labeled right and kept separate**: the Rad-Dad style is now called **Boom-Rap** (not Boom-Bap) and lives in its own **⭐ My Styles** group in the Drum Generator, apart from the general styles. The sequencer's starter pattern is now the "Boom-Rap Groove", and the Starter Loop Pack leads with a Boom-Rap loop (six loops now).
+- **DJ Decks look like turntables now**: each deck has a neon-ringed vinyl platter in its deck color — green for A, purple for B — modeled on the splash screen, with groove rings, a label, a tonearm, and a marker dot. **The record spins at 33⅓ RPM while the deck plays** (and scrubs when you drag the waveform); click the vinyl to play/pause. The mixer gained the splash's green EQ strip, and the whole window wears the app's navy gradient.
+
 ## Version 3.1
 ### Added
 - **Changelog viewer** (Help → Changelog) — this screen. The changelog now lives inside the program, so after any update you can read exactly what changed.

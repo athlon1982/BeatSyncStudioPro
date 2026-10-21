@@ -28,11 +28,16 @@
             <TextBlock Text="BPM" VerticalAlignment="Center" Margin="18,0,6,0" Foreground="#A0A5B5"/>
             <TextBox x:Name="BpmBox" Width="56" VerticalAlignment="Center" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="6,4"/>
             <TextBlock Text="Render" VerticalAlignment="Center" Margin="18,0,6,0" Foreground="#A0A5B5"/>
-            <ComboBox x:Name="BarsPicker" Width="86" SelectedIndex="1">
-                <ComboBoxItem Content="1 bar" Tag="1"/>
-                <ComboBoxItem Content="2 bars" Tag="2"/>
-                <ComboBoxItem Content="4 bars" Tag="4"/>
-                <ComboBoxItem Content="8 bars" Tag="8"/>
+            <ComboBox x:Name="BarsPicker" Width="86" IsEditable="True" Text="4"
+                      ToolTip="Bars to render — pick a preset or type any number (up to 999)">
+                <ComboBoxItem Content="1"/>
+                <ComboBoxItem Content="2"/>
+                <ComboBoxItem Content="4"/>
+                <ComboBoxItem Content="8"/>
+                <ComboBoxItem Content="16"/>
+                <ComboBoxItem Content="32"/>
+                <ComboBoxItem Content="64"/>
+                <ComboBoxItem Content="128"/>
             </ComboBox>
             <Button Content="🎵 Render to Timeline" Click="Render_Click" Height="34" Padding="12,0" Margin="8,0,0,0"
                     Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>

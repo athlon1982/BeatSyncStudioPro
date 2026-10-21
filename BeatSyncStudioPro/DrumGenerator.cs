@@ -43,6 +43,11 @@ namespace BeatSyncStudioPro
         {
             var cache = new Dictionary<string, float[]>();
             double stepDur = 60.0 / pattern.Bpm / 4.0;
+            // No preset ceiling on length — any bar count the user asks for,
+            // bounded only by a ~20-minute safety limit so a typo can't
+            // allocate gigabytes.
+            int maxBars = Math.Max(1, (int)(1200.0 / (stepDur * 16)));
+            bars = Math.Clamp(bars, 1, Math.Min(999, maxBars));
             int stepSamples = (int)(stepDur * 44100);
             int totalFrames = stepSamples * 16 * bars;
             var mix = new float[totalFrames * 2];
@@ -95,22 +100,58 @@ namespace BeatSyncStudioPro
     /// </summary>
     public static class DrumGenerator
     {
+        /// <summary>Michael's own styles — always kept separate from the general styles.</summary>
+        public static readonly (string Key, string Label, double Bpm)[] MyStyles =
+        {
+            ("boomrap", "👑 Boom-Rap — My Style (Rad-Dad)", 95),
+        };
+
         public static readonly (string Key, string Label, double Bpm)[] Styles =
         {
-            ("boombap", "🥁 Boom-Bap (Rad-Dad style)", 95),
             ("trap", "🔥 Trap", 140),
             ("house", "🏠 House", 122),
             ("funk", "🎷 Funk", 102),
             ("rock", "🎸 Rock", 120),
             ("dembow", "🌴 Dembow / Reggaeton", 88),
+            ("lofi", "🌧️ Lo-Fi", 82),
+            ("drill", "🗡️ UK Drill", 140),
+            ("dancehall", "🌺 Dancehall", 102),
+            ("westcoast", "🌴 West Coast / G-Funk", 96),
+            ("techno", "⚙️ Techno", 130),
+            ("dnb", "⚡ Drum & Bass", 174),
         };
+
+        public static (string Key, string Label, double Bpm) Find(string key)
+        {
+            foreach (var s in MyStyles) if (s.Key == key) return s;
+            foreach (var s in Styles) if (s.Key == key) return s;
+            return MyStyles[0];
+        }
 
         public static PatternData Generate(string style, double bpm, double density, bool humanize, int seed)
         {
             var rng = new Random(seed);
             var p = new PatternData { Name = "Generated Beat", Bpm = bpm };
+            p.Name = style switch
+            {
+                "boomrap" => "Boom-Rap Beat",
+                "trap" => "Trap Beat",
+                "house" => "House Beat",
+                "funk" => "Funk Beat",
+                "rock" => "Rock Beat",
+                "dembow" => "Dembow Beat",
+                "lofi" => "Lo-Fi Beat",
+                "drill" => "Drill Beat",
+                "dancehall" => "Dancehall Beat",
+                "westcoast" => "West Coast Beat",
+                "techno" => "Techno Beat",
+                "dnb" => "Drum & Bass Beat",
+                _ => "Generated Beat"
+            };
             PatternChannel kick = Ch("builtin:kick"), snare = Ch("builtin:snare"),
-                            hat = Ch("builtin:hat"), clap = Ch("builtin:clap"), b808 = Ch("builtin:808");
+                            hat = Ch("builtin:hat"), clap = Ch("builtin:clap"), b808 = Ch("builtin:808"),
+                            ohat = Ch("builtin:openhat"), rim = Ch("builtin:rimshot"),
+                            shaker = Ch("builtin:shaker"), crash = Ch("builtin:crash");
 
             bool Chance(double baseProb) => rng.NextDouble() < baseProb * density;
 
@@ -129,9 +170,9 @@ namespace BeatSyncStudioPro
                 case "house":
                     foreach (var s in new[] { 0, 4, 8, 12 }) Hit(kick, rng, s, 115);
                     Hit(clap, rng, 4); Hit(clap, rng, 12);
-                    foreach (var s in new[] { 2, 6, 10, 14 }) Hit(hat, rng, s, 90);
+                    foreach (var s in new[] { 2, 6, 10, 14 }) Hit(ohat, rng, s, 85);
                     if (Chance(0.6)) Hit(hat, rng, 15, 70);
-                    p.Channels.AddRange(new[] { kick, clap, hat });
+                    p.Channels.AddRange(new[] { kick, clap, ohat, hat });
                     break;
 
                 case "funk":
@@ -148,7 +189,10 @@ namespace BeatSyncStudioPro
                     Hit(kick, rng, 0); Hit(kick, rng, 8); if (Chance(0.6)) Hit(kick, rng, 10);
                     Hit(snare, rng, 4); Hit(snare, rng, 12);
                     for (int s = 0; s < 16; s += 2) Hit(hat, rng, s, 95);
-                    p.Channels.AddRange(new[] { kick, snare, hat });
+                    if (Chance(0.8)) Hit(crash, rng, 0, 80);
+                    var rockCh = new List<PatternChannel> { kick, snare, hat };
+                    AddUsed(rockCh, crash);
+                    p.Channels.AddRange(rockCh);
                     break;
 
                 case "dembow":
@@ -159,14 +203,73 @@ namespace BeatSyncStudioPro
                     p.Channels.AddRange(new[] { kick, snare, hat, b808 });
                     break;
 
-                default: // boombap
+                case "lofi":
+                    Hit(kick, rng, 0); if (Chance(0.8)) Hit(kick, rng, 10);
+                    Hit(snare, rng, 4); Hit(snare, rng, 12);
+                    for (int s = 0; s < 16; s++) Hit(hat, rng, s, s % 2 == 0 ? 80 : 55);
+                    foreach (var s in new[] { 2, 6, 10, 14 }) Hit(shaker, rng, s, 55);
+                    Hit(b808, rng, 0, 95);
+                    p.Channels.AddRange(new[] { kick, snare, hat, shaker, b808 });
+                    break;
+
+                case "drill":
+                    Hit(kick, rng, 0); if (Chance(0.8)) Hit(kick, rng, 10);
+                    Hit(snare, rng, 8); if (Chance(0.5)) Hit(snare, rng, 15, 70);
+                    for (int s = 0; s < 16; s++) Hit(hat, rng, s, s % 4 == 0 ? 95 : 70);
+                    if (Chance(0.7)) Hit(hat, rng, 14, 85);
+                    Hit(b808, rng, 0, 115); if (Chance(0.8)) Hit(b808, rng, 6, 100); if (Chance(0.7)) Hit(b808, rng, 11, 105);
+                    p.Channels.AddRange(new[] { kick, snare, hat, b808 });
+                    break;
+
+                case "dancehall":
+                    Hit(kick, rng, 0); Hit(kick, rng, 8);
+                    foreach (var s in new[] { 3, 6, 11, 14 }) Hit(rim, rng, s, 100);
+                    for (int s = 0; s < 16; s += 2) Hit(shaker, rng, s, 70);
+                    Hit(b808, rng, 0, 105); if (Chance(0.6)) Hit(b808, rng, 8, 95);
+                    p.Channels.AddRange(new[] { kick, rim, shaker, b808 });
+                    break;
+
+                case "westcoast":
+                    Hit(kick, rng, 0); Hit(kick, rng, 8); if (Chance(0.7)) Hit(kick, rng, 10);
+                    Hit(snare, rng, 4); Hit(snare, rng, 12);
+                    Hit(clap, rng, 4, 65); Hit(clap, rng, 12, 65);
+                    for (int s = 0; s < 16; s++) Hit(hat, rng, s, s % 4 == 0 ? 95 : 65);
+                    if (Chance(0.7)) Hit(ohat, rng, 14, 75);
+                    Hit(b808, rng, 0, 110); if (Chance(0.7)) Hit(b808, rng, 8, 100);
+                    p.Channels.AddRange(new[] { kick, snare, clap, hat, ohat, b808 });
+                    break;
+
+                case "techno":
+                    foreach (var s in new[] { 0, 4, 8, 12 }) Hit(kick, rng, s, 118);
+                    foreach (var s in new[] { 2, 6, 10, 14 }) Hit(ohat, rng, s, 90);
+                    for (int s = 0; s < 16; s++) if (s % 2 == 1) Hit(hat, rng, s, 50);
+                    if (Chance(0.6)) Hit(rim, rng, 7, 70); if (Chance(0.6)) Hit(rim, rng, 15, 70);
+                    var techCh = new List<PatternChannel> { kick, ohat, hat };
+                    AddUsed(techCh, rim);
+                    p.Channels.AddRange(techCh);
+                    break;
+
+                case "dnb":
+                    Hit(kick, rng, 0); Hit(kick, rng, 10);
+                    Hit(snare, rng, 4); Hit(snare, rng, 12);
+                    for (int s = 0; s < 16; s++) Hit(hat, rng, s, s % 2 == 0 ? 85 : 60);
+                    if (Chance(0.7)) Hit(ohat, rng, 14, 70);
+                    Hit(b808, rng, 0, 105); if (Chance(0.6)) Hit(b808, rng, 11, 95);
+                    p.Channels.AddRange(new[] { kick, snare, hat, ohat, b808 });
+                    break;
+
+                default: // boomrap — Michael's style
                     Hit(kick, rng, 0); if (Chance(0.85)) Hit(kick, rng, 7); Hit(kick, rng, 8);
                     if (Chance(0.5)) Hit(kick, rng, 11);
                     Hit(snare, rng, 4); Hit(snare, rng, 12);
                     for (int s = 0; s < 16; s += 2) Hit(hat, rng, s, 95);
                     if (Chance(0.5)) Hit(hat, rng, 15, 75);
+                    if (Chance(0.4)) Hit(rim, rng, 15, 50); // ghost pickup
                     Hit(b808, rng, 0, 110); if (Chance(0.8)) Hit(b808, rng, 8, 105);
-                    p.Channels.AddRange(new[] { kick, snare, hat, b808 });
+                    var boomCh = new List<PatternChannel> { kick, snare, hat };
+                    AddUsed(boomCh, rim);
+                    boomCh.Add(b808);
+                    p.Channels.AddRange(boomCh);
                     break;
             }
 
@@ -187,6 +290,12 @@ namespace BeatSyncStudioPro
         }
 
         private static PatternChannel Ch(string sound) => new PatternChannel { Sound = sound };
+
+        /// <summary>Adds a channel only if at least one of its steps is on.</summary>
+        private static void AddUsed(List<PatternChannel> list, PatternChannel c)
+        {
+            foreach (var s in c.Steps) if (s) { list.Add(c); return; }
+        }
 
         private static void Hit(PatternChannel c, Random rng, int step, int velocity = 100)
         {

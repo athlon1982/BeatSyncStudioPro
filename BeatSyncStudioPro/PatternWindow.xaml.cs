@@ -55,7 +55,7 @@ namespace BeatSyncStudioPro
         {
             var p = new PatternData
             {
-                Name = "Pattern 1",
+                Name = "Boom-Rap Groove",
                 Bpm = owner.ProjectBpm > 0 ? owner.ProjectBpm : 95
             };
             PatternChannel Ch(string sound, params int[] on)
@@ -358,8 +358,10 @@ namespace BeatSyncStudioPro
         {
             if (_current == null) return;
             ReadBpm();
-            int bars = 2;
-            if (BarsPicker.SelectedItem is ComboBoxItem item && item.Tag is string tag) int.TryParse(tag, out bars);
+            int bars = 4;
+            string rawBars = BarsPicker.Text ?? "4";
+            string digits = new string(rawBars.Where(char.IsDigit).ToArray());
+            if (int.TryParse(digits, out int parsedBars)) bars = Math.Clamp(parsedBars, 1, 999);
             try
             {
                 byte[] wav = PatternRenderer.RenderWav(_owner, _current, bars);

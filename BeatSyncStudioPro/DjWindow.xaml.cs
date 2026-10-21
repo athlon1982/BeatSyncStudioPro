@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
@@ -188,6 +189,7 @@ namespace BeatSyncStudioPro
             private readonly Button[] _hotButtons = new Button[4];
             private readonly Button[] _loopButtons = new Button[4];
             private readonly List<DateTime> _taps = new List<DateTime>();
+            private readonly RotateTransform _platterSpin = new RotateTransform();
 
             private static readonly Brush PanelBtn = new SolidColorBrush(Color.FromRgb(0x2A, 0x30, 0x3C));
             private static readonly Brush MutedText = new SolidColorBrush(Color.FromRgb(0xA0, 0xA5, 0xB5));
@@ -207,6 +209,8 @@ namespace BeatSyncStudioPro
 
                 _title = new TextBlock { Text = $"{name} — empty", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = accent, Margin = new Thickness(0, 0, 0, 6) };
                 root.Children.Add(_title);
+
+                root.Children.Add(BuildPlatter());
 
                 // Waveform + playhead + scrub
                 var waveGrid = new Grid { Height = 74, Background = new SolidColorBrush(Color.FromRgb(0x14, 0x17, 0x1E)) };
@@ -342,6 +346,109 @@ namespace BeatSyncStudioPro
                 root.Children.Add(gainRow);
 
                 host.Child = root;
+            }
+
+            /// <summary>
+            /// The turntable: a neon-ringed vinyl platter in the deck's accent
+            /// color (the splash-screen look) that spins at 33⅓ RPM while the
+            /// deck plays, with a label, groove rings, a marker dot, a spindle
+            /// and a decorative tonearm. Clicking the vinyl plays/pauses.
+            /// </summary>
+            private Grid BuildPlatter()
+            {
+                var host = new Grid
+                {
+                    Height = 198,
+                    Margin = new Thickness(0, 2, 0, 6),
+                    Cursor = Cursors.Hand,
+                    ToolTip = "Click the vinyl to play / pause"
+                };
+                host.MouseLeftButtonDown += (s, e) => PlayPause();
+
+                var halo = new Ellipse
+                {
+                    Width = 190, Height = 190,
+                    HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                    Fill = new SolidColorBrush(Color.FromRgb(0x0A, 0x0A, 0x0C)),
+                    Stroke = _accent, StrokeThickness = 3,
+                    Effect = new DropShadowEffect { Color = _accent.Color, BlurRadius = 26, ShadowDepth = 0, Opacity = 0.85 }
+                };
+                host.Children.Add(halo);
+
+                var vinyl = new Grid { Width = 180, Height = 180, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                _platterSpin.CenterX = 90;
+                _platterSpin.CenterY = 90;
+                vinyl.RenderTransform = _platterSpin;
+
+                var grad = new RadialGradientBrush
+                {
+                    Center = new Point(0.38, 0.38), GradientOrigin = new Point(0.38, 0.38), RadiusX = 0.75, RadiusY = 0.75
+                };
+                grad.GradientStops.Add(new GradientStop(Color.FromRgb(0x3A, 0x3A, 0x42), 0));
+                grad.GradientStops.Add(new GradientStop(Color.FromRgb(0x14, 0x14, 0x18), 0.55));
+                grad.GradientStops.Add(new GradientStop(Color.FromRgb(0x05, 0x05, 0x07), 1));
+                vinyl.Children.Add(new Ellipse
+                {
+                    Width = 180, Height = 180,
+                    HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                    Fill = grad
+                });
+                foreach (double d in new[] { 150.0, 128.0, 106.0 })
+                {
+                    vinyl.Children.Add(new Ellipse
+                    {
+                        Width = d, Height = d,
+                        HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                        Stroke = new SolidColorBrush(Color.FromArgb(26, 255, 255, 255)), StrokeThickness = 5
+                    });
+                }
+                vinyl.Children.Add(new Ellipse
+                {
+                    Width = 62, Height = 62,
+                    HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                    Fill = _accent, Opacity = 0.92
+                });
+                vinyl.Children.Add(new TextBlock
+                {
+                    Text = _name.Length > 0 ? _name.Substring(_name.Length - 1) : "",
+                    FontSize = 22, FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x0B, 0x0E, 0x14)),
+                    HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
+                });
+                vinyl.Children.Add(new Ellipse
+                {
+                    Width = 10, Height = 10, Fill = Brushes.White,
+                    HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top,
+                    Margin = new Thickness(0, 8, 0, 0)
+                });
+                host.Children.Add(vinyl);
+
+                host.Children.Add(new Ellipse
+                {
+                    Width = 12, Height = 12,
+                    HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                    Fill = new SolidColorBrush(Color.FromRgb(0xC0, 0xC6, 0xD0)),
+                    Stroke = new SolidColorBrush(Color.FromRgb(0x60, 0x66, 0x72)), StrokeThickness = 1
+                });
+
+                // tonearm: pivot disc top-right, arm angled in toward the record
+                host.Children.Add(new Ellipse
+                {
+                    Width = 30, Height = 30,
+                    Fill = new SolidColorBrush(Color.FromRgb(0x1B, 0x1B, 0x20)),
+                    Stroke = _accent, StrokeThickness = 1.5,
+                    HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
+                    Margin = new Thickness(0, 2, 6, 0)
+                });
+                host.Children.Add(new Border
+                {
+                    Width = 9, Height = 92, CornerRadius = new CornerRadius(4),
+                    Background = new SolidColorBrush(Color.FromRgb(0x8A, 0x92, 0xA0)),
+                    HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
+                    Margin = new Thickness(0, 12, 16, 0),
+                    RenderTransform = new RotateTransform(24, 4.5, 6)
+                });
+                return host;
             }
 
             private Button MakeButton(string text, double width) => new Button
@@ -526,6 +633,8 @@ namespace BeatSyncStudioPro
 
             public void Refresh()
             {
+                if (_deck.IsLoaded)
+                    _platterSpin.Angle = _deck.PositionSeconds * 200.0 % 360.0; // 33⅓ RPM
                 if (_deck.IsLoaded)
                 {
                     _timeText.Text = $"{FmtTime(_deck.PositionSeconds)} / {FmtTime(_deck.TotalSeconds)}";
