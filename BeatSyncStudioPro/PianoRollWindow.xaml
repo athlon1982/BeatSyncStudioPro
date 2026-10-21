@@ -1,0 +1,61 @@
+<Window x:Class="BeatSyncStudioPro.PianoRollWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Piano Roll" Icon="/Assets/app.ico"
+        Width="980" Height="640" ResizeMode="CanResize"
+        Background="#1E222B" Foreground="#FFFFFF" WindowStartupLocation="CenterOwner">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Horizontal">
+            <TextBlock Text="🎹 Piano Roll" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+            <ComboBox x:Name="MelodyPicker" Width="150" Margin="14,0,0,0" SelectionChanged="MelodyPicker_SelectionChanged"/>
+            <Button Content="➕ New Melody" Click="NewMelody_Click" Height="30" Padding="10,0" Margin="8,0,0,0"
+                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <TextBlock Text="Instrument" VerticalAlignment="Center" Margin="18,0,6,0" Foreground="#A0A5B5"/>
+            <ComboBox x:Name="InstrumentPicker" Width="140" SelectionChanged="InstrumentPicker_SelectionChanged"/>
+            <TextBlock Text="Note length" VerticalAlignment="Center" Margin="18,0,6,0" Foreground="#A0A5B5"/>
+            <ComboBox x:Name="LengthPicker" Width="90" SelectedIndex="0">
+                <ComboBoxItem Content="1 step" Tag="1"/>
+                <ComboBoxItem Content="2 steps" Tag="2"/>
+                <ComboBoxItem Content="4 steps" Tag="4"/>
+                <ComboBoxItem Content="8 steps" Tag="8"/>
+            </ComboBox>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,12,0,8">
+            <Button x:Name="PlayButton" Content="▶ Play" Click="Play_Click" Width="84" Height="34"
+                    Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="⏹ Stop" Click="Stop_Click" Width="84" Height="34" Margin="8,0,0,0"
+                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="🧹 Clear" Click="Clear_Click" Width="84" Height="34" Margin="8,0,0,0"
+                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <TextBlock Text="BPM" VerticalAlignment="Center" Margin="18,0,6,0" Foreground="#A0A5B5"/>
+            <TextBox x:Name="BpmBox" Width="56" VerticalAlignment="Center" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="6,4"/>
+            <TextBlock Text="Render" VerticalAlignment="Center" Margin="18,0,6,0" Foreground="#A0A5B5"/>
+            <ComboBox x:Name="LoopsPicker" Width="96" SelectedIndex="1">
+                <ComboBoxItem Content="2 bars" Tag="1"/>
+                <ComboBoxItem Content="4 bars" Tag="2"/>
+                <ComboBoxItem Content="8 bars" Tag="4"/>
+            </ComboBox>
+            <Button Content="🎵 Render to Timeline" Click="Render_Click" Height="34" Padding="12,0" Margin="8,0,0,0"
+                    Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+        </StackPanel>
+
+        <Border Grid.Row="2" BorderBrush="#333" BorderThickness="1" Background="#14171E">
+            <Grid x:Name="RollHost">
+                <Canvas x:Name="GridCanvas"/>
+                <Canvas x:Name="NotesCanvas" IsHitTestVisible="False"/>
+                <Canvas x:Name="ClickCanvas" Background="Transparent" MouseLeftButtonDown="ClickCanvas_MouseLeftButtonDown"/>
+            </Grid>
+        </Border>
+
+        <TextBlock Grid.Row="3" x:Name="StatusText" Text="Click the grid to place notes, click a note to remove it. Click the key strip on the left to hear a pitch."
+                   Foreground="#A0A5B5" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"/>
+    </Grid>
+</Window>

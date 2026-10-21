@@ -1045,6 +1045,7 @@ namespace BeatSyncStudioPro
                 new("Transcript…", "View", "", () => BtnTranscript_Click(this, ev)),
                 new("Stem Splitter…", "View", "", () => BtnStemSplit_Click(this, ev)),
                 new("Patterns (Step Sequencer)…", "View", "", () => BtnPatterns_Click(this, ev)),
+                new("Piano Roll…", "View", "", () => BtnPianoRoll_Click(this, ev)),
                 new("Render Queue…", "File", "", () => BtnRenderQueue_Click(this, ev)),
                 new("Batch Convert…", "File", "", () => BtnBatchConvert_Click(this, ev)),
                 new("Start Screen…", "File", "", () => MenuStartScreen_Click(this, ev)),
@@ -1127,6 +1128,18 @@ namespace BeatSyncStudioPro
 
         // ---- Patterns (step sequencer) ----
         public List<PatternData> Patterns { get; } = new List<PatternData>();
+
+        // ---- Piano roll melodies ----
+        public List<PianoPattern> PianoPatterns { get; } = new List<PianoPattern>();
+
+        private PianoRollWindow? _pianoRollWindow;
+        private void BtnPianoRoll_Click(object sender, RoutedEventArgs e)
+        {
+            if (_pianoRollWindow != null) { _pianoRollWindow.Activate(); return; }
+            _pianoRollWindow = new PianoRollWindow(this) { Owner = this };
+            _pianoRollWindow.Closed += (s, ev) => _pianoRollWindow = null;
+            _pianoRollWindow.Show();
+        }
 
         private PatternWindow? _patternWindow;
         private void BtnPatterns_Click(object sender, RoutedEventArgs e)
@@ -1903,6 +1916,7 @@ namespace BeatSyncStudioPro
                     BeatOffsetSeconds = this.BeatOffsetSeconds,
                     SnapToBeat = this.SnapToBeatEnabled,
                     Patterns = this.Patterns,
+                    PianoPatterns = this.PianoPatterns,
                     TrackVolumes = this.TrackVolumeValues,
                     TrackPans = this.TrackPanValues,
                     TrackFx = this.TrackFxValues,
@@ -2035,6 +2049,19 @@ namespace BeatSyncStudioPro
                     if (root.TryGetProperty("Bpm", out var bpmEl)) ProjectBpm = bpmEl.GetDouble();
                     if (root.TryGetProperty("BeatOffsetSeconds", out var boEl)) BeatOffsetSeconds = boEl.GetDouble();
                     if (root.TryGetProperty("SnapToBeat", out var sbEl)) SnapToBeatEnabled = sbEl.GetBoolean();
+                    if (root.TryGetProperty("PianoPatterns", out var ppEl))
+                    {
+                        try
+                        {
+                            var mels = JsonSerializer.Deserialize<List<PianoPattern>>(ppEl.GetRawText());
+                            if (mels != null)
+                            {
+                                PianoPatterns.Clear();
+                                PianoPatterns.AddRange(mels);
+                            }
+                        }
+                        catch { }
+                    }
                     if (root.TryGetProperty("Patterns", out var patEl))
                     {
                         try
