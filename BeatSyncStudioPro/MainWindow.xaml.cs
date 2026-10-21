@@ -75,17 +75,26 @@ namespace BeatSyncStudioPro
 
         private void RenderTimeRulerHeaders()
         {
-            if (RulerCanvas == null) return;
+            if (RulerTicksCanvas == null) return;
             for (int sec = 0; sec <= 25; sec++)
             {
-                double xPos = (sec * 100) + 140;
+                double xPos = sec * 100;
                 Line tickLine = new Line { X1 = xPos, Y1 = 20, X2 = xPos, Y2 = 40, Stroke = (Brush)new BrushConverter().ConvertFromString("#A0A5B5")!, StrokeThickness = 1 };
-                RulerCanvas.Children.Add(tickLine);
+                RulerTicksCanvas.Children.Add(tickLine);
 
                 TextBlock txtTime = new TextBlock { Text = $"{sec:D2}s", Foreground = (Brush)new BrushConverter().ConvertFromString("#A0A5B5")!, FontWeight = FontWeights.Bold, FontSize = 9 };
                 Canvas.SetLeft(txtTime, xPos - 12);
                 Canvas.SetTop(txtTime, 2);
-                RulerCanvas.Children.Add(txtTime);
+                RulerTicksCanvas.Children.Add(txtTime);
+            }
+        }
+
+        private void TimelineScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
+        {
+            // Keep the ruler ticks aligned with the timeline while it scrolls
+            if (RulerShift != null)
+            {
+                RulerShift.X = -e.HorizontalOffset;
             }
         }
 
@@ -130,9 +139,15 @@ namespace BeatSyncStudioPro
             TimelineCanvas.Children.Clear();
             HeadersSidebar.Children.Clear();
 
+            // Keep the timeline tall enough for every lane (audio tracks + video lane)
+            double timelineHeight = Math.Max(450, (AudioTrackCount + 1) * 50 + 20);
+            TimelineCanvas.Height = timelineHeight;
+            if (WaveformOverlayCanvas != null) WaveformOverlayCanvas.Height = timelineHeight;
+            if (TimelineHost != null) TimelineHost.Height = timelineHeight;
+
             playhead = new Line
             {
-                X1 = 0, Y1 = 0, X2 = 0, Y2 = 450,
+                X1 = 0, Y1 = 0, X2 = 0, Y2 = timelineHeight,
                 Stroke = Brushes.Red,
                 StrokeThickness = 2,
                 Visibility = Visibility.Collapsed
@@ -237,6 +252,32 @@ namespace BeatSyncStudioPro
         // =========================
         // IMPORT HANDLERS
         // =========================
+
+        /// <summary>
+        /// One-click video add: pick a file and it lands straight on the video
+        /// track (and in the library, like a normal import).
+        /// </summary>
+        private void BtnAddVideoToTimeline_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog dlg = new OpenFileDialog
+            {
+                Filter = "Video files|*.mp4;*.avi;*.wmv;*.mkv;*.mov;*.flv;*.webm;*.mpg;*.mpeg;*.ogv;*.3gp;*.m4v|All files|*.*",
+                Multiselect = false,
+                Title = "Add Video to Timeline"
+            };
+            if (dlg.ShowDialog() != true) return;
+
+            string path = dlg.FileName;
+            string name = System.IO.Path.GetFileName(path);
+            if (!VideoAssets.ContainsKey(name))
+            {
+                VideoAssets[name] = path;
+                ListContainer.Children.Add(CreateAssetButton($"🎬 {name}", name));
+            }
+
+            // Drop it straight onto the video lane at the start of the timeline
+            PlaceAssetAt(name, new Point(0, AudioTrackCount * 50));
+        }
 
         private void BtnImportVideo_Click(object sender, RoutedEventArgs e)
         {

@@ -1,0 +1,34 @@
+<Window x:Class="BeatSyncStudioPro.SplashScreen"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="BeatSync Studio Pro" Width="880" Height="540"
+        WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False"
+        WindowStartupLocation="CenterScreen" Background="#0E1116"
+        MouseLeftButtonDown="Splash_MouseLeftButtonDown">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Splash artwork -->
+        <Image Grid.Row="0" Source="/Assets/splash.png" Stretch="UniformToFill"/>
+
+        <!-- Title bar -->
+        <Border Grid.Row="1" Background="#14171E" Padding="28,16">
+            <Grid>
+                <StackPanel HorizontalAlignment="Left">
+                    <TextBlock Text="BeatSync Studio Pro" FontSize="34" FontWeight="Bold" Foreground="#FFFFFF"/>
+                    <TextBlock Text="MUSIC MIXING EDITOR" FontSize="13" FontWeight="SemiBold" Foreground="#1DB954"/>
+                </StackPanel>
+                <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom">
+                    <TextBlock Text="Version 1.0" FontSize="13" FontWeight="SemiBold" Foreground="#E2E8F0" HorizontalAlignment="Right"/>
+                    <TextBlock Text="Loading the studio..." FontSize="11" Foreground="#666666" HorizontalAlignment="Right"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <ProgressBar Grid.Row="1" VerticalAlignment="Bottom" Height="3" IsIndeterminate="True"
+                     Foreground="#1DB954" Background="Transparent" BorderThickness="0"/>
+    </Grid>
+</Window>
