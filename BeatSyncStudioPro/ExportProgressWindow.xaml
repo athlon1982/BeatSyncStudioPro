@@ -1,0 +1,13 @@
+<Window x:Class="BeatSyncStudioPro.ExportProgressWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Exporting…" Icon="/Assets/app.ico"
+        Width="380" Height="150" ResizeMode="NoResize"
+        Background="#14171E" Foreground="#FFFFFF" WindowStartupLocation="CenterOwner">
+    <StackPanel Margin="18">
+        <TextBlock x:Name="ExportLabel" Text="Rendering your mix…" FontSize="13" Margin="0,0,0,10"/>
+        <ProgressBar x:Name="ExportBar" Height="14" Minimum="0" Maximum="1" Foreground="#1DB954" Background="#2A303C" BorderThickness="0"/>
+        <Button Content="Cancel" Click="Cancel_Click" Width="90" Height="30" Margin="0,14,0,0" HorizontalAlignment="Right"
+                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+    </StackPanel>
+</Window>

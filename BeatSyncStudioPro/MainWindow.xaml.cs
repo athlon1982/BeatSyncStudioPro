@@ -776,6 +776,117 @@ namespace BeatSyncStudioPro
             }
         }
 
+        // =========================
+        // EXPORT (offline mixdown)
+        // =========================
+
+        private async void BtnExportAudio_Click(object sender, RoutedEventArgs e)
+        {
+            if (TimelineBlocks.Count == 0)
+            {
+                MessageBox.Show("Add some clips to the timeline first, then export your mix.", "Nothing to export");
+                return;
+            }
+
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "Export your mix",
+                Filter = "WAV audio|*.wav|MP3 audio|*.mp3",
+                FileName = "BeatSync Mix.wav",
+                DefaultExt = ".wav"
+            };
+            if (dialog.ShowDialog() != true) return;
+
+            var job = BuildExportJob();
+            var progressWindow = new ExportProgressWindow { Owner = this };
+            progressWindow.Show();
+            try
+            {
+                await Task.Run(() => ExportRenderer.Render(job, dialog.FileName, progressWindow.Progress, progressWindow.Token));
+                progressWindow.Close();
+                MessageBox.Show($"Your mix is exported:\n{dialog.FileName}", "💾 Export complete");
+            }
+            catch (OperationCanceledException)
+            {
+                progressWindow.Close();
+                try { if (System.IO.File.Exists(dialog.FileName)) System.IO.File.Delete(dialog.FileName); } catch { }
+                MessageBox.Show("Export cancelled — no file was saved.", "Export");
+            }
+            catch (Exception ex)
+            {
+                progressWindow.Close();
+                MessageBox.Show("Export failed: " + ex.Message, "Export");
+            }
+        }
+
+        private ExportJob BuildExportJob()
+        {
+            var job = new ExportJob();
+            for (int i = 0; i < AudioTrackCount + 1; i++)
+            {
+                job.Chains.Add(new ExportChain
+                {
+                    Volume = GetTrackVolume(i),
+                    Pan = GetTrackPan(i),
+                    Fx = CloneFx(GetTrackFx(i))
+                });
+            }
+
+            double total = 0;
+            foreach (var block in TimelineBlocks.Where(b => !b.IsVideo))
+            {
+                if (block.SoundType == "image" || block.RawBytes == null) continue;
+                int chain = block.IsVideoAudio ? AudioTrackCount : Math.Clamp(block.TrackId, 0, AudioTrackCount - 1);
+                double length = block.LengthSeconds > 0 ? block.LengthSeconds
+                    : (double.IsNaN(block.Width) ? 0 : block.Width / 100.0);
+                job.Clips.Add(new ExportClip
+                {
+                    RawBytes = block.RawBytes,
+                    SoundType = block.SoundType,
+                    StartSeconds = block.StartX / 100.0,
+                    Speed = block.Speed,
+                    SourceStartSeconds = block.SourceStartSeconds,
+                    LengthSeconds = block.LengthSeconds,
+                    Volume = block.Volume * MasterVolume,
+                    ChainIndex = chain
+                });
+                total = Math.Max(total, block.StartX / 100.0 + length);
+            }
+
+            // The video's own soundtrack joins the mix when it has not been
+            // separated onto its lane (when separated, that block is already in).
+            var videoBlock = TimelineBlocks.FirstOrDefault(b => b.IsVideo);
+            if (VideoPath != null && videoBlock != null && !VideoAudioSeparated)
+            {
+                double vlen = videoBlock.LengthSeconds > 0 ? videoBlock.LengthSeconds
+                    : (double.IsNaN(videoBlock.Width) ? 0 : videoBlock.Width / 100.0);
+                if (vlen > 0)
+                {
+                    job.Clips.Add(new ExportClip
+                    {
+                        FilePath = VideoPath,
+                        StartSeconds = videoBlock.StartX / 100.0,
+                        Speed = VideoSpeed,
+                        SourceStartSeconds = 0,
+                        LengthSeconds = vlen,
+                        Volume = MasterVolume,
+                        ChainIndex = AudioTrackCount
+                    });
+                    total = Math.Max(total, videoBlock.StartX / 100.0 + vlen);
+                }
+            }
+
+            job.TotalSeconds = Math.Max(1.0, total) + 2.0; // tail so echo/reverb can ring out
+            return job;
+        }
+
+        private static TrackFxSettings CloneFx(TrackFxSettings s) => new TrackFxSettings
+        {
+            EqOn = s.EqOn, LowDb = s.LowDb, MidDb = s.MidDb, HighDb = s.HighDb,
+            DelayOn = s.DelayOn, DelayMs = s.DelayMs, DelayFeedback = s.DelayFeedback, DelayMix = s.DelayMix,
+            ReverbOn = s.ReverbOn, ReverbSize = s.ReverbSize, ReverbDamp = s.ReverbDamp, ReverbMix = s.ReverbMix
+        };
+
         private async Task TimelinePlaybackEngineLoop(CancellationToken token)
         {
             HashSet<FixedBlock> playedBlocks = new HashSet<FixedBlock>();
