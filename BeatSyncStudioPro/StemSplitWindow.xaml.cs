@@ -80,6 +80,13 @@ namespace BeatSyncStudioPro
             _cts = new CancellationTokenSource();
             try
             {
+                var compute = ComputeSettings.Load();
+                if (compute.Mode == "Online")
+                {
+                    await SplitOnlineAsync(clip, compute);
+                    return;
+                }
+
                 if (!File.Exists(ModelPath))
                 {
                     var ask = MessageBox.Show(
@@ -113,7 +120,7 @@ namespace BeatSyncStudioPro
                     outFolder = Path.Combine(music, "BeatSync Stems", baseName);
                 }
 
-                StatusText.Text = $"Splitting {baseName}… this runs on CPU and can take a few minutes.";
+                StatusText.Text = $"Splitting {baseName}… compute: {ComputeSettings.Load().Describe()}. This can take a few minutes.";
                 var progress = new Progress<double>(p =>
                 {
                     BusyBar.Value = p * 100;
@@ -123,7 +130,7 @@ namespace BeatSyncStudioPro
 
                 foreach (var stem in StemSeparator.StemNames)
                     ResultList.Items.Add(Path.Combine(outFolder, $"{baseName} ({stem}).wav"));
-                StatusText.Text = $"✅ Done — stems are in:\n{outFolder}\nImport them from the library (Import Audio) to drop them on tracks.";
+                StatusText.Text = $"✅ Done (ran on {StemSeparator.LastComputeUsed}) — stems are in:\n{outFolder}\nImport them from the library (Import Audio) to drop them on tracks.";
             }
             catch (OperationCanceledException)
             {
@@ -138,9 +145,51 @@ namespace BeatSyncStudioPro
                 SplitButton.IsEnabled = true;
                 CancelButton.IsEnabled = false;
                 BusyBar.Visibility = Visibility.Collapsed;
+                BusyBar.IsIndeterminate = false;
                 _cts?.Dispose();
                 _cts = null;
             }
+        }
+
+        /// <summary>☁️ Online route: Replicate's Demucs does the heavy lifting.</summary>
+        private async Task SplitOnlineAsync(FixedBlock? clip, ComputeSettings compute)
+        {
+            string key = compute.GetOnlineKey();
+            if (key.Length == 0)
+            {
+                StatusText.Text = "☁️ Online compute needs your Replicate API key first — open the AI Lab, set Compute to ☁️ Online, and save your key there.";
+                return;
+            }
+
+            byte[] bytes;
+            string baseName, outFolder, ext;
+            if (_filePath != null)
+            {
+                bytes = await File.ReadAllBytesAsync(_filePath, _cts!.Token);
+                baseName = Path.GetFileNameWithoutExtension(_filePath);
+                outFolder = Path.Combine(Path.GetDirectoryName(_filePath) ?? "", baseName + " stems");
+                ext = Path.GetExtension(_filePath).TrimStart('.');
+            }
+            else
+            {
+                var c = clip!;
+                bytes = c.RawBytes!;
+                baseName = Path.GetFileNameWithoutExtension(c.Filename);
+                ext = c.SoundType;
+                string music = Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
+                outFolder = Path.Combine(music, "BeatSync Stems", baseName);
+            }
+
+            BusyBar.IsIndeterminate = true;
+            var stems = await OnlineStems.RunDemucsAsync(bytes, ext, key, msg => StatusText.Text = msg, _cts.Token);
+            Directory.CreateDirectory(outFolder);
+            foreach (var kv in stems)
+            {
+                string file = Path.Combine(outFolder, $"{baseName} ({kv.Key}).{kv.Value.Ext}");
+                await File.WriteAllBytesAsync(file, kv.Value.Data, _cts.Token);
+                ResultList.Items.Add(file);
+            }
+            StatusText.Text = $"✅ Done (☁️ Replicate) — stems are in:\n{outFolder}\nImport them from the library (Import Audio) to drop them on tracks.";
         }
 
         private async Task DownloadModelAsync(CancellationToken token)

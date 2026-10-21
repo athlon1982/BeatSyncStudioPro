@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.8 — Your Kits, Your Compute
+### Added
+- **🎒 Kit from Files** (step sequencer): pick your own WAV/MP3 files and each one becomes a drum channel in a fresh pattern, ready to play. The files join your library, show in every channel picker, and **save inside the project file** — your kits travel with the song.
+- **Compute choice: Auto / CPU / GPU / ☁️ Online** (AI Lab → Compute), with the graphics devices on the PC listed by name. It drives the **Stem Splitter** today: run it on the **CPU**, on the **GPU** (DirectML — works with NVIDIA and most modern cards), or **online**, where **Replicate's** cloud runs Demucs for you (your own Replicate key; a few cents a song, key stored encrypted). Auto picks the GPU when a real graphics card is present and stays on CPU for integrated graphics. The same switch will run the song-generation engine when it's set up.
+
 ## Version 3.7 — A Visual for Every Mood
 ### Added
 - **Eleven deck visuals** (the Visual picker on each deck): **Spectrum**, **Rainbow Spectrum** (LED blocks), **Spectrum + Peaks** (falling white peak caps), **Mirrored Spectrum**, **Radial Spectrum** (bars radiating from a circle), **VU Bars** (green / yellow / red zones), **Waterfall** (history scrolling down), **Wave Fill**, **Waveform**, **Level + Bass** (two big meters), and **Falling Dots** — plus Off. Every spectrum mode uses the auto-gain from 3.6, so they all dance at any volume.

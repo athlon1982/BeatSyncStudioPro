@@ -24,6 +24,39 @@ namespace BeatSyncStudioPro
         public const int SegmentSamples = 343980; // 7.8 s at 44.1 kHz
         public static readonly string[] StemNames = { "drums", "bass", "other", "vocals" };
 
+        /// <summary>What actually ran the last split ("CPU" or "GPU (DirectML) #n"), for status lines.</summary>
+        public static string LastComputeUsed { get; private set; } = "CPU";
+
+        /// <summary>
+        /// Builds the ONNX session on the compute device the user picked
+        /// (ComputeSettings): DirectML GPU when enabled, CPU otherwise.
+        /// A GPU that refuses the model falls back to CPU rather than failing.
+        /// </summary>
+        private static InferenceSession CreateSession(string modelPath)
+        {
+            var settings = ComputeSettings.Load();
+            if (settings.UseGpu)
+            {
+                try
+                {
+                    var options = new SessionOptions();
+                    options.AppendExecutionProvider_DML(settings.GpuIndex);
+                    var session = new InferenceSession(modelPath, options);
+                    LastComputeUsed = $"GPU (DirectML) #{settings.GpuIndex}";
+                    return session;
+                }
+                catch
+                {
+                    LastComputeUsed = "CPU (GPU didn't accept the model — fell back)";
+                }
+            }
+            else
+            {
+                LastComputeUsed = "CPU";
+            }
+            return new InferenceSession(modelPath);
+        }
+
         public static (float[] Left, float[] Right) DecodeBytes(byte[] bytes, string soundType)
         {
             IWaveProvider reader = soundType.ToLower() == "wav"
@@ -74,7 +107,7 @@ namespace BeatSyncStudioPro
                 for (int s = 0; s < 4; s++) acc[s] = new[] { new float[total], new float[total] };
                 var weights = new float[total];
 
-                using var session = new InferenceSession(modelPath);
+                using var session = CreateSession(modelPath);
                 string inputName = session.InputMetadata.Keys.First();
 
                 for (int offset = 0; offset < total; offset += stride)

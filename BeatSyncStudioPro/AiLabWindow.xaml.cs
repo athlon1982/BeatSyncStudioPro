@@ -19,6 +19,8 @@ namespace BeatSyncStudioPro
     {
         private readonly MainWindow _owner;
         private readonly AiSettings _settings;
+        private readonly ComputeSettings _compute;
+        private bool _computeLoading;
         private List<IAiProvider> _providers = new List<IAiProvider>();
         private CancellationTokenSource? _cts;
 
@@ -45,8 +47,67 @@ namespace BeatSyncStudioPro
             InitializeComponent();
             _owner = owner;
             _settings = AiSettings.Load();
+            _compute = ComputeSettings.Load();
             BuildProviders();
+            InitCompute();
             Loaded += async (s, e) => await RefreshModelsAsync();
+        }
+
+        private void InitCompute()
+        {
+            _computeLoading = true;
+            ComputePicker.SelectedIndex = _compute.Mode switch { "CPU" => 1, "GPU" => 2, "Online" => 3, _ => 0 };
+            OnlineKeyBox.Password = _compute.GetOnlineKey();
+            OnlineKeyStatus.Text = _compute.GetOnlineKey().Length > 0 ? "Key saved ✓" : "";
+            var gpus = ComputeSettings.GpuNames();
+            GpuPicker.Items.Clear();
+            if (gpus.Count == 0)
+            {
+                GpuPicker.Items.Add(new ComboBoxItem { Content = "(no GPU detected)", IsEnabled = false });
+                GpuPicker.SelectedIndex = 0;
+            }
+            else
+            {
+                for (int i = 0; i < gpus.Count; i++)
+                    GpuPicker.Items.Add(new ComboBoxItem { Content = $"GPU {i} — {gpus[i]}", Tag = i });
+                GpuPicker.SelectedIndex = Math.Min(_compute.GpuIndex, gpus.Count - 1);
+            }
+            _computeLoading = false;
+            RefreshComputeInfo();
+        }
+
+        private void RefreshComputeInfo()
+        {
+            GpuPicker.IsEnabled = _compute.Mode == "GPU";
+            OnlinePanel.Visibility = _compute.Mode == "Online" ? Visibility.Visible : Visibility.Collapsed;
+            ComputeInfo.Text = _compute.Describe();
+        }
+
+        private void ComputePicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_computeLoading || !IsLoaded) return;
+            _compute.Mode = ComputePicker.SelectedIndex switch { 1 => "CPU", 2 => "GPU", 3 => "Online", _ => "Auto" };
+            _compute.Save();
+            RefreshComputeInfo();
+        }
+
+        private void OnlineSaveKey_Click(object sender, RoutedEventArgs e)
+        {
+            _compute.SetOnlineKey(OnlineKeyBox.Password);
+            _compute.Save();
+            OnlineKeyStatus.Text = OnlineKeyBox.Password.Length > 0 ? "Key saved ✓" : "Key cleared";
+            RefreshComputeInfo();
+        }
+
+        private void GpuPicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_computeLoading || !IsLoaded) return;
+            if (GpuPicker.SelectedItem is ComboBoxItem item && item.Tag is int idx)
+            {
+                _compute.GpuIndex = idx;
+                _compute.Save();
+                RefreshComputeInfo();
+            }
         }
 
         private void BuildProviders()

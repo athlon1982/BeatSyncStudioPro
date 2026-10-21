@@ -118,6 +118,50 @@ namespace BeatSyncStudioPro
             RefreshPatternPicker();
         }
 
+        /// <summary>
+        /// One-click kit: pick your own sound files, each becomes a channel
+        /// in a fresh pattern. Files are imported into the library first, so
+        /// they show in every channel picker and save inside the project.
+        /// </summary>
+        private void KitFromFiles_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Build a drum kit from your sound files",
+                Filter = "Audio|*.wav;*.mp3",
+                Multiselect = true
+            };
+            if (dialog.ShowDialog() != true) return;
+            ReadBpm();
+            var kit = new PatternData
+            {
+                Name = $"Kit {_owner.Patterns.Count(p => p.Name.StartsWith("Kit")) + 1}",
+                Bpm = _current?.Bpm ?? 120
+            };
+            int imported = 0;
+            foreach (var file in dialog.FileNames)
+            {
+                try
+                {
+                    string stored = _owner.AddToLibraryOnly(File.ReadAllBytes(file), Path.GetFileName(file));
+                    imported++;
+                    if (kit.Channels.Count < 12)
+                        kit.Channels.Add(new PatternChannel { Sound = stored });
+                }
+                catch { }
+            }
+            if (kit.Channels.Count == 0)
+            {
+                StatusText.Text = "No usable files in that pick — the kit wasn't created (files must be WAV or MP3).";
+                return;
+            }
+            _owner.Patterns.Add(kit);
+            _current = kit;
+            _soundCache.Clear();
+            RefreshPatternPicker();
+            StatusText.Text = $"🎒 {kit.Name} is ready — {kit.Channels.Count} of your sounds are channels now ({imported} file(s) imported to the library). Click steps, press Play, and Render to Timeline when it grooves. The kit saves with the project.";
+        }
+
         private void BuildRows()
         {
             RowsPanel.Children.Clear();
