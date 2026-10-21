@@ -49,6 +49,8 @@ namespace BeatSyncStudioPro
         private System.Diagnostics.Stopwatch? _playStopwatch;
         private bool _isPaused;
         private Line? playhead;
+        private Rectangle? playheadHandle;
+        private int _rulerDrawnSeconds = 25;
         private CancellationTokenSource? playbackCancelToken;
         private string? draggingSoundName = null;
         private Point dragStartPoint;
@@ -92,13 +94,16 @@ namespace BeatSyncStudioPro
         private void RenderTimeRulerHeaders()
         {
             if (RulerTicksCanvas == null) return;
-            for (int sec = 0; sec <= 25; sec++)
+            RulerTicksCanvas.Children.Clear();
+            int totalSeconds = Math.Max(25, (int)Math.Ceiling(TimelineLengthPx / 100.0));
+            _rulerDrawnSeconds = totalSeconds;
+            for (int sec = 0; sec <= totalSeconds; sec++)
             {
                 double xPos = sec * 100;
                 Line tickLine = new Line { X1 = xPos, Y1 = 20, X2 = xPos, Y2 = 40, Stroke = (Brush)new BrushConverter().ConvertFromString("#A0A5B5")!, StrokeThickness = 1 };
                 RulerTicksCanvas.Children.Add(tickLine);
 
-                TextBlock txtTime = new TextBlock { Text = $"{sec:D2}s", Foreground = (Brush)new BrushConverter().ConvertFromString("#A0A5B5")!, FontWeight = FontWeights.Bold, FontSize = 9 };
+                TextBlock txtTime = new TextBlock { Text = sec < 60 ? $"{sec:D2}s" : FmtTime(sec), Foreground = (Brush)new BrushConverter().ConvertFromString("#A0A5B5")!, FontWeight = FontWeights.Bold, FontSize = 9 };
                 Canvas.SetLeft(txtTime, xPos - 12);
                 Canvas.SetTop(txtTime, 2);
                 RulerTicksCanvas.Children.Add(txtTime);
@@ -148,6 +153,34 @@ namespace BeatSyncStudioPro
             }
         }
 
+        /// <summary>Right edge of the furthest clip (or the video), in timeline pixels.</summary>
+        private double GetContentEndX()
+        {
+            double end = 0;
+            foreach (var b in TimelineBlocks)
+            {
+                double w = double.IsNaN(b.Width) ? b.LengthSeconds * 100 : b.Width;
+                end = Math.Max(end, b.StartX + w);
+            }
+            return end;
+        }
+
+        /// <summary>The timeline is at least 25 seconds wide and grows to fit the content.</summary>
+        private double TimelineLengthPx => Math.Max(2500, GetContentEndX() + 500);
+
+        private static string FmtTime(double seconds)
+        {
+            if (seconds < 0 || double.IsNaN(seconds)) seconds = 0;
+            var ts = TimeSpan.FromSeconds(seconds);
+            return $"{(int)ts.TotalMinutes}:{ts.Seconds:D2}";
+        }
+
+        private void UpdateTimeDisplay(double currentSeconds)
+        {
+            if (TimeDisplay != null)
+                TimeDisplay.Text = $"{FmtTime(currentSeconds)} / {FmtTime(GetContentEndX() / 100.0)}";
+        }
+
         private void RenderStudioGridLanes()
         {
             if (TimelineCanvas == null || HeadersSidebar == null) return;
@@ -162,14 +195,33 @@ namespace BeatSyncStudioPro
             if (WaveformOverlayCanvas != null) WaveformOverlayCanvas.Height = timelineHeight;
             if (TimelineHost != null) TimelineHost.Height = timelineHeight;
 
+            double tlWidth = TimelineLengthPx;
+            TimelineCanvas.Width = tlWidth;
+            if (WaveformOverlayCanvas != null) WaveformOverlayCanvas.Width = tlWidth;
+            if (TimelineHost != null) TimelineHost.Width = tlWidth;
+            if (tlWidth / 100 > _rulerDrawnSeconds) RenderTimeRulerHeaders();
+            UpdateTimeDisplay(0);
+
             playhead = new Line
             {
                 X1 = 0, Y1 = 0, X2 = 0, Y2 = timelineHeight,
-                Stroke = Brushes.Red,
-                StrokeThickness = 2,
+                Stroke = new SolidColorBrush(Color.FromRgb(0x69, 0xF0, 0xAE)),
+                StrokeThickness = 3,
                 Visibility = Visibility.Collapsed
             };
+            Panel.SetZIndex(playhead, 999);
             TimelineCanvas.Children.Add(playhead);
+
+            playheadHandle = new Rectangle
+            {
+                Width = 13, Height = 11,
+                Fill = new SolidColorBrush(Color.FromRgb(0x69, 0xF0, 0xAE)),
+                Visibility = Visibility.Collapsed
+            };
+            Canvas.SetLeft(playheadHandle, -6);
+            Canvas.SetTop(playheadHandle, 0);
+            Panel.SetZIndex(playheadHandle, 1000);
+            TimelineCanvas.Children.Add(playheadHandle);
 
             foreach (var block in TimelineBlocks)
             {
@@ -192,7 +244,7 @@ namespace BeatSyncStudioPro
 
                 Line gridLine = new Line
                 {
-                    X1 = 0, Y1 = yPos, X2 = 2500, Y2 = yPos,
+                    X1 = 0, Y1 = yPos, X2 = tlWidth, Y2 = yPos,
                     Stroke = (Brush)converter.ConvertFromString("#2D323F")!,
                     StrokeThickness = 1
                 };
@@ -229,7 +281,7 @@ namespace BeatSyncStudioPro
 
             Line videoLine = new Line
             {
-                X1 = 0, Y1 = vY, X2 = 2500, Y2 = vY,
+                X1 = 0, Y1 = vY, X2 = tlWidth, Y2 = vY,
                 Stroke = (Brush)converter.ConvertFromString("#7B1FA2")!,
                 StrokeThickness = 4
             };
@@ -238,7 +290,7 @@ namespace BeatSyncStudioPro
             // Divider line above video
             Line dividerLine = new Line
             {
-                X1 = 0, Y1 = vY - 1, X2 = 2500, Y2 = vY - 1,
+                X1 = 0, Y1 = vY - 1, X2 = tlWidth, Y2 = vY - 1,
                 Stroke = (Brush)converter.ConvertFromString("#E040FB")!,
                 StrokeThickness = 2
             };
@@ -270,7 +322,7 @@ namespace BeatSyncStudioPro
 
                 Line vaLine = new Line
                 {
-                    X1 = 0, Y1 = vaY, X2 = 2500, Y2 = vaY,
+                    X1 = 0, Y1 = vaY, X2 = tlWidth, Y2 = vaY,
                     Stroke = (Brush)converter.ConvertFromString("#1DB954")!,
                     StrokeThickness = 2
                 };
@@ -891,12 +943,16 @@ namespace BeatSyncStudioPro
         {
             HashSet<FixedBlock> playedBlocks = new HashSet<FixedBlock>();
 
-            Dispatcher.Invoke(() => { if (playhead != null) playhead.Visibility = Visibility.Visible; });
+            Dispatcher.Invoke(() =>
+            {
+                if (playhead != null) playhead.Visibility = Visibility.Visible;
+                if (playheadHandle != null) playheadHandle.Visibility = Visibility.Visible;
+            });
 
             while (isPlayingTimeline && !token.IsCancellationRequested)
             {
                 double currentX = ((_playStopwatch?.ElapsedMilliseconds ?? 0) * 100) / 1000.0;
-                if (currentX > 2500) break;
+                if (currentX > GetContentEndX() + 200) break;
 
                 Dispatcher.Invoke(() =>
                 {
@@ -904,6 +960,19 @@ namespace BeatSyncStudioPro
                     {
                         playhead.X1 = currentX;
                         playhead.X2 = currentX;
+                    }
+                    if (playheadHandle != null) Canvas.SetLeft(playheadHandle, currentX - 6);
+                    UpdateTimeDisplay(currentX / 100.0);
+
+                    // Follow the playhead so the song stays in view while it plays
+                    if (TimelineScrollViewer != null)
+                    {
+                        double offset = TimelineScrollViewer.HorizontalOffset;
+                        double viewWidth = TimelineScrollViewer.ViewportWidth;
+                        if (viewWidth > 0 && (currentX < offset || currentX > offset + viewWidth - 60))
+                        {
+                            TimelineScrollViewer.ScrollToHorizontalOffset(Math.Max(0, currentX - 60));
+                        }
                     }
                 });
 
@@ -921,6 +990,7 @@ namespace BeatSyncStudioPro
                 isPlayingTimeline = false;
                 _isPaused = false;
                 if (playhead != null) playhead.Visibility = Visibility.Collapsed;
+                if (playheadHandle != null) playheadHandle.Visibility = Visibility.Collapsed;
             });
         }
 
@@ -1403,6 +1473,17 @@ namespace BeatSyncStudioPro
         private void BtnExport_Click(object sender, RoutedEventArgs e)
         {
             MessageBox.Show("🎬 Video export feature coming soon!\n\nThis will render your entire timeline with all audio & video synchronized.", "Export Video", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void MenuExit_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
+        }
+
+        private void MenuAbout_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("BeatSync Studio Pro\n\nCreated by Michael DeCato\n\nYour music mixing editor — multitrack timeline, mixer with EQ/delay/reverb, video, DJ decks and visuals on the way.",
+                "About BeatSync Studio Pro", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         protected override void OnClosed(EventArgs e)

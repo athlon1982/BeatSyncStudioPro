@@ -105,11 +105,10 @@ namespace BeatSyncStudioPro
             }
             else if (duration > 0)
             {
-                // A long file (e.g. a full song) starts as a window that fits the
-                // visible timeline — trim it from there instead of the clip
-                // running thousands of pixels off-screen.
-                double available = Math.Max(0.5, (canvas.Width - StartX) / PixelsPerSecond);
-                LengthSeconds = Math.Min(duration, available);
+                // Full length — a dropped song is the whole song. The timeline
+                // grows and scrolls to fit (see MainWindow's timeline width),
+                // and the clip can still be trimmed from either edge.
+                LengthSeconds = duration;
                 Width = Math.Max(20, LengthSeconds * PixelsPerSecond);
             }
             else
