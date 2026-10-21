@@ -39,6 +39,24 @@ namespace BeatSyncStudioPro
         private readonly DeckPanel _panelB;
         private readonly DispatcherTimer _timer;
         private TrackFxWindow? _fxWindow;
+        // Sampler (v3.27)
+        private readonly SamplerEngine _sampler = new SamplerEngine();
+        private readonly Button[] _padButtons = new Button[SamplerEngine.PadCount];
+        private readonly TextBlock[] _padSubs = new TextBlock[SamplerEngine.PadCount];
+        private static readonly Brush PadBaseBrush = new SolidColorBrush(Color.FromRgb(0x2A, 0x30, 0x3C));
+        private static readonly Brush PadFlashBrush = new SolidColorBrush(Color.FromRgb(0x1D, 0xB9, 0x54));
+        private static readonly Brush PadSubBrush = new SolidColorBrush(Color.FromRgb(0x8A, 0x93, 0xA5));
+        private static readonly (string Emoji, string Name, string? PackEntry)[] PadDefs =
+        {
+            ("\U0001F399\uFE0F", "RAD-DAD!", null),
+            ("\U0001F4A5", "Impact", "FX/Impact.wav"),
+            ("\U0001F680", "Riser", "FX/Riser.wav"),
+            ("\U0001F4C9", "Downlifter", "FX/Downlifter.wav"),
+            ("\U0001F941", "Crash", "Drums/Crash 1.wav"),
+            ("\U0001F44F", "Clap", "Drums/Clap Big.wav"),
+            ("\U0001F50A", "808 Drop", "Drums/808 Long.wav"),
+            ("\U0001F514", "Cowbell", "Drums/Cowbell 1.wav"),
+        };
         // Cruise mode (v3.26): hands-free auto-DJ across both deck queues
         private bool _cruiseOn;
         private readonly System.Collections.Generic.List<string> _cruisePlaylist = new System.Collections.Generic.List<string>();
@@ -63,6 +81,9 @@ namespace BeatSyncStudioPro
             _masterGain = new VolumeSampleProvider(djMaster) { Volume = 0.9f };
             _recorder = new RecordingSampleProvider(_masterGain);
             _owner.AttachDjMixer(_recorder);
+            djMaster.AddMixerInput(_sampler.Output);
+            SamplerVolumeSlider.ValueChanged += (s, e) => _sampler.Output.Volume = (float)SamplerVolumeSlider.Value;
+            BuildSamplerPads();
 
             _panelA = new DeckPanel(this, _deckA, () => _deckB, _fxA, "DECK A",
                 new SolidColorBrush(Color.FromRgb(0x1D, 0xB9, 0x54)), DeckHostA, chainA.Channel, chainA.Tap);
@@ -75,7 +96,7 @@ namespace BeatSyncStudioPro
             UpdateCrossfader();
 
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
-            _timer.Tick += (s, e) => { _panelA.Refresh(); _panelB.Refresh(); CruiseTick(); };
+            _timer.Tick += (s, e) => { _panelA.Refresh(); _panelB.Refresh(); CruiseTick(); SamplerFlashTick(); };
             _timer.Start();
 
             // Never open larger than the screen's work area (scaled displays
@@ -247,6 +268,108 @@ namespace BeatSyncStudioPro
                 _fadeTo = next == _panelA ? 0 : 1000;
                 SetStatus($"\U0001F6A2 Cruise: fading to {(next == _panelA ? "DECK A" : "DECK B")} - {next.CurrentTitle}");
             }
+        }
+
+        private void BuildSamplerPads()
+        {
+            var assignments = LoadPadAssignments();
+            for (int i = 0; i < SamplerEngine.PadCount; i++)
+            {
+                int pad = i;
+                var (emoji, name, packEntry) = PadDefs[i];
+                var title = new TextBlock { Text = emoji + " " + name, FontWeight = FontWeights.Bold, FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+                var sub = new TextBlock { Text = "", FontSize = 9, Foreground = PadSubBrush, HorizontalAlignment = HorizontalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+                var content = new StackPanel();
+                content.Children.Add(title);
+                content.Children.Add(sub);
+                var btn = new Button { Content = content, Height = 54, Margin = new Thickness(3), Background = PadBaseBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+                btn.Click += (s, e) => TriggerPad(pad);
+                btn.MouseRightButtonUp += (s, e) => { AssignPad(pad); e.Handled = true; };
+                _padButtons[i] = btn;
+                _padSubs[i] = sub;
+                SamplerPadGrid.Children.Add(btn);
+                if (assignments.TryGetValue(i, out string? path) && !string.IsNullOrEmpty(path) && File.Exists(path))
+                {
+                    try { _sampler.Slots[i].Load(SamplerEngine.DecodeBytes(File.ReadAllBytes(path), path)); sub.Text = System.IO.Path.GetFileName(path); }
+                    catch { sub.Text = "assigned file unreadable"; }
+                }
+                else if (packEntry != null)
+                {
+                    var bytes = SamplerEngine.ReadPackEntry(packEntry);
+                    if (bytes != null)
+                    {
+                        try { _sampler.Slots[i].Load(SamplerEngine.DecodeBytes(bytes, packEntry)); sub.Text = "built-in"; }
+                        catch { sub.Text = "built-in (decode failed)"; }
+                    }
+                    else sub.Text = "sound pack not found";
+                }
+                else sub.Text = i == 0 ? "right-click: assign your tag" : "right-click: assign a sound";
+            }
+        }
+
+        private void TriggerPad(int pad)
+        {
+            if (!_sampler.Slots[pad].HasSound)
+            {
+                SetStatus($"Sampler pad {pad + 1} has no sound yet - right-click it to assign one.");
+                return;
+            }
+            _owner.EnsureOutputRunning();
+            _sampler.Trigger(pad);
+            _padButtons[pad].Background = PadFlashBrush;
+        }
+
+        private void SamplerFlashTick()
+        {
+            for (int i = 0; i < SamplerEngine.PadCount; i++)
+                if (!_sampler.Slots[i].IsPlaying && _padButtons[i] != null && !ReferenceEquals(_padButtons[i].Background, PadBaseBrush))
+                    _padButtons[i].Background = PadBaseBrush;
+        }
+
+        private void AssignPad(int pad)
+        {
+            var dialog = new OpenFileDialog { Title = $"Assign a sound to sampler pad {pad + 1}", Filter = "Audio|*.wav;*.mp3" };
+            if (dialog.ShowDialog() != true) return;
+            try
+            {
+                var samples = SamplerEngine.DecodeBytes(File.ReadAllBytes(dialog.FileName), dialog.FileName);
+                _sampler.Slots[pad].Load(samples);
+                var map = LoadPadAssignments();
+                map[pad] = dialog.FileName;
+                SavePadAssignments(map);
+                _padSubs[pad].Text = System.IO.Path.GetFileName(dialog.FileName);
+                SetStatus($"Sampler pad {pad + 1}: {System.IO.Path.GetFileName(dialog.FileName)} assigned.");
+                TriggerPad(pad);
+            }
+            catch (Exception ex) { SetStatus("Could not load that sound: " + ex.Message); }
+        }
+
+        private static string PadAssignmentsPath => System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BeatSyncStudioPro", "sampler-pads.json");
+
+        private static System.Collections.Generic.Dictionary<int, string> LoadPadAssignments()
+        {
+            try
+            {
+                if (File.Exists(PadAssignmentsPath))
+                {
+                    var map = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<int, string>>(File.ReadAllText(PadAssignmentsPath));
+                    if (map != null) return map;
+                }
+            }
+            catch { }
+            return new System.Collections.Generic.Dictionary<int, string>();
+        }
+
+        private static void SavePadAssignments(System.Collections.Generic.Dictionary<int, string> map)
+        {
+            try
+            {
+                var dir = System.IO.Path.GetDirectoryName(PadAssignmentsPath);
+                if (dir != null) Directory.CreateDirectory(dir);
+                File.WriteAllText(PadAssignmentsPath, System.Text.Json.JsonSerializer.Serialize(map));
+            }
+            catch { }
         }
 
         private void RecordButton_Click(object sender, RoutedEventArgs e)

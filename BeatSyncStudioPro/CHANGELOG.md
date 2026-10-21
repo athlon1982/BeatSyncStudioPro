@@ -3,6 +3,12 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.27 — 🎛️ Sampler Pads
+### New
+- **Sampler strip in the DJ window** (feature 3 of the DJ mega-queue): 8 one-shot pads in a full-width strip under the decks, mixed into the DJ master — so pads are heard live **and captured in Record Mix**.
+- **Loaded from the built-in sound pack**: Impact 💥, Riser 🚀, Downlifter 📉, Crash 🥁, Clap 👏, 808 Drop 🔊, Cowbell 🔔. **Pad 1 is reserved for your 🎙️ RAD-DAD! tag** — it stays empty until you assign a recording of it.
+- **Your sounds, your pads**: right-click any pad to assign any WAV/MP3 (it previews on assignment, and the assignment is remembered between sessions). Retriggering a pad restarts it, pads play over each other, each pad flashes while it sounds, and the strip has its own volume slider.
+
 ## Version 3.26 — 🚢 Auto-DJ Cruise Mode
 ### New
 - **Cruise mode in the DJ window** (feature 2 of the DJ mega-queue): hit **🚢 CRUISE** in the mixer column and BeatSync DJs for you. It builds one playlist from **Deck A's track list followed by Deck B's**, starts on Deck A, and works down the list hands-free.
