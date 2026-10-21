@@ -50,6 +50,7 @@ namespace BeatSyncStudioPro
             RenderTimeRulerHeaders();
             RenderStudioGridLanes();
             MasterVolumeSlider.ValueChanged += (s, e) => UpdateVolumeDisplay();
+            MasterVideoPlayer.MediaOpened += MasterVideoPlayer_MediaOpened;
         }
 
         private void UpdateVolumeDisplay()
@@ -509,6 +510,8 @@ namespace BeatSyncStudioPro
             {
                 VideoPath = VideoAssets[draggingSoundName];
                 SetVideoAudioSeparated(false);
+                _videoNaturalSeconds = 0;
+                SetVideoSpeed(1.0);
                 if (MasterVideoPlayer != null)
                 {
                     try
@@ -701,10 +704,15 @@ namespace BeatSyncStudioPro
                     provider = new SpeedSampleProvider(provider, block.Speed);
                 }
 
-                // Stop the sound at the clip's on-timeline end (trimmed/stretched length)
+                // Play only the clip's window of the sound: skip the trimmed-off
+                // front, stop at the trimmed end
                 if (block.LengthSeconds > 0)
                 {
-                    provider = new OffsetSampleProvider(provider) { Take = TimeSpan.FromSeconds(block.LengthSeconds) };
+                    provider = new OffsetSampleProvider(provider)
+                    {
+                        SkipOver = TimeSpan.FromSeconds(block.SourceStartSeconds / block.Speed),
+                        Take = TimeSpan.FromSeconds(block.LengthSeconds)
+                    };
                 }
 
                 var volumeSampleProvider = new VolumeSampleProvider(provider) { Volume = (float)(block.Volume * MasterVolume) };
@@ -748,6 +756,41 @@ namespace BeatSyncStudioPro
             {
                 MasterVideoPlayer.Volume = VideoAudioSeparated ? 0 : MasterVolume;
             }
+        }
+
+        /// <summary>Playback speed of the video itself (1.0 = normal). Its soundtrack follows along.</summary>
+        public double VideoSpeed { get; private set; } = 1.0;
+
+        private double _videoNaturalSeconds;
+
+        private void MasterVideoPlayer_MediaOpened(object sender, RoutedEventArgs e)
+        {
+            if (MasterVideoPlayer.NaturalDuration.HasTimeSpan)
+            {
+                _videoNaturalSeconds = MasterVideoPlayer.NaturalDuration.TimeSpan.TotalSeconds;
+                ApplyVideoBlockLength();
+            }
+        }
+
+        public void SetVideoSpeed(double speed)
+        {
+            VideoSpeed = Math.Clamp(speed, 0.25, 3.0);
+            if (MasterVideoPlayer != null)
+            {
+                MasterVideoPlayer.SpeedRatio = VideoSpeed;
+            }
+            ApplyVideoBlockLength();
+        }
+
+        private void ApplyVideoBlockLength()
+        {
+            if (_videoNaturalSeconds <= 0) return;
+            var videoBlock = TimelineBlocks.FirstOrDefault(b => b.IsVideo);
+            if (videoBlock == null) return;
+            videoBlock.Speed = VideoSpeed;
+            videoBlock.LengthSeconds = _videoNaturalSeconds / VideoSpeed;
+            videoBlock.Width = videoBlock.LengthSeconds * FixedBlock.PixelsPerSecond;
+            videoBlock.UpdateCanvasPosition();
         }
 
         /// <summary>Decodes the loaded video's soundtrack to WAV bytes; null when no video is loaded.</summary>
@@ -878,6 +921,7 @@ namespace BeatSyncStudioPro
                         b.SoundType,
                         b.IsVideo,
                         b.Speed,
+                        b.SourceStartSeconds,
                         b.IsVideoAudio,
                         b.LengthSeconds
                     }).ToList()

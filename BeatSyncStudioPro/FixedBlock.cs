@@ -22,7 +22,7 @@ namespace BeatSyncStudioPro
 
         private const double BlockHeight = 40.0;
         private const double LanePadding = 5.0;
-        private const double EdgeGrabWidth = 8.0;
+        private const double EdgeGrabWidth = 14.0;
         private const double MinClipSeconds = 0.1;
         private const double MinSpeed = 0.1;
         private const double MaxSpeed = 4.0;
@@ -38,6 +38,9 @@ namespace BeatSyncStudioPro
 
         /// <summary>Playback speed for audio clips (1.0 = original). Pitch shifts with it.</summary>
         public double Speed { get; set; } = 1.0;
+
+        /// <summary>How far into the underlying sound this clip starts (seconds, at speed 1.0) — set by left-edge trims.</summary>
+        public double SourceStartSeconds { get; set; }
 
         public string SoundType { get; set; }
         public bool IsVideo { get; set; }
@@ -60,11 +63,13 @@ namespace BeatSyncStudioPro
         private MenuItem? _videoSoundItem;
 
         // Drag state
-        private enum DragMode { None, Move, StretchRight }
+        private enum DragMode { None, Move, StretchRight, StretchLeft }
         private DragMode _dragMode = DragMode.None;
         private double _dragStartCanvasX;
         private double _origStartX;
         private double _origWidth;
+        private double _origSourceStart;
+        private double _origLength;
 
         public bool IsAudio => !IsVideo && SoundType != "image";
 
@@ -100,8 +105,12 @@ namespace BeatSyncStudioPro
             }
             else if (duration > 0)
             {
-                LengthSeconds = duration;
-                Width = Math.Max(60, duration * PixelsPerSecond);
+                // A long file (e.g. a full song) starts as a window that fits the
+                // visible timeline — trim it from there instead of the clip
+                // running thousands of pixels off-screen.
+                double available = Math.Max(0.5, (canvas.Width - StartX) / PixelsPerSecond);
+                LengthSeconds = Math.Min(duration, available);
+                Width = Math.Max(20, LengthSeconds * PixelsPerSecond);
             }
             else
             {
@@ -127,26 +136,48 @@ namespace BeatSyncStudioPro
         public void SetSpeed(double speed)
         {
             if (!IsAudio || FileDurationSeconds <= 0) return;
+            double oldSpeed = Speed;
             Speed = Math.Clamp(speed, MinSpeed, MaxSpeed);
-            LengthSeconds = FileDurationSeconds / Speed;
+            // Speeding up shrinks the clip on the timeline, slowing down stretches
+            // it — but never past the end of the underlying sound.
+            double maxLen = (FileDurationSeconds - SourceStartSeconds) / Speed;
+            LengthSeconds = Math.Min(LengthSeconds * oldSpeed / Speed, maxLen);
+            if (LengthSeconds < MinClipSeconds) LengthSeconds = MinClipSeconds;
             Width = LengthSeconds * PixelsPerSecond;
             UpdateCanvasPosition();
         }
 
-        /// <summary>Stretch/shrink the clip to a new on-timeline length; audio speed follows.</summary>
+        /// <summary>
+        /// Resize the clip's window on the timeline (a trim). Speed is untouched;
+        /// the clip can never extend past the end of the underlying sound.
+        /// </summary>
         public void SetLengthSeconds(double seconds)
         {
-            seconds = Math.Max(MinClipSeconds, seconds);
             if (IsAudio && FileDurationSeconds > 0)
             {
-                SetSpeed(FileDurationSeconds / seconds);
+                double maxLen = (FileDurationSeconds - SourceStartSeconds) / Speed;
+                LengthSeconds = Math.Clamp(seconds, MinClipSeconds, Math.Max(MinClipSeconds, maxLen));
             }
             else
             {
-                LengthSeconds = seconds;
-                Width = seconds * PixelsPerSecond;
-                UpdateCanvasPosition();
+                LengthSeconds = Math.Max(MinClipSeconds, seconds);
             }
+            Width = LengthSeconds * PixelsPerSecond;
+            UpdateCanvasPosition();
+        }
+
+        /// <summary>Trim (or un-trim) the front of the clip, computed from the drag-start snapshot.</summary>
+        public void TrimLeftFromSnapshot(double deltaSeconds)
+        {
+            if (!IsAudio || FileDurationSeconds <= 0) return;
+            double minDelta = -_origSourceStart / Speed;
+            double maxDelta = _origLength - MinClipSeconds;
+            double d = Math.Clamp(deltaSeconds, minDelta, maxDelta);
+            SourceStartSeconds = _origSourceStart + d * Speed;
+            LengthSeconds = _origLength - d;
+            StartX = _origStartX + d * PixelsPerSecond;
+            Width = LengthSeconds * PixelsPerSecond;
+            UpdateCanvasPosition();
         }
 
         // =========================
@@ -180,9 +211,35 @@ namespace BeatSyncStudioPro
                 FontSize = 10,
                 FontWeight = FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(6, 0, 6, 0),
+                Margin = new Thickness(9, 0, 9, 0),
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
+
+            var grid = new Grid();
+            grid.Children.Add(label);
+
+            // Visible grip on the right edge — drag it to trim/stretch the end of the clip
+            grid.Children.Add(new Border
+            {
+                Width = 5,
+                CornerRadius = new CornerRadius(2),
+                Background = new SolidColorBrush(border),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 3, 2, 3)
+            });
+
+            // Audio clips get a left grip too — drag it to trim the front
+            if (IsAudio)
+            {
+                grid.Children.Add(new Border
+                {
+                    Width = 5,
+                    CornerRadius = new CornerRadius(2),
+                    Background = new SolidColorBrush(border),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Margin = new Thickness(2, 3, 0, 3)
+                });
+            }
 
             var visual = new Border
             {
@@ -192,7 +249,7 @@ namespace BeatSyncStudioPro
                 CornerRadius = new CornerRadius(4),
                 Width = Width,
                 Height = BlockHeight,
-                Child = label
+                Child = grid
             };
 
             visual.MouseLeftButtonDown += Visual_MouseLeftButtonDown;
@@ -206,12 +263,16 @@ namespace BeatSyncStudioPro
         private void Visual_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             Point posInBlock = e.GetPosition(BlockVisual);
-            _dragMode = posInBlock.X >= BlockVisual.ActualWidth - EdgeGrabWidth
-                ? DragMode.StretchRight
+            bool onRightEdge = posInBlock.X >= BlockVisual.ActualWidth - EdgeGrabWidth;
+            bool onLeftEdge = IsAudio && posInBlock.X <= EdgeGrabWidth;
+            _dragMode = onRightEdge ? DragMode.StretchRight
+                : onLeftEdge ? DragMode.StretchLeft
                 : DragMode.Move;
             _dragStartCanvasX = e.GetPosition(_canvas).X;
             _origStartX = StartX;
             _origWidth = Width;
+            _origSourceStart = SourceStartSeconds;
+            _origLength = LengthSeconds;
             BlockVisual.CaptureMouse();
             e.Handled = true;
         }
@@ -220,11 +281,11 @@ namespace BeatSyncStudioPro
         {
             if (_dragMode == DragMode.None)
             {
-                // Show the stretch cursor near the right edge.
+                // Show the trim cursor near either edge (the left edge only trims audio).
                 Point posInBlock = e.GetPosition(BlockVisual);
-                BlockVisual.Cursor = posInBlock.X >= BlockVisual.ActualWidth - EdgeGrabWidth
-                    ? Cursors.SizeWE
-                    : Cursors.Arrow;
+                bool onEdge = posInBlock.X >= BlockVisual.ActualWidth - EdgeGrabWidth
+                    || (IsAudio && posInBlock.X <= EdgeGrabWidth);
+                BlockVisual.Cursor = onEdge ? Cursors.SizeWE : Cursors.Arrow;
                 return;
             }
 
@@ -246,6 +307,10 @@ namespace BeatSyncStudioPro
             else if (_dragMode == DragMode.StretchRight)
             {
                 SetLengthSeconds((_origWidth + delta) / PixelsPerSecond);
+            }
+            else if (_dragMode == DragMode.StretchLeft)
+            {
+                TrimLeftFromSnapshot(delta / PixelsPerSecond);
             }
             e.Handled = true;
         }
@@ -278,6 +343,8 @@ namespace BeatSyncStudioPro
 
             if (IsAudio)
             {
+                menu.Items.Add(new MenuItem { Header = "↔ Drag edges to trim • drag middle to move", IsEnabled = false });
+
                 // Volume slider (0–150%)
                 var volLabel = new TextBlock { Text = $"Volume: {(int)(Volume * 100)}%", Width = 90, VerticalAlignment = VerticalAlignment.Center };
                 var volSlider = new Slider { Minimum = 0, Maximum = 1.5, Value = Volume, Width = 150, VerticalAlignment = VerticalAlignment.Center };
@@ -327,6 +394,18 @@ namespace BeatSyncStudioPro
                 var extractItem = new MenuItem { Header = "🎵 Extract audio to library only" };
                 extractItem.Click += (s, e) => _owner.ExtractAudioFromVideo(this);
                 menu.Items.Add(extractItem);
+
+                var vSpdLabel = new TextBlock { Text = $"Video speed: {_owner.VideoSpeed:0.00}x", Width = 110, VerticalAlignment = VerticalAlignment.Center };
+                var vSpdSlider = new Slider { Minimum = 0.25, Maximum = 3.0, Value = _owner.VideoSpeed, Width = 150, VerticalAlignment = VerticalAlignment.Center };
+                vSpdSlider.ValueChanged += (s, e) =>
+                {
+                    _owner.SetVideoSpeed(vSpdSlider.Value);
+                    vSpdLabel.Text = $"Video speed: {_owner.VideoSpeed:0.00}x";
+                };
+                var vSpdPanel = new StackPanel { Orientation = Orientation.Horizontal };
+                vSpdPanel.Children.Add(vSpdLabel);
+                vSpdPanel.Children.Add(vSpdSlider);
+                menu.Items.Add(new MenuItem { Header = vSpdPanel, StaysOpenOnClick = true });
 
                 _videoSoundItem = new MenuItem();
                 _videoSoundItem.Click += (s, e) => _owner.SetVideoAudioSeparated(!_owner.VideoAudioSeparated);

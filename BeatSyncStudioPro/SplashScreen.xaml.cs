@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace BeatSyncStudioPro
@@ -17,9 +18,26 @@ namespace BeatSyncStudioPro
         public SplashScreen()
         {
             InitializeComponent();
+            LoadSplashArt();
             _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.8) };
             _timer.Tick += (s, e) => ShowMainWindow();
             _timer.Start();
+        }
+
+        private void LoadSplashArt()
+        {
+            try
+            {
+                // Prefer the art file shipped next to the exe; fall back to the embedded resource
+                string filePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "splash.png");
+                SplashArt.Source = System.IO.File.Exists(filePath)
+                    ? new BitmapImage(new Uri(filePath))
+                    : new BitmapImage(new Uri("pack://application:,,,/Assets/splash.png", UriKind.Absolute));
+            }
+            catch
+            {
+                // The splash still shows its title bar even if the art can't load
+            }
         }
 
         private void ShowMainWindow()
