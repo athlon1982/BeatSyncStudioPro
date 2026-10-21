@@ -127,7 +127,11 @@ namespace BeatSyncStudioPro
                 }
                 else
                 {
-                    ModelPicker.Text = models.Contains(_settings.Model) ? _settings.Model : models[0];
+                    // Default pick: the saved choice, else the recommended
+                    // nemotron-3-ultra-free when this provider offers it.
+                    ModelPicker.Text = models.Contains(_settings.Model) ? _settings.Model
+                        : models.Contains("opencode/nemotron-3-ultra-free") ? "opencode/nemotron-3-ultra-free"
+                        : models[0];
                     StatusText.Text = $"{models.Count} model(s) available on {provider.DisplayName}.";
                 }
             }

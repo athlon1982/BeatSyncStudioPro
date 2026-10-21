@@ -67,6 +67,19 @@ namespace BeatSyncStudioPro
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
             _timer.Tick += (s, e) => { _panelA.Refresh(); _panelB.Refresh(); };
             _timer.Start();
+
+            // Never open larger than the screen's work area (scaled displays
+            // were clipping the window on the right and bottom)
+            Loaded += (s, e) =>
+            {
+                var wa = SystemParameters.WorkArea;
+                MaxWidth = wa.Width;
+                MaxHeight = wa.Height;
+                if (Width > wa.Width) Width = wa.Width;
+                if (Height > wa.Height) Height = wa.Height;
+                Left = wa.Left + Math.Max(0, (wa.Width - ActualWidth) / 2);
+                Top = wa.Top + Math.Max(0, (wa.Height - ActualHeight) / 2);
+            };
             Closed += (s, e) => { _timer.Stop(); _recorder.Stop(); };
         }
 
@@ -210,6 +223,7 @@ namespace BeatSyncStudioPro
             private ComboBox _visualPicker = null!;
             private Border _visualBorder = null!;
             private Image _visualImage = null!;
+            private float _specPeak = 0.2f;
             private readonly List<string> _queuePaths = new List<string>();
             private int _queueIndex = -1;
             private ListBox _queueList = null!;
@@ -237,7 +251,15 @@ namespace BeatSyncStudioPro
                 _title = new TextBlock { Text = $"{name} — empty", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = accent, Margin = new Thickness(0, 0, 0, 6) };
                 root.Children.Add(_title);
 
-                root.Children.Add(BuildPlatter());
+                // The platter is built at a fixed 198px — a Viewbox scales it
+                // down so the whole deck fits smaller / scaled-up screens.
+                root.Children.Add(new Viewbox
+                {
+                    Child = BuildPlatter(),
+                    Height = 168,
+                    Stretch = Stretch.Uniform,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                });
 
                 _scratchBtn = MakeButton("✋ Scratch: OFF", 170);
                 _scratchBtn.HorizontalAlignment = HorizontalAlignment.Center;
@@ -265,14 +287,15 @@ namespace BeatSyncStudioPro
                 var visRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
                 visRow.Children.Add(new TextBlock { Text = "Visual", Foreground = MutedText, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Width = 42 });
                 _visualPicker = new ComboBox { Width = 130, VerticalAlignment = VerticalAlignment.Center };
-                _visualPicker.Items.Add(new ComboBoxItem { Content = "🌈 Spectrum" });
+                _visualPicker.Items.Add(new ComboBoxItem { Content = "📊 Spectrum" });
+                _visualPicker.Items.Add(new ComboBoxItem { Content = "🌈 Rainbow Spectrum" });
                 _visualPicker.Items.Add(new ComboBoxItem { Content = "〰️ Waveform" });
                 _visualPicker.Items.Add(new ComboBoxItem { Content = "Off" });
                 _visualPicker.SelectedIndex = 0;
                 _visualPicker.SelectionChanged += (s, e) =>
                 {
                     if (_visualBorder != null)
-                        _visualBorder.Visibility = _visualPicker.SelectedIndex == 2 ? Visibility.Collapsed : Visibility.Visible;
+                        _visualBorder.Visibility = _visualPicker.SelectedIndex == 3 ? Visibility.Collapsed : Visibility.Visible;
                 };
                 visRow.Children.Add(_visualPicker);
                 visRow.Children.Add(new TextBlock { Text = "(this deck's own sound)", Foreground = MutedText, FontSize = 9, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
@@ -408,7 +431,7 @@ namespace BeatSyncStudioPro
                 root.Children.Add(qHead);
                 _queueList = new ListBox
                 {
-                    Height = 74,
+                    Height = 60,
                     Margin = new Thickness(0, 4, 0, 0),
                     Background = new SolidColorBrush(Color.FromRgb(0x14, 0x17, 0x1E)),
                     Foreground = Brushes.White,
@@ -700,6 +723,21 @@ namespace BeatSyncStudioPro
                 LoadBytes(bytes, name);
             }
 
+            private static Color HslToRgb(double h, double s, double l)
+            {
+                double c = (1 - Math.Abs(2 * l - 1)) * s;
+                double x = c * (1 - Math.Abs((h / 60.0) % 2 - 1));
+                double m = l - c / 2;
+                double r, g, b;
+                if (h < 60) { r = c; g = x; b = 0; }
+                else if (h < 120) { r = x; g = c; b = 0; }
+                else if (h < 180) { r = 0; g = c; b = x; }
+                else if (h < 240) { r = 0; g = x; b = c; }
+                else if (h < 300) { r = x; g = 0; b = c; }
+                else { r = c; g = 0; b = x; }
+                return Color.FromRgb((byte)((r + m) * 255), (byte)((g + m) * 255), (byte)((b + m) * 255));
+            }
+
             private void LoadFromFile()
             {
                 var dialog = new OpenFileDialog { Title = $"Load a song on {_name}", Filter = "Audio|*.mp3;*.wav" };
@@ -968,20 +1006,11 @@ namespace BeatSyncStudioPro
                 if (_visualBorder != null && _visualBorder.Visibility == Visibility.Visible && _visualPicker != null)
                 {
                     const int W = 440, H = 54;
+                    int mode = _visualPicker.SelectedIndex;
                     var visual = new DrawingVisual();
                     using (var dc = visual.RenderOpen())
                     {
-                        if (_visualPicker.SelectedIndex == 0)
-                        {
-                            var bands = _tap.GetSpectrum(48);
-                            double bw = W / 48.0;
-                            for (int i = 0; i < 48; i++)
-                            {
-                                double h = Math.Max(1, bands[i] * (H - 4));
-                                dc.DrawRectangle((Brush)_accent, null, new Rect(i * bw + 1, H - h, bw - 2, h));
-                            }
-                        }
-                        else
+                        if (mode == 2)
                         {
                             var wave = _tap.GetWaveform(220);
                             var pen = new Pen(_accent, 1.2);
@@ -991,6 +1020,46 @@ namespace BeatSyncStudioPro
                                 var pt = new Point(p * 2, H / 2.0 - wave[p] * (H / 2.0 - 2));
                                 dc.DrawLine(pen, prev, pt);
                                 prev = pt;
+                            }
+                        }
+                        else if (!_deck.IsLoaded)
+                        {
+                            // Idle: a resting baseline instead of an empty black box
+                            var dim = new SolidColorBrush(_accent.Color) { Opacity = 0.45 };
+                            dc.DrawRectangle(dim, null, new Rect(0, H - 4, W, 2));
+                        }
+                        else
+                        {
+                            // Spectrum with auto-gain: raw FFT values run small,
+                            // so normalize to a slowly-decaying recent peak —
+                            // otherwise the bars sit at 1-2px and look broken.
+                            var bands = _tap.GetSpectrum(48);
+                            float frameMax = 0;
+                            for (int i = 0; i < 48; i++) frameMax = Math.Max(frameMax, bands[i]);
+                            _specPeak = Math.Max(Math.Max(frameMax, _specPeak * 0.994f), 0.12f);
+                            double bw = W / 48.0;
+                            for (int i = 0; i < 48; i++)
+                            {
+                                double v = Math.Clamp(Math.Sqrt(bands[i] / _specPeak) * 0.95, 0, 1);
+                                if (mode == 0)
+                                {
+                                    double h = Math.Max(1, v * (H - 4));
+                                    dc.DrawRectangle((Brush)_accent, null, new Rect(i * bw + 1, H - h, bw - 2, h));
+                                }
+                                else
+                                {
+                                    // Rainbow LED blocks (Michael's pick): stacked
+                                    // segments, hue sweeping red→orange across the bands
+                                    const int segH = 4, segGap = 2, rows = 8;
+                                    int lit = (int)Math.Round(v * rows);
+                                    double hue = (360.0 - (i / 47.0) * 325.0 + 360.0) % 360.0;
+                                    var brush = new SolidColorBrush(HslToRgb(hue, 1.0, 0.55));
+                                    for (int r = 0; r < lit; r++)
+                                    {
+                                        double y = H - 2 - (r + 1) * segH - r * segGap;
+                                        dc.DrawRectangle(brush, null, new Rect(i * bw + 1, y, bw - 2, segH));
+                                    }
+                                }
                             }
                         }
                     }

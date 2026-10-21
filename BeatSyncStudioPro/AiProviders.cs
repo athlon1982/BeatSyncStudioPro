@@ -18,7 +18,7 @@ namespace BeatSyncStudioPro
     public class AiSettings
     {
         public string ProviderId { get; set; } = "opencode";
-        public string Model { get; set; } = "";
+        public string Model { get; set; } = "opencode/nemotron-3-ultra-free";
         public Dictionary<string, string> Keys { get; set; } = new Dictionary<string, string>();
         public string CustomBaseUrl { get; set; } = "";
 

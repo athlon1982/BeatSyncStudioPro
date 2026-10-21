@@ -3,6 +3,16 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.6 — Decks That Fit, Spectrum That Works
+### Fixed
+- **The DJ window fits your screen now**: it clamps itself to the screen's work area when it opens (scaled displays were clipping it on the right and bottom), the platters render a little smaller, and the track lists are tighter — everything is reachable without hunting for the scrollbar.
+- **The deck Spectrum actually shows now**: the raw levels run small, so the bars were rendering at a pixel or two and looked dead. Both spectrum modes now auto-gain to the song's real level.
+### Added
+- **🌈 Rainbow Spectrum** deck visual — Michael's pick: stacked LED-style blocks sweeping red → purple → blue → green → yellow → orange across the bands, alongside the deck-color Spectrum, Waveform, and Off.
+### Changed
+- **"Created by Michael DeCato" is back on the splash screen** (still off the main window and Start Screen).
+- **AI Lab default model**: the OpenCode provider now starts on **nemotron-3-ultra-free** — the strongest of the free models, and the recommended pick.
+
 ## Version 3.5 — The Timeline, Restyled
 ### Improved
 - **The timeline now wears the feature page's look**: clips are matte and muted instead of neon — **violet** for video, **teal** for the separated video audio, **deep green** audio on even tracks and **slate blue** on odd tracks, so neighboring tracks are easy to tell apart. A clip's color follows it when you drag it to another track.

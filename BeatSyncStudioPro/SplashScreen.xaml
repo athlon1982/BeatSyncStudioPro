@@ -20,9 +20,10 @@
                 <StackPanel HorizontalAlignment="Left">
                     <TextBlock Text="BeatSync Studio Pro" FontSize="34" FontWeight="Bold" Foreground="#FFFFFF"/>
                     <TextBlock Text="MUSIC MIXING EDITOR" FontSize="13" FontWeight="SemiBold" Foreground="#1DB954"/>
+                    <TextBlock Text="Created by Michael DeCato" FontSize="12" Foreground="#A0A5B5" Margin="0,4,0,0"/>
                 </StackPanel>
                 <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom">
-                    <TextBlock Text="Version 3.5" FontSize="13" FontWeight="SemiBold" Foreground="#E2E8F0" HorizontalAlignment="Right"/>
+                    <TextBlock Text="Version 3.6" FontSize="13" FontWeight="SemiBold" Foreground="#E2E8F0" HorizontalAlignment="Right"/>
                     <TextBlock Text="Loading the studio..." FontSize="11" Foreground="#666666" HorizontalAlignment="Right"/>
                 </StackPanel>
             </Grid>
