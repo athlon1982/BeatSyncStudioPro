@@ -1042,6 +1042,8 @@ namespace BeatSyncStudioPro
                 new("DJ Decks", "View", "Ctrl+Shift+D", () => BtnDj_Click(this, ev)),
                 new("Output Window", "View", "Ctrl+Shift+O", () => BtnOutput_Click(this, ev)),
                 new("Monitor FX", "View", "Ctrl+Shift+M", () => BtnMonitorFx_Click(this, ev)),
+                new("Render Queue…", "File", "", () => BtnRenderQueue_Click(this, ev)),
+                new("Batch Convert…", "File", "", () => BtnBatchConvert_Click(this, ev)),
                 new("Start Screen…", "File", "", () => MenuStartScreen_Click(this, ev)),
                 new("About BeatSync", "Help", "F1", () => MenuAbout_Click(this, ev)),
                 new("Exit", "File", "", () => MenuExit_Click(this, ev)),
@@ -1091,6 +1093,42 @@ namespace BeatSyncStudioPro
         }
 
         private void MenuPalette_Click(object sender, RoutedEventArgs e) => OpenCommandPalette();
+
+        // =========================
+        // RENDER QUEUE + BATCH CONVERT
+        // =========================
+
+        /// <summary>Snapshot of the current timeline as an export job (render queue).</summary>
+        public ExportJob BuildExportJobSnapshot() => BuildExportJob();
+
+        /// <summary>Apply an export options filename pattern to a dialog-chosen path.</summary>
+        public string BuildExportPath(string chosenPath, ExportOptionsWindow options)
+        {
+            string baseName = System.IO.Path.GetFileNameWithoutExtension(chosenPath);
+            string expanded = ExportOptionsWindow.ExpandPattern(options.FilenamePattern, baseName, ProjectBpm, options.Preset);
+            if (string.IsNullOrWhiteSpace(expanded) || expanded == baseName) return chosenPath;
+            return System.IO.Path.Combine(
+                System.IO.Path.GetDirectoryName(chosenPath) ?? "",
+                expanded + System.IO.Path.GetExtension(chosenPath));
+        }
+
+        private RenderQueueWindow? _renderQueueWindow;
+        private void BtnRenderQueue_Click(object sender, RoutedEventArgs e)
+        {
+            if (_renderQueueWindow != null) { _renderQueueWindow.Activate(); return; }
+            _renderQueueWindow = new RenderQueueWindow(this) { Owner = this };
+            _renderQueueWindow.Closed += (s, ev) => _renderQueueWindow = null;
+            _renderQueueWindow.Show();
+        }
+
+        private BatchConvertWindow? _batchConvertWindow;
+        private void BtnBatchConvert_Click(object sender, RoutedEventArgs e)
+        {
+            if (_batchConvertWindow != null) { _batchConvertWindow.Activate(); return; }
+            _batchConvertWindow = new BatchConvertWindow { Owner = this };
+            _batchConvertWindow.Closed += (s, ev) => _batchConvertWindow = null;
+            _batchConvertWindow.Show();
+        }
 
         // =========================
         // START SCREEN + RECENT PROJECTS
@@ -1301,15 +1339,7 @@ namespace BeatSyncStudioPro
             if (options.ShowDialog() != true) return;
 
             // Filename pattern ($project, $date, $bpm, …) renames the chosen file
-            string finalPath = dialog.FileName;
-            string expanded = ExportOptionsWindow.ExpandPattern(options.FilenamePattern,
-                System.IO.Path.GetFileNameWithoutExtension(dialog.FileName), ProjectBpm, options.Preset);
-            if (!string.IsNullOrWhiteSpace(expanded) && expanded != System.IO.Path.GetFileNameWithoutExtension(dialog.FileName))
-            {
-                finalPath = System.IO.Path.Combine(
-                    System.IO.Path.GetDirectoryName(dialog.FileName) ?? "",
-                    expanded + System.IO.Path.GetExtension(dialog.FileName));
-            }
+            string finalPath = BuildExportPath(dialog.FileName, options);
 
             var job = BuildExportJob();
             job.MasteringPreset = options.Preset;

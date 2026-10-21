@@ -25,6 +25,8 @@
                 <MenuItem Header="💾 Save Project" Click="BtnSave_Click" InputGestureText="Ctrl+S"/>
                 <Separator/>
                 <MenuItem Header="💾 Export Audio (WAV / MP3)..." Click="BtnExportAudio_Click" InputGestureText="Ctrl+E"/>
+                <MenuItem Header="📋 Render Queue..." Click="BtnRenderQueue_Click"/>
+                <MenuItem Header="🔁 Batch Convert..." Click="BtnBatchConvert_Click"/>
                 <MenuItem Header="🎬 Export Video..." Click="BtnExport_Click"/>
                 <Separator/>
                 <MenuItem Header="Exit" Click="MenuExit_Click"/>

@@ -250,7 +250,7 @@ namespace BeatSyncStudioPro
         /// Integrated loudness (BS.1770 K-weighted, ungated — a close
         /// approximation of true LUFS) plus the sample peak of a WAV file.
         /// </summary>
-        private static (double Lufs, double Peak) MeasureLoudness(string wavPath)
+        internal static (double Lufs, double Peak) MeasureLoudness(string wavPath)
         {
             using var reader = new WaveFileReader(wavPath);
             ISampleProvider provider = reader.ToSampleProvider();
@@ -284,7 +284,7 @@ namespace BeatSyncStudioPro
         }
 
         /// <summary>Rewrite a WAV with a fixed gain applied (16-bit out).</summary>
-        private static void ApplyGain(string inputWav, string outputWav, double gainDb, CancellationToken token)
+        internal static void ApplyGain(string inputWav, string outputWav, double gainDb, CancellationToken token)
         {
             using var reader = new WaveFileReader(inputWav);
             ISampleProvider provider = reader.ToSampleProvider();
