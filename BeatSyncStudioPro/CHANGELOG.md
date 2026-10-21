@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.21 — Compute Choice Now Drives ffmpeg Too
+### Changed
+- **The CPU/GPU compute choice now covers video export** (Michael: "for the option to use cpu or gpu prolly need to include ffmpeg or things like that too?"). ffmpeg used to encode every export with libx264 on the CPU no matter what was picked. Now the encoder follows the same setting that drives the stem splitter: **CPU → libx264; GPU / Auto → the hardware encoder** for the detected graphics — NVIDIA NVENC, **Intel QuickSync** (yes, integrated Intel counts here; QuickSync is built for exactly this), or AMD AMF. If the hardware encoder ever fails, the export quietly redoes itself on the CPU encoder instead of failing, and the export window's finish message names the encoder that actually did the work.
+
 ## Version 3.20 — Providers Split by Category + "Song" Tab
 ### Changed
 - **Providers are now split by category** (Michael's direction — some models do music, some do video, and the two shouldn't be mixed in one list): the Providers window has **🎵 Music & Audio** and **🎬 Video** tabs, each listing only that category's providers — every one still badged **FREE or PAID**, with key boxes and signup/key links where they apply. Services that do both (**fal.ai, Replicate**) appear in **both** lists; one key covers everything they do. **Freesound** joined the Music list (free sounds; its key stays in the Freesound window).

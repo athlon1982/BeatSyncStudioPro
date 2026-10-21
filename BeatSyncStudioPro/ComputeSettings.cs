@@ -11,8 +11,10 @@ namespace BeatSyncStudioPro
     /// <summary>
     /// The app-wide compute choice for AI features: Auto / CPU / GPU, plus
     /// which graphics device. Saved in %AppData%/BeatSyncStudioPro.
-    /// Today it drives the Stem Splitter (ONNX Runtime: CPU or DirectML);
-    /// the song-generation engine reads the same setting when it lands.
+    /// It drives the Stem Splitter (ONNX Runtime: CPU or DirectML) AND —
+    /// since v3.21, Michael's ask — the ffmpeg video export encoder:
+    /// GPU/Auto picks the hardware encoder for the detected adapter.
+    /// The song-generation engine reads the same setting.
     /// </summary>
     public class ComputeSettings
     {
@@ -148,6 +150,27 @@ namespace BeatSyncStudioPro
                 if (Mode == "CPU") return false;
                 return GpuNames().Exists(n => !n.Contains("Intel"));
             }
+        }
+
+        /// <summary>
+        /// The ffmpeg H.264 encoder video exports should use, honoring the
+        /// compute choice: CPU mode (or no GPU) → libx264 on the processor;
+        /// GPU / Auto / Online (exports always render on this PC) → the
+        /// hardware encoder for the detected adapter. NVIDIA wins over an
+        /// integrated Intel GPU when both are listed (common on laptops).
+        /// Unlike the ONNX rule in UseGpu, Intel integrated graphics DO get
+        /// used here — QuickSync is built exactly for video encoding.
+        /// The export falls back to libx264 on its own if the hardware
+        /// encoder fails, so this is a preference, never a hard failure.
+        /// </summary>
+        public (string Encoder, string Label) VideoEncoder()
+        {
+            if (Mode == "CPU") return ("libx264", "CPU (libx264)");
+            var gpus = GpuNames();
+            if (gpus.Exists(n => n.Contains("NVIDIA"))) return ("h264_nvenc", "NVIDIA NVENC (GPU)");
+            if (gpus.Exists(n => n.Contains("Intel"))) return ("h264_qsv", "Intel QuickSync (GPU)");
+            if (gpus.Exists(n => n.Contains("AMD") || n.Contains("Radeon"))) return ("h264_amf", "AMD AMF (GPU)");
+            return ("libx264", "CPU (libx264)");
         }
 
         /// <summary>Short human description of what will actually run, for status lines.</summary>

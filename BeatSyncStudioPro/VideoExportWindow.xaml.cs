@@ -61,12 +61,12 @@ namespace BeatSyncStudioPro
                 double startOffset = _videoBlock.StartX / 100.0;
                 double videoLen = _videoBlock.LengthSeconds > 0 ? _videoBlock.LengthSeconds : 60;
                 var muxProgress = new Progress<double>(p => SetProgress(0.6 + p * 0.4, "Encoding the MP4… (H.264 video + your mix)"));
-                await FfmpegTool.MuxAsync(
+                string encoderLabel = await FfmpegTool.MuxAsync(
                     _owner.VideoPath!, _videoBlock.SourceStartSeconds, _videoBlock.Speed, startOffset,
                     tempWav, _outputPath, startOffset + videoLen, muxProgress, _cts.Token);
 
                 SetProgress(1, "Done!");
-                Finish($"✅ Your video is exported:\n{_outputPath}");
+                Finish($"✅ Your video is exported:\n{_outputPath}\nEncoded with: {encoderLabel}");
             }
             catch (OperationCanceledException)
             {
