@@ -481,6 +481,7 @@ namespace BeatSyncStudioPro
             if (VideoAssets.ContainsKey(draggingSoundName))
             {
                 VideoPath = VideoAssets[draggingSoundName];
+                SetVideoAudioSeparated(false);
                 if (MasterVideoPlayer != null)
                 {
                     try
@@ -705,34 +706,59 @@ namespace BeatSyncStudioPro
             RenderStudioGridLanes();
         }
 
+        /// <summary>True once the video's sound lives on an audio track instead (the video itself plays silent).</summary>
+        public bool VideoAudioSeparated { get; private set; }
+
+        public void SetVideoAudioSeparated(bool separated)
+        {
+            VideoAudioSeparated = separated;
+            UpdateVideoVolume();
+        }
+
+        private void UpdateVideoVolume()
+        {
+            if (MasterVideoPlayer != null)
+            {
+                MasterVideoPlayer.Volume = VideoAudioSeparated ? 0 : MasterVolume;
+            }
+        }
+
+        /// <summary>Decodes the loaded video's soundtrack to WAV bytes; null when no video is loaded.</summary>
+        private byte[]? ExtractVideoAudioBytes()
+        {
+            if (VideoPath == null || !File.Exists(VideoPath)) return null;
+
+            using var reader = new MediaFoundationReader(VideoPath);
+            using var ms = new MemoryStream();
+            using (var writer = new WaveFileWriter(ms, reader.WaveFormat))
+            {
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = reader.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    writer.Write(buffer, 0, read);
+                }
+            }
+            return ms.ToArray();
+        }
+
         /// <summary>
         /// Pulls the soundtrack out of the loaded video and adds it to the
         /// asset library as a WAV, ready to drag onto any audio track.
         /// </summary>
         public void ExtractAudioFromVideo(FixedBlock block)
         {
-            if (VideoPath == null || !File.Exists(VideoPath))
-            {
-                MessageBox.Show("❌ No video file is loaded to extract audio from.", "Extract Audio", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
             try
             {
-                using var reader = new MediaFoundationReader(VideoPath);
-                using var ms = new MemoryStream();
-                using (var writer = new WaveFileWriter(ms, reader.WaveFormat))
+                byte[]? bytes = ExtractVideoAudioBytes();
+                if (bytes == null)
                 {
-                    byte[] buffer = new byte[8192];
-                    int read;
-                    while ((read = reader.Read(buffer, 0, buffer.Length)) > 0)
-                    {
-                        writer.Write(buffer, 0, read);
-                    }
+                    MessageBox.Show("❌ No video file is loaded to extract audio from.", "Extract Audio", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
                 }
 
-                string audioName = $"{System.IO.Path.GetFileNameWithoutExtension(VideoPath)} (audio).wav";
-                ZipSounds[audioName] = ms.ToArray();
+                string audioName = $"{System.IO.Path.GetFileNameWithoutExtension(VideoPath!)} (audio).wav";
+                ZipSounds[audioName] = bytes;
                 ListContainer.Children.Add(CreateAssetButton($"🎵 {audioName}", audioName));
 
                 MessageBox.Show($"✅ Audio extracted to the library as '{audioName}'.\n\nDrag it onto a timeline track to use it.", "Audio Extracted", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -740,6 +766,40 @@ namespace BeatSyncStudioPro
             catch (Exception ex)
             {
                 MessageBox.Show($"❌ Could not extract audio: {ex.Message}", "Extract Audio", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Full separation: the video's soundtrack becomes a normal audio clip on
+        /// Track 1 (same start position as the video) and the video itself goes
+        /// silent, so its sound can be edited like any other clip.
+        /// </summary>
+        public void SeparateAudioFromVideo(FixedBlock block)
+        {
+            try
+            {
+                byte[]? bytes = ExtractVideoAudioBytes();
+                if (bytes == null)
+                {
+                    MessageBox.Show("❌ No video file is loaded to separate audio from.", "Separate Audio", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                string audioName = $"{System.IO.Path.GetFileNameWithoutExtension(VideoPath!)} (audio).wav";
+                ZipSounds[audioName] = bytes;
+                ListContainer.Children.Add(CreateAssetButton($"🎵 {audioName}", audioName));
+
+                var audioBlock = new FixedBlock(this, TimelineCanvas, 0, audioName, block.StartX, bytes, "wav");
+                TimelineBlocks.Add(audioBlock);
+
+                SetVideoAudioSeparated(true);
+                RenderStudioGridLanes();
+
+                MessageBox.Show($"✅ Audio separated!\n\n'{audioName}' is now on Audio Track 1 and the video is silent — edit the sound like any other clip (right-click it for volume/speed, drag its edge to stretch).\n\nTo hear the video's original sound again, right-click the video clip and turn its own sound back on.", "Separate Audio", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"❌ Could not separate audio: {ex.Message}", "Separate Audio", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -764,7 +824,7 @@ namespace BeatSyncStudioPro
         private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             MasterVolume = MasterVolumeSlider.Value;
-            if (MasterVideoPlayer != null) MasterVideoPlayer.Volume = MasterVolume;
+            UpdateVideoVolume();
             UpdateVolumeDisplay();
         }
 

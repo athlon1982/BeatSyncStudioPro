@@ -51,6 +51,8 @@ namespace BeatSyncStudioPro
 
         public Border BlockVisual { get; private set; }
 
+        private MenuItem? _videoSoundItem;
+
         // Drag state
         private enum DragMode { None, Move, StretchRight }
         private DragMode _dragMode = DragMode.None;
@@ -311,9 +313,28 @@ namespace BeatSyncStudioPro
 
             if (IsVideo)
             {
-                var extractItem = new MenuItem { Header = "🎵 Extract audio to library" };
+                var separateItem = new MenuItem { Header = "🔀 Separate audio & video" };
+                separateItem.Click += (s, e) => _owner.SeparateAudioFromVideo(this);
+                menu.Items.Add(separateItem);
+
+                var extractItem = new MenuItem { Header = "🎵 Extract audio to library only" };
                 extractItem.Click += (s, e) => _owner.ExtractAudioFromVideo(this);
                 menu.Items.Add(extractItem);
+
+                _videoSoundItem = new MenuItem();
+                _videoSoundItem.Click += (s, e) => _owner.SetVideoAudioSeparated(!_owner.VideoAudioSeparated);
+                menu.Items.Add(_videoSoundItem);
+
+                menu.Opened += (s, e) =>
+                {
+                    if (_videoSoundItem != null)
+                    {
+                        _videoSoundItem.Header = _owner.VideoAudioSeparated
+                            ? "🔊 Turn video's own sound back ON"
+                            : "🔇 Mute video's own sound";
+                    }
+                };
+
                 menu.Items.Add(new Separator());
             }
 

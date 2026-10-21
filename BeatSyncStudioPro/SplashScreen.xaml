@@ -22,7 +22,7 @@
                     <TextBlock Text="MUSIC MIXING EDITOR" FontSize="13" FontWeight="SemiBold" Foreground="#1DB954"/>
                 </StackPanel>
                 <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom">
-                    <TextBlock Text="Version 1.0" FontSize="13" FontWeight="SemiBold" Foreground="#E2E8F0" HorizontalAlignment="Right"/>
+                    <TextBlock Text="Version 1.1" FontSize="13" FontWeight="SemiBold" Foreground="#E2E8F0" HorizontalAlignment="Right"/>
                     <TextBlock Text="Loading the studio..." FontSize="11" Foreground="#666666" HorizontalAlignment="Right"/>
                 </StackPanel>
             </Grid>
