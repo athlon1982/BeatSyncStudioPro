@@ -28,15 +28,18 @@ namespace BeatSyncStudioPro
             if (!string.IsNullOrWhiteSpace(style)) StyleBox.Text = style;
             ComputeText.Text = "Compute: " + ComputeSettings.Load().Describe();
             BuildStyleChips();
+            Slider_Changed(this, null); // sync the % labels now that everything exists
             Closed += (s, e) => _cts?.Cancel();
         }
 
         private void Slider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (StyleInfValue == null) return;
-            StyleInfValue.Text = ((int)StyleInfSlider.Value).ToString();
-            VoiceInfValue.Text = ((int)VoiceInfSlider.Value).ToString();
-            WeirdValue.Text = ((int)WeirdSlider.Value).ToString();
+            // The XAML sets each slider's Value WHILE the window is still
+            // loading, which fires this handler before the later labels exist.
+            // Guard every label on its own (the v3.14 crash was exactly this).
+            if (StyleInfValue != null && StyleInfSlider != null) StyleInfValue.Text = ((int)StyleInfSlider.Value).ToString();
+            if (VoiceInfValue != null && VoiceInfSlider != null) VoiceInfValue.Text = ((int)VoiceInfSlider.Value).ToString();
+            if (WeirdValue != null && WeirdSlider != null) WeirdValue.Text = ((int)WeirdSlider.Value).ToString();
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e) => _cts?.Cancel();

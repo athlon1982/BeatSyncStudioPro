@@ -102,10 +102,19 @@ namespace BeatSyncStudioPro
             if (_createSong != null) { _createSong.Activate(); return; }
             // Carry the lyrics AND Michael's standing style into Create Song,
             // where the style chips, voice picker, sliders and auto-beat live.
-            _createSong = new CreateSongWindow(_owner, OutputBox.Text,
-                "hip-hop, boom-rap, heavy 808 sub-bass, hard-hitting bass, country rap, Vermont") { Owner = this };
-            _createSong.Closed += (s, ev) => _createSong = null;
-            _createSong.Show();
+            // Wrapped: a window-open error must never take the whole app down.
+            try
+            {
+                _createSong = new CreateSongWindow(_owner, OutputBox.Text,
+                    "hip-hop, boom-rap, heavy 808 sub-bass, hard-hitting bass, country rap, Vermont") { Owner = this };
+                _createSong.Closed += (s, ev) => _createSong = null;
+                _createSong.Show();
+            }
+            catch (Exception ex)
+            {
+                _createSong = null;
+                StatusText.Text = "Create Song couldn't open: " + ex.Message;
+            }
         }
 
         private void ReplicateSignup_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/signin");

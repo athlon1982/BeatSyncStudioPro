@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.15 — Create Song Crash Fix
+### Fixed
+- **Create Song crashed the whole app the moment it opened** (found via the PC's crash log): the window's XAML sets each influence slider's value while the window is still loading, which fired the slider handler before the % labels beside the later sliders existed — a null-reference crash inside `InitializeComponent`, present since the window was introduced in v3.11 (the AI Lab's Make-This-Into-A-Song button was simply the first door Michael walked through). Every label is now guarded on its own, and the labels re-sync once the window has fully loaded.
+- The AI Lab's song hand-off is now wrapped so that if opening Create Song ever fails for any reason, the AI Lab shows the error in its status line instead of the app closing.
+
 ## Version 3.14 — Lyrics → Song, Front and Center
 ### Changed
 - **The AI Lab's song hand-off is now impossible to miss**: a big green **🎤 Make THIS into a Song →** button sits right under the results. It carries your generated lyrics into Create Song **with your style already filled in** — from there the style chips, voice picker, influence sliders and 🥁 Auto-make the beat are all on the one screen, then **Generate Song**. After lyrics generate, the status line points you at the button, and if there's nothing generated yet it tells you so instead of opening an empty panel.
