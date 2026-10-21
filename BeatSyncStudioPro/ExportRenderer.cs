@@ -26,6 +26,9 @@ namespace BeatSyncStudioPro
         public double FadeInSeconds;
         public double FadeOutSeconds;
         public TrackFxSettings Fx = new TrackFxSettings();
+        public System.Collections.Generic.List<EnvelopePoint> VolumePoints = new System.Collections.Generic.List<EnvelopePoint>();
+        public bool GateOn;
+        public double GateThresholdDb = -45;
 
         /// <summary>When the clip's audio actually starts in the export (nudge applied, never negative).</summary>
         public double DelaySeconds => Math.Max(0, StartSeconds + NudgeMs / 1000.0);
@@ -359,7 +362,9 @@ namespace BeatSyncStudioPro
                     if (total > 0) provider = new AutoFadeSampleProvider(provider, clip.FadeInSeconds, clip.FadeOutSeconds, total);
                 }
 
+                if (clip.GateOn) provider = new GateSampleProvider(provider, clip.GateThresholdDb);
                 if (ClipFxChain.HasAny(clip.Fx)) provider = ClipFxChain.Apply(provider, clip.Fx);
+                if (clip.VolumePoints.Count > 0) provider = new EnvelopeSampleProvider(provider, clip.VolumePoints);
 
                 return new VolumeSampleProvider(provider) { Volume = (float)clip.Volume };
             }

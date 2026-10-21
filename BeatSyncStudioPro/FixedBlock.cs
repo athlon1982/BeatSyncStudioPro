@@ -48,6 +48,13 @@ namespace BeatSyncStudioPro
         /// <summary>Per-clip FX (EQ/delay/reverb) applied before the track chain. Edited via the shared FX window.</summary>
         public TrackFxSettings ClipFx { get; set; } = new TrackFxSettings();
 
+        /// <summary>Volume automation breakpoints (empty = flat).</summary>
+        public System.Collections.Generic.List<EnvelopePoint> VolumePoints { get; set; } = new System.Collections.Generic.List<EnvelopePoint>();
+
+        /// <summary>Noise-gate cleanup.</summary>
+        public bool GateOn { get; set; }
+        public double GateThresholdDb { get; set; } = -45;
+
         /// <summary>Normalize this clip's audio to about -0.5 dB peak.</summary>
         public bool Normalize { get; set; }
 
@@ -410,6 +417,18 @@ namespace BeatSyncStudioPro
                 clipFxItem.Click += (s, e) => _owner.OpenClipFxDialog(this);
                 menu.Items.Add(clipFxItem);
 
+                var envItem = new MenuItem { Header = "📉 Volume envelope…" };
+                envItem.Click += (s, e) => _owner.OpenEnvelopeEditor(this);
+                menu.Items.Add(envItem);
+
+                var gateItem = new MenuItem { Header = "🔇 Noise gate…" };
+                gateItem.Click += (s, e) => _owner.OpenGateDialog(this);
+                menu.Items.Add(gateItem);
+
+                var specItem = new MenuItem { Header = "🌈 Spectrogram…" };
+                specItem.Click += (s, e) => _owner.OpenSpectrogram(this);
+                menu.Items.Add(specItem);
+
                 menu.Opened += (s, e) =>
                 {
                     reverseItem.IsChecked = Reverse;
@@ -428,6 +447,8 @@ namespace BeatSyncStudioPro
                     Normalize = false;
                     NudgeMs = 0;
                     ClipFx = new TrackFxSettings();
+                    VolumePoints.Clear();
+                    GateOn = false;
                     _owner.RefreshAfterBlockEdit();
                 };
                 menu.Items.Add(resetItem);

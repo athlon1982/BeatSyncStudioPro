@@ -1489,7 +1489,10 @@ namespace BeatSyncStudioPro
                     Reverse = block.Reverse,
                     Normalize = block.Normalize,
                     NudgeMs = block.NudgeMs,
-                    Fx = block.ClipFx
+                    Fx = block.ClipFx,
+                    VolumePoints = block.VolumePoints,
+                    GateOn = block.GateOn,
+                    GateThresholdDb = block.GateThresholdDb
                 };
                 if (fadeByBlock.TryGetValue(block, out var fades))
                 {
@@ -1679,7 +1682,9 @@ namespace BeatSyncStudioPro
                     }
                 }
 
+                if (block.GateOn) provider = new GateSampleProvider(provider, block.GateThresholdDb);
                 if (ClipFxChain.HasAny(block.ClipFx)) provider = ClipFxChain.Apply(provider, block.ClipFx);
+                if (block.VolumePoints.Count > 0) provider = new EnvelopeSampleProvider(provider, block.VolumePoints);
 
                 var volumeSampleProvider = new VolumeSampleProvider(provider) { Volume = (float)(block.Volume * MasterVolume) };
 
@@ -1703,6 +1708,44 @@ namespace BeatSyncStudioPro
                 block.NudgeMs = dlg.ValueMs;
                 RefreshAfterBlockEdit();
             }
+        }
+
+        /// <summary>Volume-envelope editor for one clip.</summary>
+        public void OpenEnvelopeEditor(FixedBlock block)
+        {
+            double duration = block.LengthSeconds > 0
+                ? Math.Max(0.1, block.LengthSeconds - Math.Abs(block.NudgeMs) / 1000.0)
+                : Math.Max(0.1, block.Width / 100.0);
+            var dlg = new EnvelopeWindow(block.Filename, duration, block.VolumePoints) { Owner = this };
+            if (dlg.ShowDialog() == true)
+            {
+                block.VolumePoints = dlg.Points;
+                RefreshAfterBlockEdit();
+            }
+        }
+
+        /// <summary>Noise-gate settings for one clip.</summary>
+        public void OpenGateDialog(FixedBlock block)
+        {
+            var dlg = new GateWindow(block.GateOn, block.GateThresholdDb) { Owner = this };
+            if (dlg.ShowDialog() == true)
+            {
+                block.GateOn = dlg.GateEnabled;
+                block.GateThresholdDb = dlg.ThresholdDb;
+                RefreshAfterBlockEdit();
+            }
+        }
+
+        /// <summary>Spectrogram view for one clip.</summary>
+        public void OpenSpectrogram(FixedBlock block)
+        {
+            if (block.RawBytes == null || block.RawBytes.Length == 0)
+            {
+                MessageBox.Show("That clip has no audio data loaded to analyze.", "Spectrogram");
+                return;
+            }
+            var win = new SpectrogramWindow(block) { Owner = this };
+            win.Show();
         }
 
         /// <summary>Per-clip FX editor — the same window as track FX, aimed at one clip's settings.</summary>
@@ -1936,7 +1979,10 @@ namespace BeatSyncStudioPro
                         b.Reverse,
                         b.Normalize,
                         b.NudgeMs,
-                        ClipFx = b.ClipFx
+                        ClipFx = b.ClipFx,
+                        VolumePoints = b.VolumePoints,
+                        b.GateOn,
+                        b.GateThresholdDb
                     }).ToList()
                 };
 
@@ -2160,6 +2206,13 @@ namespace BeatSyncStudioPro
                             {
                                 try { clipFx = JsonSerializer.Deserialize<TrackFxSettings>(cfx.GetRawText()); } catch { }
                             }
+                            System.Collections.Generic.List<EnvelopePoint>? volPoints = null;
+                            if (b.TryGetProperty("VolumePoints", out var vpx))
+                            {
+                                try { volPoints = JsonSerializer.Deserialize<System.Collections.Generic.List<EnvelopePoint>>(vpx.GetRawText()); } catch { }
+                            }
+                            bool gateOn = b.TryGetProperty("GateOn", out var goEl) && goEl.GetBoolean();
+                            double gateDb = b.TryGetProperty("GateThresholdDb", out var gdEl) ? gdEl.GetDouble() : -45;
 
                             if (isVideo)
                             {
@@ -2192,6 +2245,9 @@ namespace BeatSyncStudioPro
                                 block.Normalize = normalize;
                                 block.NudgeMs = nudgeMs;
                                 if (clipFx != null) block.ClipFx = clipFx;
+                                if (volPoints != null) block.VolumePoints = volPoints;
+                                block.GateOn = gateOn;
+                                block.GateThresholdDb = gateDb;
                                 if (length > 0)
                                 {
                                     block.LengthSeconds = length;

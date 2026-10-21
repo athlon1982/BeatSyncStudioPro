@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
@@ -170,6 +171,102 @@ namespace BeatSyncStudioPro
             }
             double cap = Math.Min(2.0, me.Length / 2.0);
             return (Math.Min(fin, cap), Math.Min(fout, cap));
+        }
+    }
+
+    /// <summary>One volume-automation breakpoint on a clip (time from the clip's audible start).</summary>
+    public class EnvelopePoint
+    {
+        public double TimeSeconds { get; set; }
+        public double Gain { get; set; } = 1.0;
+    }
+
+    /// <summary>Applies a clip's volume envelope: linear gain between breakpoints.</summary>
+    public class EnvelopeSampleProvider : ISampleProvider
+    {
+        private readonly ISampleProvider _source;
+        private readonly List<EnvelopePoint> _points;
+        private long _frame;
+
+        public EnvelopeSampleProvider(ISampleProvider source, List<EnvelopePoint> points)
+        {
+            _source = source;
+            _points = points.OrderBy(p => p.TimeSeconds).ToList();
+            WaveFormat = source.WaveFormat;
+        }
+
+        public WaveFormat WaveFormat { get; }
+
+        private double GainAt(double t)
+        {
+            if (_points.Count == 0) return 1.0;
+            if (t <= _points[0].TimeSeconds) return _points[0].Gain;
+            for (int i = 1; i < _points.Count; i++)
+            {
+                if (t <= _points[i].TimeSeconds)
+                {
+                    var a = _points[i - 1];
+                    var b = _points[i];
+                    double span = Math.Max(1e-6, b.TimeSeconds - a.TimeSeconds);
+                    return a.Gain + (b.Gain - a.Gain) * ((t - a.TimeSeconds) / span);
+                }
+            }
+            return _points[_points.Count - 1].Gain;
+        }
+
+        public int Read(float[] buffer, int offset, int count)
+        {
+            int read = _source.Read(buffer, offset, count);
+            int channels = WaveFormat.Channels;
+            int frames = read / channels;
+            double rate = WaveFormat.SampleRate;
+            for (int f = 0; f < frames; f++)
+            {
+                double g = GainAt(_frame / rate);
+                int idx = offset + f * channels;
+                for (int c = 0; c < channels; c++) buffer[idx + c] *= (float)g;
+                _frame++;
+            }
+            return read;
+        }
+    }
+
+    /// <summary>Noise gate cleanup: smoothly silences audio below a threshold (dB).</summary>
+    public class GateSampleProvider : ISampleProvider
+    {
+        private readonly ISampleProvider _source;
+        private readonly double _threshold;
+        private double _gain = 1;
+        private double _level;
+
+        public GateSampleProvider(ISampleProvider source, double thresholdDb)
+        {
+            _source = source;
+            _threshold = Math.Pow(10, thresholdDb / 20.0);
+            WaveFormat = source.WaveFormat;
+        }
+
+        public WaveFormat WaveFormat { get; }
+
+        public int Read(float[] buffer, int offset, int count)
+        {
+            int read = _source.Read(buffer, offset, count);
+            int channels = WaveFormat.Channels;
+            int frames = read / channels;
+            double openCoeff = 1 - Math.Exp(-1.0 / (0.002 * WaveFormat.SampleRate));
+            double closeCoeff = 1 - Math.Exp(-1.0 / (0.080 * WaveFormat.SampleRate));
+            for (int f = 0; f < frames; f++)
+            {
+                int idx = offset + f * channels;
+                double peak = 0;
+                for (int c = 0; c < channels; c++) peak = Math.Max(peak, Math.Abs(buffer[idx + c]));
+                _level = Math.Max(peak, _level * 0.99995);
+                double target = _level >= _threshold ? 1 : 0;
+                double coeff = target > _gain ? openCoeff : closeCoeff;
+                _gain += (target - _gain) * coeff;
+                for (int c = 0; c < channels; c++) buffer[idx + c] *= (float)_gain;
+            }
+            return read;
         }
     }
 }
