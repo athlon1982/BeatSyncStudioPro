@@ -34,6 +34,19 @@ namespace BeatSyncStudioPro
 
         private IWavePlayer? outputDevice;
         private MixingSampleProvider? mixerEngine;
+
+        // Per-track mixer chains (volume + pan per track; last chain = VIDEO AUDIO lane)
+        private readonly List<MixingSampleProvider> _trackMixers = new List<MixingSampleProvider>();
+        private readonly List<VolumeSampleProvider> _trackGains = new List<VolumeSampleProvider>();
+        private readonly List<PanningSampleProvider> _trackPanFx = new List<PanningSampleProvider>();
+        private readonly List<ISampleProvider> _trackChainOutputs = new List<ISampleProvider>();
+        public List<double> TrackVolumeValues { get; } = new List<double>();
+        public List<double> TrackPanValues { get; } = new List<double>();
+        private MixerWindow? _mixerWindow;
+
+        // Pause state for the timeline transport
+        private System.Diagnostics.Stopwatch? _playStopwatch;
+        private bool _isPaused;
         private Line? playhead;
         private CancellationTokenSource? playbackCancelToken;
         private string? draggingSoundName = null;
@@ -67,6 +80,7 @@ namespace BeatSyncStudioPro
                 mixerEngine = new MixingSampleProvider(WaveFormat.CreateIeeeFloatWaveFormat(44100, 2)) { ReadFully = true };
                 outputDevice.Init(mixerEngine);
                 outputDevice.Play();
+                BuildTrackChains();
             }
             catch (Exception ex)
             {
@@ -565,6 +579,7 @@ namespace BeatSyncStudioPro
             {
                 AudioTrackCount++;
                 RenderStudioGridLanes();
+                BuildTrackChains();
             }
         }
 
@@ -576,6 +591,7 @@ namespace BeatSyncStudioPro
                 TimelineBlocks.RemoveAll(b => b.TrackId == targetTrack && !b.IsVideo && !b.IsVideoAudio);
                 AudioTrackCount--;
                 RenderStudioGridLanes();
+                BuildTrackChains();
             }
         }
 
@@ -622,9 +638,23 @@ namespace BeatSyncStudioPro
 
         private void BtnPlay_Click(object sender, RoutedEventArgs e)
         {
+            // Resume from pause: unfreeze the play clock, the audio output and the video
+            if (_isPaused)
+            {
+                _isPaused = false;
+                _playStopwatch?.Start();
+                outputDevice?.Play();
+                if (VideoPath != null && MasterVideoPlayer != null)
+                {
+                    try { MasterVideoPlayer.Play(); } catch { }
+                }
+                return;
+            }
+
             if (isPlayingTimeline) return;
             isPlayingTimeline = true;
             playbackCancelToken = new CancellationTokenSource();
+            _playStopwatch = System.Diagnostics.Stopwatch.StartNew();
 
             if (VideoPath != null && MasterVideoPlayer != null)
             {
@@ -641,25 +671,109 @@ namespace BeatSyncStudioPro
         private void BtnPause_Click(object sender, RoutedEventArgs e)
         {
             if (MasterVideoPlayer != null) MasterVideoPlayer.Pause();
+
+            // Pause EVERYTHING: freeze the play clock and the audio output too,
+            // so clips stop mid-sound instead of playing on behind a paused video
+            if (isPlayingTimeline && !_isPaused)
+            {
+                _isPaused = true;
+                _playStopwatch?.Stop();
+                outputDevice?.Pause();
+            }
         }
 
         private void BtnStop_Click(object sender, RoutedEventArgs e)
         {
             isPlayingTimeline = false;
+            _isPaused = false;
             playbackCancelToken?.Cancel();
+            _playStopwatch?.Stop();
+            if (outputDevice?.PlaybackState == PlaybackState.Paused) outputDevice.Play();
             if (MasterVideoPlayer != null) MasterVideoPlayer.Stop();
+        }
+
+        // =========================
+        // MIXER (per-track volume + pan)
+        // =========================
+
+        private void BuildTrackChains()
+        {
+            if (mixerEngine == null) return;
+
+            foreach (var output in _trackChainOutputs)
+            {
+                mixerEngine.RemoveMixerInput(output);
+            }
+            _trackMixers.Clear();
+            _trackGains.Clear();
+            _trackPanFx.Clear();
+            _trackChainOutputs.Clear();
+
+            int chainCount = AudioTrackCount + 1; // last chain = VIDEO AUDIO lane
+            while (TrackVolumeValues.Count < chainCount) TrackVolumeValues.Add(1.0);
+            while (TrackPanValues.Count < chainCount) TrackPanValues.Add(0.0);
+
+            for (int i = 0; i < chainCount; i++)
+            {
+                var trackMixer = new MixingSampleProvider(WaveFormat.CreateIeeeFloatWaveFormat(44100, 2)) { ReadFully = true };
+                var pan = new PanningSampleProvider(trackMixer) { Pan = (float)TrackPanValues[i] };
+                var gain = new VolumeSampleProvider(pan) { Volume = (float)TrackVolumeValues[i] };
+                _trackMixers.Add(trackMixer);
+                _trackPanFx.Add(pan);
+                _trackGains.Add(gain);
+                _trackChainOutputs.Add(gain);
+                mixerEngine.AddMixerInput(gain);
+            }
+
+            _mixerWindow?.RefreshStrips();
+        }
+
+        public double GetTrackVolume(int index) => index >= 0 && index < TrackVolumeValues.Count ? TrackVolumeValues[index] : 1.0;
+
+        public double GetTrackPan(int index) => index >= 0 && index < TrackPanValues.Count ? TrackPanValues[index] : 0.0;
+
+        public void SetTrackVolume(int index, double value)
+        {
+            while (TrackVolumeValues.Count <= index) TrackVolumeValues.Add(1.0);
+            TrackVolumeValues[index] = value;
+            if (index >= 0 && index < _trackGains.Count) _trackGains[index].Volume = (float)value;
+        }
+
+        public void SetTrackPan(int index, double value)
+        {
+            while (TrackPanValues.Count <= index) TrackPanValues.Add(0.0);
+            TrackPanValues[index] = value;
+            if (index >= 0 && index < _trackPanFx.Count) _trackPanFx[index].Pan = (float)value;
+        }
+
+        public void SetMasterVolume(double value)
+        {
+            MasterVolumeSlider.Value = value;
+        }
+
+        private void BtnMixer_Click(object sender, RoutedEventArgs e)
+        {
+            if (_mixerWindow == null)
+            {
+                _mixerWindow = new MixerWindow(this) { Owner = this };
+                _mixerWindow.Closed += (s, ev) => _mixerWindow = null;
+                _mixerWindow.Show();
+            }
+            else
+            {
+                _mixerWindow.Activate();
+            }
         }
 
         private async Task TimelinePlaybackEngineLoop(CancellationToken token)
         {
-            System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
             HashSet<FixedBlock> playedBlocks = new HashSet<FixedBlock>();
 
             Dispatcher.Invoke(() => { if (playhead != null) playhead.Visibility = Visibility.Visible; });
 
             while (isPlayingTimeline && !token.IsCancellationRequested)
             {
-                double currentX = (stopwatch.ElapsedMilliseconds * 100) / 1000.0;
+                double currentX = ((_playStopwatch?.ElapsedMilliseconds ?? 0) * 100) / 1000.0;
                 if (currentX > 2500) break;
 
                 Dispatcher.Invoke(() =>
@@ -683,6 +797,7 @@ namespace BeatSyncStudioPro
             Dispatcher.Invoke(() =>
             {
                 isPlayingTimeline = false;
+                _isPaused = false;
                 if (playhead != null) playhead.Visibility = Visibility.Collapsed;
             });
         }
@@ -717,7 +832,10 @@ namespace BeatSyncStudioPro
 
                 var volumeSampleProvider = new VolumeSampleProvider(provider) { Volume = (float)(block.Volume * MasterVolume) };
 
-                mixerEngine.AddMixerInput(volumeSampleProvider);
+                // Route through the clip's track chain (track volume + pan live there)
+                int chain = block.IsVideoAudio ? AudioTrackCount : Math.Clamp(block.TrackId, 0, AudioTrackCount - 1);
+                var target = chain >= 0 && chain < _trackMixers.Count ? _trackMixers[chain] : mixerEngine;
+                target.AddMixerInput(volumeSampleProvider);
             }
             catch { }
         }
@@ -911,6 +1029,8 @@ namespace BeatSyncStudioPro
                     Version = "2.0",
                     AudioTrackCount = this.AudioTrackCount,
                     MasterVolume = this.MasterVolume,
+                    TrackVolumes = this.TrackVolumeValues,
+                    TrackPans = this.TrackPanValues,
                     Blocks = this.TimelineBlocks.Select(b => new
                     {
                         b.Filename,
@@ -1027,6 +1147,17 @@ namespace BeatSyncStudioPro
 
                     if (root.TryGetProperty("AudioTrackCount", out var tc)) AudioTrackCount = Math.Max(1, tc.GetInt32());
                     if (root.TryGetProperty("MasterVolume", out var mv)) MasterVolumeSlider.Value = mv.GetDouble();
+                    if (root.TryGetProperty("TrackVolumes", out var tvs))
+                    {
+                        TrackVolumeValues.Clear();
+                        foreach (var x in tvs.EnumerateArray()) TrackVolumeValues.Add(x.GetDouble());
+                    }
+                    if (root.TryGetProperty("TrackPans", out var tps))
+                    {
+                        TrackPanValues.Clear();
+                        foreach (var x in tps.EnumerateArray()) TrackPanValues.Add(x.GetDouble());
+                    }
+                    BuildTrackChains();
 
                     // Bundled files: audio into memory, video/images extracted to disk
                     foreach (var entry in archive.Entries)

@@ -1,0 +1,18 @@
+<Window x:Class="BeatSyncStudioPro.MixerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Mixer — BeatSync Studio Pro" Icon="/Assets/app.ico"
+        Width="760" Height="370" MinWidth="440" MinHeight="330"
+        Background="#14171E" Foreground="#FFFFFF" WindowStartupLocation="CenterOwner">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <TextBlock Text="🎚️ MIXER — one strip per track. Fader = volume, PAN = left/right. Changes apply live while playing."
+                   FontSize="12" Foreground="#A0A5B5" Margin="0,0,0,8" TextWrapping="Wrap"/>
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+            <StackPanel x:Name="StripsPanel" Orientation="Horizontal"/>
+        </ScrollViewer>
+    </Grid>
+</Window>
