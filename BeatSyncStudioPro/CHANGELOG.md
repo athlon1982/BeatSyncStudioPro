@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.29 — 🌀 Slip Mode
+### New
+- **Slip mode on each DJ deck** (feature 5 of the DJ mega-queue): a **🌀 Slip** toggle sits right next to the Scratch button. Turn it on, grab the record and scratch, juggle, hold it still — underneath, the song keeps playing in perfect time on a shadow clock.
+- **Release lands you back in the song**: the moment you let go, playback resumes from exactly where the track *would have been* — no lost place, no spin-up ramp, the beat never broke. Slip is loop-aware (the shadow clock respects an active beat loop) and changes nothing when it's off: normal scratch behaves exactly as before.
+
 ## Version 3.28 — 🎵 Key Detection, Camelot Wheel & Key Sync
 ### New
 - **Every deck detects its track's key** (feature 4 of the DJ mega-queue): a chromagram + key-profile analysis runs in the background on load, and the deck shows the key and its Camelot code — "A min - 8A". Results are cached per file, so a song's key is instant next time.

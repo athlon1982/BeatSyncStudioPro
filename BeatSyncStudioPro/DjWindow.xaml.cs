@@ -537,6 +537,7 @@ namespace BeatSyncStudioPro
             private Brush? _ringDim;
             private DropShadowEffect? _haloFx;
             private Button? _scratchBtn;
+            private Button? _slipBtn;
             private bool _scratchOn;
             private bool _dragging;
             private double _lastAngle;
@@ -625,12 +626,17 @@ namespace BeatSyncStudioPro
                     HorizontalAlignment = HorizontalAlignment.Center
                 });
 
+                var scratchRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 4) };
                 _scratchBtn = MakeButton("✋ Scratch: OFF", 170);
-                _scratchBtn.HorizontalAlignment = HorizontalAlignment.Center;
-                _scratchBtn.Margin = new Thickness(0, 0, 0, 4);
                 _scratchBtn.ToolTip = "Scratch mode: grab the vinyl and move it with the mouse. Off by default so the record can't be grabbed by accident.";
                 _scratchBtn.Click += (s, e) => SetScratch(!_scratchOn);
-                root.Children.Add(_scratchBtn);
+                scratchRow.Children.Add(_scratchBtn);
+                _slipBtn = MakeButton("\U0001F300 Slip: OFF", 110);
+                _slipBtn.Margin = new Thickness(6, 0, 0, 0);
+                _slipBtn.ToolTip = "Slip mode: while you scratch, the song keeps its place underneath. Release and you land exactly where the song would have been.";
+                _slipBtn.Click += (s, e) => SetSlip(!_deck.SlipMode);
+                scratchRow.Children.Add(_slipBtn);
+                root.Children.Add(scratchRow);
 
                 // Waveform + playhead + scrub
                 var waveGrid = new Grid { Height = 74, Background = new SolidColorBrush(Color.FromRgb(0x14, 0x17, 0x1E)) };
@@ -1208,6 +1214,15 @@ namespace BeatSyncStudioPro
             {
                 var peaks = _deck.ComputePeaks(RingBars);
                 for (int i = 0; i < RingBars; i++) _ringPeaks[i] = peaks[i];
+            }
+
+            private void SetSlip(bool on)
+            {
+                if (_slipBtn == null) return;
+                _deck.SlipMode = on;
+                _slipBtn.Content = on ? "\U0001F300 Slip: ON" : "\U0001F300 Slip: OFF";
+                _slipBtn.Background = on ? _accent : PanelBtn;
+                if (on) _window.SetStatus($"{_name}: slip mode on - scratch away; on release you land where the song kept playing to.");
             }
 
             private void SetScratch(bool on)

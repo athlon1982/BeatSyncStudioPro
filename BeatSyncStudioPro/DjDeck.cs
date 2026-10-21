@@ -85,6 +85,13 @@ namespace BeatSyncStudioPro
         /// <summary>The hand is on the record: the deck's advance comes from ScratchRate.</summary>
         public void GrabRecord() { _grabbed = true; _scratchRate = 0; }
 
+        // Slip mode (v3.29): while the hand works the record, a shadow clock
+        // keeps the song's true place; on release the deck lands there.
+        private double _slipPositionFrames;
+        private bool _slipping;
+        public bool SlipMode { get; set; }
+        public bool IsSlipping { get { lock (_lock) return _slipping; } }
+
         /// <summary>Hand off: the record spins back up to normal speed from the release rate.</summary>
         public void ReleaseRecord() { _grabbed = false; _releaseRate = _scratchRate; _spinUp = 0; }
 
@@ -114,6 +121,7 @@ namespace BeatSyncStudioPro
             {
                 _samples = decoded;
                 LoadGeneration++;
+                _slipping = false;
                 _stems = null;
                 for (int i = 0; i < 4; i++) { _stemTarget[i] = 1f; _stemGain[i] = 1f; }
                 Title = Path.GetFileNameWithoutExtension(filename);
@@ -279,6 +287,30 @@ namespace BeatSyncStudioPro
                 {
                     Array.Clear(buffer, offset, count);
                     return count;
+                }
+
+                if (_grabbed && !_slipping && SlipMode)
+                {
+                    _slipping = true;
+                    _slipPositionFrames = _positionFrames;
+                }
+                else if (!_grabbed && _slipping)
+                {
+                    _slipping = false;
+                    _positionFrames = Math.Clamp(_slipPositionFrames, 0, Math.Max(0, TotalFrames - 1));
+                    _spinUp = 1;   // the song never stopped - no spin-up ramp
+                }
+                if (_slipping)
+                {
+                    _slipPositionFrames += frames * Tempo * Bend;
+                    if (LoopBeats > 0 && EffectiveBpm > 0 && _loopStartSeconds >= 0)
+                    {
+                        double loopLenFrames = LoopBeats * 60.0 / EffectiveBpm * 44100.0;
+                        double loopStartFrames = _loopStartSeconds * 44100.0;
+                        if (_slipPositionFrames - loopStartFrames >= loopLenFrames)
+                            _slipPositionFrames = loopStartFrames;
+                    }
+                    if (_slipPositionFrames > TotalFrames) _slipPositionFrames = TotalFrames;
                 }
 
                 double step;
