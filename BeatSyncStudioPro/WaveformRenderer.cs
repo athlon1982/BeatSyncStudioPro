@@ -28,7 +28,7 @@ namespace BeatSyncStudioPro
             var visual = new DrawingVisual();
             using (DrawingContext dc = visual.RenderOpen())
             {
-                var pen = new Pen(new SolidColorBrush(Color.FromRgb(0x1D, 0xB9, 0x54)), 1.0);
+                var pen = new Pen(new SolidColorBrush(Color.FromRgb(0xE6, 0xF2, 0xEA)), 1.0);
                 double mid = height / 2.0;
 
                 if (peaks.Length == 0)

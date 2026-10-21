@@ -208,25 +208,36 @@ namespace BeatSyncStudioPro
         // VISUAL + INTERACTION
         // =========================
 
+        private Border? _gripLeft;
+        private Border? _gripRight;
+
+        /// <summary>
+        /// The clip palette (v3.5, matched to the feature-breakdown look):
+        /// matte, muted colors per clip kind — violet video, teal video-audio,
+        /// deep green audio on even tracks, slate audio on odd tracks.
+        /// </summary>
+        private (Color Bg, Color Edge) ColorsFor()
+        {
+            if (IsVideo) return (Color.FromRgb(0x5B, 0x4A, 0x8F), Color.FromRgb(0x8E, 0x7C, 0xC3));
+            if (IsVideoAudio) return (Color.FromRgb(0x2A, 0x6F, 0x7F), Color.FromRgb(0x4F, 0xB3, 0xC9));
+            if (SoundType == "image") return (Color.FromRgb(0x2A, 0x30, 0x3C), Color.FromRgb(0x4A, 0x6F, 0xA5));
+            if (TrackId % 2 == 1) return (Color.FromRgb(0x37, 0x50, 0x5E), Color.FromRgb(0x5B, 0x7A, 0x8C));
+            return (Color.FromRgb(0x2E, 0x5D, 0x43), Color.FromRgb(0x46, 0xA0, 0x6B));
+        }
+
+        private void ApplyColors()
+        {
+            if (BlockVisual == null) return;
+            var (bg, edge) = ColorsFor();
+            BlockVisual.Background = new SolidColorBrush(bg);
+            BlockVisual.BorderBrush = new SolidColorBrush(edge);
+            if (_gripRight != null) _gripRight.Background = new SolidColorBrush(edge);
+            if (_gripLeft != null) _gripLeft.Background = new SolidColorBrush(edge);
+        }
+
         private Border CreateVisual()
         {
-            Color bg;
-            Color border;
-            if (IsVideo)
-            {
-                bg = Color.FromRgb(0x7B, 0x1F, 0xA2);
-                border = Color.FromRgb(0xE0, 0x40, 0xFB);
-            }
-            else if (SoundType == "image")
-            {
-                bg = Color.FromRgb(0x2A, 0x30, 0x3C);
-                border = Color.FromRgb(0x15, 0x68, 0xDB);
-            }
-            else
-            {
-                bg = Color.FromRgb(0x1E, 0x3A, 0x29);
-                border = Color.FromRgb(0x1D, 0xB9, 0x54);
-            }
+            var (bg, border) = ColorsFor();
 
             var label = new TextBlock
             {
@@ -243,26 +254,28 @@ namespace BeatSyncStudioPro
             grid.Children.Add(label);
 
             // Visible grip on the right edge — drag it to trim/stretch the end of the clip
-            grid.Children.Add(new Border
+            _gripRight = new Border
             {
                 Width = 5,
                 CornerRadius = new CornerRadius(2),
                 Background = new SolidColorBrush(border),
                 HorizontalAlignment = HorizontalAlignment.Right,
                 Margin = new Thickness(0, 3, 2, 3)
-            });
+            };
+            grid.Children.Add(_gripRight);
 
             // Audio clips get a left grip too — drag it to trim the front
             if (IsAudio)
             {
-                grid.Children.Add(new Border
+                _gripLeft = new Border
                 {
                     Width = 5,
                     CornerRadius = new CornerRadius(2),
                     Background = new SolidColorBrush(border),
                     HorizontalAlignment = HorizontalAlignment.Left,
                     Margin = new Thickness(2, 3, 0, 3)
-                });
+                };
+                grid.Children.Add(_gripLeft);
             }
 
             var visual = new Border
@@ -529,6 +542,7 @@ namespace BeatSyncStudioPro
             Canvas.SetLeft(BlockVisual, StartX);
             Canvas.SetTop(BlockVisual, lane * LaneHeight + LanePadding);
             Panel.SetZIndex(BlockVisual, 10);
+            ApplyColors(); // audio color follows the track the clip sits on
         }
 
         private static double TryGetAudioDurationSeconds(byte[] bytes, string soundType)

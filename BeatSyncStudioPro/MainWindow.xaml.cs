@@ -10,6 +10,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using Microsoft.Win32;
 using NAudio.Wave;
@@ -163,6 +164,9 @@ namespace BeatSyncStudioPro
         private bool _isPaused;
         private Line? playhead;
         private Rectangle? playheadHandle;
+        private Rectangle? _loopBand;
+        private Rectangle? _loopBrace;
+        private double _lastTimelineHeight = 450;
         private int _rulerDrawnSeconds = 25;
         private CancellationTokenSource? playbackCancelToken;
         private string? draggingSoundName = null;
@@ -266,7 +270,7 @@ namespace BeatSyncStudioPro
                     {
                         Source = waveform,
                         Stretch = System.Windows.Media.Stretch.Fill,
-                        Opacity = 0.3,
+                        Opacity = 0.5,
                         Width = block.Width - 4,
                         Height = 35
                     };
@@ -307,6 +311,30 @@ namespace BeatSyncStudioPro
                 TimeDisplay.Text = $"{FmtTime(currentSeconds)} / {FmtTime(GetContentEndX() / 100.0)}";
         }
 
+        /// <summary>Position/show the A–B loop band + top brace from LoopStartX/LoopEndX.</summary>
+        private void RefreshLoopVisual()
+        {
+            if (_loopBand == null || _loopBrace == null) return;
+            if (LoopStartX.HasValue && LoopEndX.HasValue && LoopEndX.Value > LoopStartX.Value)
+            {
+                double w = LoopEndX.Value - LoopStartX.Value;
+                _loopBand.Visibility = Visibility.Visible;
+                _loopBand.Width = w;
+                _loopBand.Height = _lastTimelineHeight;
+                Canvas.SetLeft(_loopBand, LoopStartX.Value);
+                Canvas.SetTop(_loopBand, 0);
+                _loopBrace.Visibility = Visibility.Visible;
+                _loopBrace.Width = w;
+                Canvas.SetLeft(_loopBrace, LoopStartX.Value);
+                Canvas.SetTop(_loopBrace, 0);
+            }
+            else
+            {
+                _loopBand.Visibility = Visibility.Collapsed;
+                _loopBrace.Visibility = Visibility.Collapsed;
+            }
+        }
+
         private void RenderStudioGridLanes()
         {
             if (TimelineCanvas == null || HeadersSidebar == null) return;
@@ -328,11 +356,21 @@ namespace BeatSyncStudioPro
             if (tlWidth / 100 > _rulerDrawnSeconds) RenderTimeRulerHeaders();
             UpdateTimeDisplay(0);
 
+            _lastTimelineHeight = timelineHeight;
+
+            var playheadGlow = new DropShadowEffect
+            {
+                Color = Color.FromRgb(0x3D, 0xFF, 0x8E),
+                BlurRadius = 7,
+                ShadowDepth = 0,
+                Opacity = 0.9
+            };
             playhead = new Line
             {
                 X1 = 0, Y1 = 0, X2 = 0, Y2 = timelineHeight,
-                Stroke = new SolidColorBrush(Color.FromRgb(0x69, 0xF0, 0xAE)),
-                StrokeThickness = 3,
+                Stroke = new SolidColorBrush(Color.FromRgb(0x3D, 0xFF, 0x8E)),
+                StrokeThickness = 2,
+                Effect = playheadGlow,
                 Visibility = Visibility.Collapsed
             };
             Panel.SetZIndex(playhead, 999);
@@ -341,7 +379,8 @@ namespace BeatSyncStudioPro
             playheadHandle = new Rectangle
             {
                 Width = 13, Height = 11,
-                Fill = new SolidColorBrush(Color.FromRgb(0x69, 0xF0, 0xAE)),
+                Fill = new SolidColorBrush(Color.FromRgb(0x3D, 0xFF, 0x8E)),
+                Effect = playheadGlow,
                 Visibility = Visibility.Collapsed
             };
             Canvas.SetLeft(playheadHandle, -6);
@@ -349,13 +388,33 @@ namespace BeatSyncStudioPro
             Panel.SetZIndex(playheadHandle, 1000);
             TimelineCanvas.Children.Add(playheadHandle);
 
+            // A–B loop region: a soft gold band across the lanes with a solid
+            // gold brace along the top (the feature page's look)
+            _loopBand = new Rectangle
+            {
+                Fill = new SolidColorBrush(Color.FromArgb(26, 0xFF, 0xC8, 0x3D)),
+                Visibility = Visibility.Collapsed
+            };
+            Panel.SetZIndex(_loopBand, 2);
+            TimelineCanvas.Children.Add(_loopBand);
+            _loopBrace = new Rectangle
+            {
+                Height = 5,
+                Fill = new SolidColorBrush(Color.FromRgb(0xFF, 0xC8, 0x3D)),
+                RadiusX = 2,
+                RadiusY = 2,
+                Visibility = Visibility.Collapsed
+            };
+            Panel.SetZIndex(_loopBrace, 998);
+            TimelineCanvas.Children.Add(_loopBrace);
+
             // Beat grid lines (under the clips; every 4th line is a brighter downbeat)
             if (ProjectBpm > 0)
             {
                 double periodPx = 60.0 / ProjectBpm * 100.0;
                 double offsetPx = BeatOffsetSeconds * 100.0;
-                var beatBrush = new SolidColorBrush(Color.FromArgb(70, 0xFF, 0xC8, 0x3D));
-                var downbeatBrush = new SolidColorBrush(Color.FromArgb(170, 0xFF, 0xC8, 0x3D));
+                var beatBrush = new SolidColorBrush(Color.FromArgb(50, 0xFF, 0xC8, 0x3D));
+                var downbeatBrush = new SolidColorBrush(Color.FromArgb(95, 0xFF, 0xC8, 0x3D));
                 int beatIndex = 0;
                 for (double x = offsetPx; x < tlWidth && beatIndex <= 4000; x += periodPx, beatIndex++)
                 {
@@ -363,7 +422,7 @@ namespace BeatSyncStudioPro
                     {
                         X1 = x, Y1 = 0, X2 = x, Y2 = timelineHeight,
                         Stroke = beatIndex % 4 == 0 ? downbeatBrush : beatBrush,
-                        StrokeThickness = beatIndex % 4 == 0 ? 2 : 1
+                        StrokeThickness = 1
                     };
                     Panel.SetZIndex(line, 1);
                     TimelineCanvas.Children.Add(line);
@@ -413,6 +472,7 @@ namespace BeatSyncStudioPro
                 TextBlock lbl = new TextBlock
                 {
                     Text = labelText,
+                    FontFamily = new FontFamily("Consolas"),
                     FontWeight = FontWeights.Bold,
                     FontSize = 10,
                     Foreground = (Brush)converter.ConvertFromString("#A0A5B5")!,
@@ -429,8 +489,8 @@ namespace BeatSyncStudioPro
             Line videoLine = new Line
             {
                 X1 = 0, Y1 = vY, X2 = tlWidth, Y2 = vY,
-                Stroke = (Brush)converter.ConvertFromString("#7B1FA2")!,
-                StrokeThickness = 4
+                Stroke = (Brush)converter.ConvertFromString("#5B4A8F")!,
+                StrokeThickness = 3
             };
             TimelineCanvas.Children.Add(videoLine);
 
@@ -438,8 +498,8 @@ namespace BeatSyncStudioPro
             Line dividerLine = new Line
             {
                 X1 = 0, Y1 = vY - 1, X2 = tlWidth, Y2 = vY - 1,
-                Stroke = (Brush)converter.ConvertFromString("#E040FB")!,
-                StrokeThickness = 2
+                Stroke = (Brush)converter.ConvertFromString("#8E7CC3")!,
+                StrokeThickness = 1
             };
             TimelineCanvas.Children.Add(dividerLine);
 
@@ -453,9 +513,10 @@ namespace BeatSyncStudioPro
             TextBlock vLbl = new TextBlock
             {
                 Text = vLabelText,
+                FontFamily = new FontFamily("Consolas"),
                 FontWeight = FontWeights.Bold,
                 FontSize = 11,
-                Foreground = (Brush)converter.ConvertFromString("#E040FB")!,
+                Foreground = (Brush)converter.ConvertFromString("#B79CED")!,
                 Margin = new Thickness(8, vY + 15, 0, 0),
                 Background = (Brush)converter.ConvertFromString("#14171E")!,
                 Padding = new Thickness(4, 2, 4, 2)
@@ -470,7 +531,7 @@ namespace BeatSyncStudioPro
                 Line vaLine = new Line
                 {
                     X1 = 0, Y1 = vaY, X2 = tlWidth, Y2 = vaY,
-                    Stroke = (Brush)converter.ConvertFromString("#1DB954")!,
+                    Stroke = (Brush)converter.ConvertFromString("#2A6F7F")!,
                     StrokeThickness = 2
                 };
                 TimelineCanvas.Children.Add(vaLine);
@@ -478,9 +539,10 @@ namespace BeatSyncStudioPro
                 TextBlock vaLbl = new TextBlock
                 {
                     Text = "🔊 VIDEO AUDIO",
+                    FontFamily = new FontFamily("Consolas"),
                     FontWeight = FontWeights.Bold,
                     FontSize = 11,
-                    Foreground = (Brush)converter.ConvertFromString("#1DB954")!,
+                    Foreground = (Brush)converter.ConvertFromString("#4FB3C9")!,
                     Margin = new Thickness(8, vaY + 15, 0, 0),
                     Background = (Brush)converter.ConvertFromString("#14171E")!,
                     Padding = new Thickness(4, 2, 4, 2)
@@ -489,6 +551,7 @@ namespace BeatSyncStudioPro
             }
 
             RenderWaveformOverlay();
+            RefreshLoopVisual();
         }
 
         // =========================
@@ -1401,6 +1464,7 @@ namespace BeatSyncStudioPro
 
         private void UpdateLoopButtons()
         {
+            RefreshLoopVisual();
             if (SetABtn != null) SetABtn.Content = LoopStartX.HasValue ? $"A · {FmtTime(LoopStartX.Value / 100.0)}" : "Set A";
             if (SetBBtn != null) SetBBtn.Content = LoopEndX.HasValue ? $"B · {FmtTime(LoopEndX.Value / 100.0)}" : "Set B";
             if (LoopToggleBtn != null)

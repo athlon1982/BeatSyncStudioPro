@@ -3,6 +3,15 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.5 — The Timeline, Restyled
+### Improved
+- **The timeline now wears the feature page's look**: clips are matte and muted instead of neon — **violet** for video, **teal** for the separated video audio, **deep green** audio on even tracks and **slate blue** on odd tracks, so neighboring tracks are easy to tell apart. A clip's color follows it when you drag it to another track.
+- **Waveforms read properly**: the waveform inside each clip is now drawn in soft white at half strength (it used to be dark green on dark green), so you can actually see the shape of the sound the way the mock showed it.
+- **Glowing playhead**: the playhead is the page's bright green with a soft glow, handle included.
+- **The beat grid sits back**: gold lines are fainter (downbeats still a touch stronger), so the grid guides without shouting over your clips.
+- **The A–B loop is visible on the timeline now**: a soft gold band across the lanes with a solid gold brace along the top, exactly like the mock — set A and B and you can see the loop region, not just the buttons.
+- Lane labels use a compact mono font, and the video lane's accents are muted violet / teal to match its clips.
+
 ## Version 3.4 — AI Lab, My Songs & Real Deck Mixing
 ### Added
 - **AI Lab** (View → AI Lab): connect an AI and generate **song lyrics**, **title ideas**, or a **beat from your description** — a generated beat opens straight in the step sequencer. Providers: **OpenCode's free models** (uses your OpenCode app sign-in, no key), **Ollama** (runs 100% on this PC), **Google Gemini** (free key), **OpenRouter** (free models), **ChatGPT / OpenAI** (your own key), or any **custom OpenAI-compatible endpoint**. Keys are stored encrypted on this PC.
