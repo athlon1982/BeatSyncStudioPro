@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.17 — Create Song Label Fix
+### Fixed
+- The Create Song window's **"Length" label overlapped "Voice"** (spotted in Michael's screenshot of the fixed window): the label was missing its grid column, so it rendered on top of the Voice label. It now sits in its own column beside the duration picker.
+
 ## Version 3.16 — Cassette Deck Fixes
 ### Fixed
 - **Switching a deck to the cassette left the vinyl behind**: the record's big black neon halo disc was added to the deck outside the vinyl group, so hiding the vinyl never hid it. The halo now lives inside the vinyl view — cassette mode shows the tape, clean, with nothing of the record left over.

@@ -90,7 +90,7 @@
                 <ComboBoxItem Content="Generated voice (as the model sings it)"/>
                 <ComboBoxItem Content="👑 Rad-Dad — my voice" IsSelected="True"/>
             </ComboBox>
-            <TextBlock Text="Length" VerticalAlignment="Center" Margin="14,0,8,0" Foreground="#A0A5B5"/>
+            <TextBlock Text="Length" Grid.Column="2" VerticalAlignment="Center" Margin="14,0,8,0" Foreground="#A0A5B5"/>
             <ComboBox x:Name="DurationPicker" Grid.Column="3" Width="90" SelectedIndex="3">
                 <ComboBoxItem Content="30 sec"/>
                 <ComboBoxItem Content="60 sec"/>
