@@ -39,7 +39,7 @@ namespace BeatSyncStudioPro
                 "https://huggingface.co/join", "https://huggingface.co/settings/tokens", "hf"),
             new("🏠 Remote GPU — my other PC", true, false, true,
                 "Songs generated on YOUR other computer's graphics card: the free BeatSync Engine runs there, and this app sends it jobs over your home network (or Tailscale, from anywhere). No per-run fees, no cloud, your music never leaves your machines. Your Rad-Dad voice conversion will live there too.",
-                "Works in BeatSync today — save the engine address below, pick 🏠 Remote GPU as the online provider in Create Song / AI Lab, and use 🩺 Test to check the connection. The engine itself gets installed on that PC once — that's the next setup step.",
+                "Works in BeatSync today — save one or TWO engine addresses below (both your PCs can run an engine), pick 🏠 Remote GPU as the online provider in Create Song / AI Lab, and 🩺 Test each one. Every job goes to the first engine that answers — one's asleep, the other takes it. The engine itself gets installed on each PC once — that's the next setup step.",
                 "", "", "remote"),
             new("Freesound", true, false, true,
                 "Millions of free sound effects and samples for your library, straight from the 🌐 Freesound window.",
@@ -93,6 +93,7 @@ namespace BeatSyncStudioPro
             "replicate" => _cs.GetOnlineKey(),
             "hf" => _cs.GetHfKey(),
             "remote" => _cs.RemoteEngineUrl,
+            "remote2" => _cs.RemoteEngine2Url,
             _ => ""
         };
 
@@ -104,6 +105,7 @@ namespace BeatSyncStudioPro
                 case "replicate": _cs.SetOnlineKey(key); break;
                 case "hf": _cs.SetHfKey(key); break;
                 case "remote": _cs.RemoteEngineUrl = key.Trim(); break;
+                case "remote2": _cs.RemoteEngine2Url = key.Trim(); break;
             }
             _cs.Save();
         }
@@ -132,6 +134,53 @@ namespace BeatSyncStudioPro
             BorderBrush = new SolidColorBrush(Color.FromRgb(0x3D, 0x44, 0x54)), BorderThickness = new Thickness(1)
         };
 
+
+        /// <summary>One engine-address row of the Remote GPU card (v3.24: two PCs, each with its own address, Save and Test).</summary>
+        private StackPanel BuildRemoteRow(string key, string label)
+        {
+            var wrap = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
+            wrap.Children.Add(new TextBlock { Text = label, FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(0xC8, 0xCD, 0xD8)) });
+            var row = new Grid { Margin = new Thickness(0, 4, 0, 0) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var box = new TextBox
+            {
+                Text = GetKey(key),
+                Background = new SolidColorBrush(Color.FromRgb(0x12, 0x15, 0x1C)),
+                Foreground = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(0x2A, 0x30, 0x3C)),
+                Padding = new Thickness(6, 4, 6, 4),
+                ToolTip = "That PC's engine address, e.g. http://192.168.1.50:7860 — or its Tailscale address"
+            };
+            var state = new TextBlock
+            {
+                Text = GetKey(key).Length > 0 ? "✓ address saved" : "no address yet",
+                Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0x90, 0xA0)), FontSize = 11,
+                TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0)
+            };
+            var save = Btn("💾 Save"); save.Margin = new Thickness(8, 0, 0, 0);
+            Grid.SetColumn(save, 1);
+            string k = key;
+            save.Click += (se, ev) => { SetKey(k, box.Text); state.Text = box.Text.Trim().Length > 0 ? "✓ address saved" : "address cleared"; };
+            var test = Btn("🩺 Test"); test.Margin = new Thickness(8, 0, 0, 0);
+            Grid.SetColumn(test, 2);
+            test.Click += async (se, ev) =>
+            {
+                string u = box.Text.Trim();
+                if (u.Length == 0) { state.Text = "Type the engine address first."; return; }
+                test.IsEnabled = false; state.Text = "Testing — asking that PC to say hello…";
+                try { state.Text = "✓ " + await RemoteEngine.HealthAsync(u, CancellationToken.None); }
+                catch (Exception ex) { state.Text = "✗ " + ex.Message; }
+                finally { test.IsEnabled = true; }
+            };
+            row.Children.Add(box);
+            row.Children.Add(save);
+            row.Children.Add(test);
+            wrap.Children.Add(row);
+            wrap.Children.Add(state);
+            return wrap;
+        }
+
         private Border BuildCard(Prov p)
         {
             var root = new StackPanel { Margin = new Thickness(12) };
@@ -157,43 +206,8 @@ namespace BeatSyncStudioPro
 
             if (p.KeyId == "remote")
             {
-                var urlRow = new Grid { Margin = new Thickness(0, 8, 0, 0) };
-                urlRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                urlRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                urlRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                var urlBox = new TextBox
-                {
-                    Text = GetKey("remote"),
-                    Background = new SolidColorBrush(Color.FromRgb(0x12, 0x15, 0x1C)),
-                    Foreground = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(0x2A, 0x30, 0x3C)),
-                    Padding = new Thickness(6, 4, 6, 4),
-                    ToolTip = "Your engine PC's address, e.g. http://192.168.1.50:7860 — or its Tailscale address"
-                };
-                var urlState = new TextBlock
-                {
-                    Text = GetKey("remote").Length > 0 ? "✓ address saved" : "no address yet",
-                    Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0x90, 0xA0)), FontSize = 11,
-                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0)
-                };
-                var urlSave = Btn("💾 Save"); urlSave.Margin = new Thickness(8, 0, 0, 0);
-                Grid.SetColumn(urlSave, 1);
-                urlSave.Click += (s, e) => { SetKey("remote", urlBox.Text); urlState.Text = urlBox.Text.Trim().Length > 0 ? "✓ address saved" : "address cleared"; };
-                var urlTest = Btn("🩺 Test"); urlTest.Margin = new Thickness(8, 0, 0, 0);
-                Grid.SetColumn(urlTest, 2);
-                urlTest.Click += async (s, e) =>
-                {
-                    string u = urlBox.Text.Trim();
-                    if (u.Length == 0) { urlState.Text = "Type the engine address first."; return; }
-                    urlTest.IsEnabled = false; urlState.Text = "Testing — asking the engine PC to say hello…";
-                    try { urlState.Text = "✓ " + await RemoteEngine.HealthAsync(u, CancellationToken.None); }
-                    catch (Exception ex) { urlState.Text = "✗ " + ex.Message; }
-                    finally { urlTest.IsEnabled = true; }
-                };
-                urlRow.Children.Add(urlBox);
-                urlRow.Children.Add(urlSave);
-                urlRow.Children.Add(urlTest);
-                root.Children.Add(urlRow);
-                root.Children.Add(urlState);
+                root.Children.Add(BuildRemoteRow("remote", "Engine 1 — first choice (e.g. the GTX 1660 desktop)"));
+                root.Children.Add(BuildRemoteRow("remote2", "Engine 2 — second PC (e.g. the RTX 3050 laptop)"));
             }
             else if (p.KeyId != null)
             {

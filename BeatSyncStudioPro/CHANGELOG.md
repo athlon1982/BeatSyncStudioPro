@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.24 — 🏠 Remote GPU ×2: Both PCs in the Pool
+### New
+- **Two engine slots** (Michael: "I want to be able to use both PCs if possible — can we use both at the same time or separately?"). The 🏠 Remote GPU card in 🌐 Providers now takes **Engine 1 and Engine 2** addresses — one for the GTX 1660 desktop, one for the RTX 3050 laptop — each with its own 💾 Save and 🩺 Test. Create Song / AI Lab keep the same single "🏠 Remote GPU" provider pick; behind it, the app now carries both addresses.
+- **How both-at-once works, honestly:** every generation job runs on ONE engine (a single song can't be split across two GPUs), but the app **probes the pool in order and routes each job to the first engine that answers** — one PC asleep or off, the other takes the job automatically, and the status line names the engine that's working ("🎛️ Engine 2 is on the job — Engine online — GeForce RTX 3050…"). Run the app on both machines and each routes its own jobs to whichever engine is free-awake; the engines themselves will report busy state in a later step so two heavy jobs can spread instead of queueing on one card.
+
 ## Version 3.23 — 🏠 Remote GPU: Your Other PC Becomes a Provider
 ### New
 - **🏠 Remote GPU — FREE (my other PC)** (Michael: "is there a way we can make the DJ app use a gpu that's in another computer for the AI lab? …adding that option… if we could do it"). The AI Lab / Create Song now treat **your own second computer as a generation provider**, right next to Replicate, Hugging Face and fal.ai: set Compute to ☁️ Online, pick **🏠 Remote GPU**, and song generation jobs are sent over your home network (or Tailscale, from anywhere) to the **BeatSync Engine** running on that PC — its graphics card (the GTX 1660 desktop or the RTX 3050 laptop) does the work with ACE-Step. **No per-run fees, no cloud, your lyrics and music never leave your own machines** — and the engine is where your 👑 Rad-Dad voice conversion will live once your voice model is trained there.

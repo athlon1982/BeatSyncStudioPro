@@ -78,6 +78,39 @@ namespace BeatSyncStudioPro
             catch (JsonException) { throw new InvalidOperationException($"Something answered at {url}, but it doesn't look like the BeatSync Engine."); }
         }
 
+        /// <summary>
+        /// Probe the configured engines in order and return the first that
+        /// answers /health (v3.24 — Michael's two-PC pool). Each job runs on
+        /// ONE engine; if the first PC is asleep or off, the next takes the
+        /// job. Throws with every engine's reason when none answer.
+        /// </summary>
+        public static async Task<string> PickEngineAsync(System.Collections.Generic.IReadOnlyList<string> urls, Action<string> status, CancellationToken ct)
+        {
+            var failures = new System.Collections.Generic.List<string>();
+            for (int i = 0; i < urls.Count; i++)
+            {
+                string u = Normalize(urls[i]);
+                status($"🩺 Asking engine {i + 1} ({u}) if it's awake…");
+                try
+                {
+                    string health = await HealthAsync(u, ct);
+                    status($"🎛️ Engine {i + 1} is on the job — {health}");
+                    return u;
+                }
+                catch (Exception ex) { failures.Add($"engine {i + 1} ({u}): {ex.Message}"); }
+            }
+            throw new InvalidOperationException("No engine PC answered. " + string.Join(" · ", failures));
+        }
+
+        /// <summary>Pick a healthy engine from the pool, then generate there.</summary>
+        public static async Task<(byte[] Data, string Ext)> GenerateSongPooledAsync(
+            System.Collections.Generic.IReadOnlyList<string> urls, string title, string style, string lyrics, int seconds,
+            Action<string> status, CancellationToken ct)
+        {
+            string engine = await PickEngineAsync(urls, status, ct);
+            return await GenerateSongAsync(engine, title, style, lyrics, seconds, status, ct);
+        }
+
         /// <summary>Send a song job to the engine and bring the finished audio home. Returns (bytes, extension).</summary>
         public static async Task<(byte[] Data, string Ext)> GenerateSongAsync(
             string baseUrl, string title, string style, string lyrics, int seconds,

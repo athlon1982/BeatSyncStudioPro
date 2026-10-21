@@ -30,6 +30,18 @@ namespace BeatSyncStudioPro
         /// <summary>Address of the BeatSync Engine on Michael's OTHER PC (OnlineProvider "remote", v3.23) — e.g. http://192.168.1.50:7860 or its Tailscale address. A plain URL, not a secret, so it is stored unencrypted like Mode/Provider.</summary>
         public string RemoteEngineUrl { get; set; } = "";
 
+        /// <summary>Second engine PC's address (v3.24) — Michael runs engines on BOTH his GTX 1660 desktop and his RTX 3050 laptop; each job routes to the first engine that answers, so a sleeping PC never blocks a song.</summary>
+        public string RemoteEngine2Url { get; set; } = "";
+
+        /// <summary>All configured engine addresses, in preference order, blanks removed.</summary>
+        public System.Collections.Generic.List<string> RemoteEngineUrls()
+        {
+            var urls = new System.Collections.Generic.List<string>();
+            if (RemoteEngineUrl.Trim().Length > 0) urls.Add(RemoteEngineUrl.Trim());
+            if (RemoteEngine2Url.Trim().Length > 0) urls.Add(RemoteEngine2Url.Trim());
+            return urls;
+        }
+
         /// <summary>fal.ai API key, DPAPI-encrypted.</summary>
         public string FalKeyEncrypted { get; set; } = "";
 
@@ -187,7 +199,7 @@ namespace BeatSyncStudioPro
                 "GPU" => gpus.Count == 0 ? "GPU requested, but no GPU was detected — CPU will be used"
                     : $"GPU #{GpuIndex} of: {gpuPart}",
                 "Online" => OnlineProvider == "remote"
-                    ? (RemoteEngineUrl.Trim().Length > 0 ? $"☁️ Online via 🏠 Remote GPU — your other PC at {RemoteEngineUrl.Trim()} (FREE)" : "☁️ Online via 🏠 Remote GPU (no engine address saved yet — set it in 🌐 Providers)")
+                    ? (RemoteEngineUrls().Count > 0 ? $"☁️ Online via 🏠 Remote GPU — your engine PC(s): {string.Join(" + ", RemoteEngineUrls())} (FREE)" : "☁️ Online via 🏠 Remote GPU (no engine address saved yet — set it in 🌐 Providers)")
                     : OnlineProvider == "huggingface"
                     ? (GetHfKey().Length > 0 ? "☁️ Online via Hugging Face free tier (token saved)" : "☁️ Online via Hugging Face free tier (no token saved yet — add it below)")
                     : OnlineProvider == "fal"

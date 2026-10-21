@@ -220,8 +220,8 @@ namespace BeatSyncStudioPro
             if (RemoteSelected)
             {
                 OnlineKeyBox.Password = "";
-                OnlineKeyStatus.Text = _compute.RemoteEngineUrl.Trim().Length > 0
-                    ? $"Engine: {_compute.RemoteEngineUrl.Trim()} — edit it in 🌐 Providers"
+                OnlineKeyStatus.Text = _compute.RemoteEngineUrls().Count > 0
+                    ? $"Engine(s): {string.Join(" + ", _compute.RemoteEngineUrls())} — edit in 🌐 Providers"
                     : "No key needed — set the engine address in 🌐 Providers → 🏠 Remote GPU";
                 return;
             }
