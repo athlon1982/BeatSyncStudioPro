@@ -42,6 +42,7 @@
             <MenuItem Header="_View" Padding="10,4">
                 <MenuItem Header="🎚️ Mixer" Click="BtnMixer_Click"/>
                 <MenuItem Header="📺 Output Window" Click="BtnOutput_Click"/>
+                <MenuItem Header="🎧 DJ Decks" Click="BtnDj_Click"/>
             </MenuItem>
             <MenuItem Header="_Help" Padding="10,4">
                 <MenuItem Header="About BeatSync Studio Pro" Click="MenuAbout_Click"/>
@@ -153,6 +154,7 @@
                         <Button Content="🎚️ Mixer" Click="BtnMixer_Click" Width="100" Height="40" Margin="8,0,0,0" Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
                         <Button Content="💾 Export" Click="BtnExportAudio_Click" Width="100" Height="40" Margin="8,0,0,0" Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
                         <Button Content="📺 Output" Click="BtnOutput_Click" Width="100" Height="40" Margin="8,0,0,0" Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                        <Button Content="🎧 DJ" Click="BtnDj_Click" Width="100" Height="40" Margin="8,0,0,0" Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
                         <Separator Width="1" Background="#333" Margin="5,0"/>
                         <Button x:Name="BtnMasterMute" Content="🔊" Click="BtnMute_Click" Width="50" Height="40" Background="#2A303C" Foreground="#A0A5B5" BorderThickness="0" Cursor="Hand"/>
                         <TextBlock Text="Master" Foreground="#A0A5B5" VerticalAlignment="Center" Margin="10,0,0,0" FontSize="11" FontWeight="SemiBold"/>

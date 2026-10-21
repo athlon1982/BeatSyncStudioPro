@@ -45,6 +45,19 @@ namespace BeatSyncStudioPro
         public List<TrackFxSettings> TrackFxValues { get; } = new List<TrackFxSettings>();
 
         private OutputWindow? _outputWindow;
+        private DjWindow? _djWindow;
+
+        /// <summary>Master-bus tap feeding the Output window's visualizations.</summary>
+        public AudioTapSampleProvider? AudioTap { get; private set; }
+        private bool _djAttached;
+
+        /// <summary>Route the DJ decks' master mix into the main engine (once).</summary>
+        public void AttachDjMixer(ISampleProvider provider)
+        {
+            if (mixerEngine == null || _djAttached) return;
+            mixerEngine.AddMixerInput(provider);
+            _djAttached = true;
+        }
         private MixerWindow? _mixerWindow;
 
         // Pause state for the timeline transport
@@ -83,7 +96,8 @@ namespace BeatSyncStudioPro
             {
                 outputDevice = new WaveOutEvent();
                 mixerEngine = new MixingSampleProvider(WaveFormat.CreateIeeeFloatWaveFormat(44100, 2)) { ReadFully = true };
-                outputDevice.Init(mixerEngine);
+                AudioTap = new AudioTapSampleProvider(mixerEngine);
+                outputDevice.Init(AudioTap);
                 outputDevice.Play();
                 BuildTrackChains();
             }
@@ -827,6 +841,20 @@ namespace BeatSyncStudioPro
             else
             {
                 _mixerWindow.Activate();
+            }
+        }
+
+        private void BtnDj_Click(object sender, RoutedEventArgs e)
+        {
+            if (_djWindow == null)
+            {
+                _djWindow = new DjWindow(this) { Owner = this };
+                _djWindow.Closed += (s, ev) => _djWindow = null;
+                _djWindow.Show();
+            }
+            else
+            {
+                _djWindow.Activate();
             }
         }
 

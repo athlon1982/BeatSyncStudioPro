@@ -18,7 +18,15 @@
                 <TextBlock Text="Source" Foreground="#A0A5B5" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
                 <ComboBox x:Name="SourcePicker" Width="110" VerticalAlignment="Center" SelectionChanged="SourcePicker_SelectionChanged">
                     <ComboBoxItem Content="🎬 Video" IsSelected="True"/>
+                    <ComboBoxItem Content="✨ Visuals"/>
                     <ComboBoxItem Content="⬛ Black"/>
+                </ComboBox>
+                <TextBlock x:Name="SceneLabel" Text="Scene" Foreground="#A0A5B5" FontSize="11" VerticalAlignment="Center" Margin="14,0,6,0" Visibility="Collapsed"/>
+                <ComboBox x:Name="ScenePicker" Width="140" VerticalAlignment="Center" Visibility="Collapsed" SelectionChanged="ScenePicker_SelectionChanged">
+                    <ComboBoxItem Content="🔄 Auto Cycle" IsSelected="True"/>
+                    <ComboBoxItem Content="📊 Spectrum Bars"/>
+                    <ComboBoxItem Content="〰️ Wave Scope"/>
+                    <ComboBoxItem Content="⭕ Pulse Rings"/>
                 </ComboBox>
                 <TextBlock Text="Display" Foreground="#A0A5B5" FontSize="11" VerticalAlignment="Center" Margin="14,0,6,0"/>
                 <ComboBox x:Name="DisplayPicker" Width="190" VerticalAlignment="Center"/>
@@ -31,6 +39,8 @@
         <!-- Stage -->
         <Grid Grid.Row="1" Background="Black" MouseLeftButtonDown="Stage_MouseLeftButtonDown">
             <MediaElement x:Name="OutputPlayer" LoadedBehavior="Manual" UnloadedBehavior="Stop" Stretch="Uniform" Volume="0"/>
+            <Image x:Name="VisualImage" Stretch="Fill" Visibility="Collapsed"/>
+            <Image x:Name="FadeImage" Stretch="Fill" Visibility="Collapsed"/>
             <TextBlock x:Name="IdleLabel" Text="BeatSync Studio Pro" Foreground="#2E3442" FontSize="28" FontWeight="Bold"
                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Grid>

@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace BeatSyncStudioPro
@@ -22,7 +23,21 @@ namespace BeatSyncStudioPro
         private readonly DispatcherTimer _syncTimer;
         private string? _lastPath;
         private bool _playing;
-        private bool _blackout;
+        private int _mode; // 0 = Video, 1 = Visuals, 2 = Black
+
+        // ---- Visuals engine ----
+        private const int VisW = 960, VisH = 540;
+        private readonly WriteableBitmap _wbmp = new WriteableBitmap(VisW, VisH, 96, 96, PixelFormats.Bgra32, null);
+        private readonly int[] _pixels = new int[VisW * VisH];
+        private readonly DispatcherTimer _renderTimer;
+        private int _scene = 1; // 1 Bars, 2 Scope, 3 Rings (scene picker 0 = Auto)
+        private DateTime _sceneSince = DateTime.Now;
+        private double _fadeOpacity;
+        private readonly float[] _peakCaps = new float[56];
+        private readonly List<(double R, double Alpha, int ColorIdx)> _rings = new List<(double, double, int)>();
+        private float _lastBass;
+        private DateTime _lastRing = DateTime.MinValue;
+        private int _ringFlip;
         private bool _isFullscreen;
         private WindowState _prevState = WindowState.Normal;
         private WindowStyle _prevStyle = WindowStyle.SingleBorderWindow;
@@ -40,13 +55,19 @@ namespace BeatSyncStudioPro
             _syncTimer.Tick += SyncTick;
             _syncTimer.Start();
             Closed += (s, e) => _syncTimer.Stop();
+
+            VisualImage.Source = _wbmp;
+            _renderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
+            _renderTimer.Tick += RenderTick;
+            _renderTimer.Start();
+            Closed += (s, e) => _renderTimer.Stop();
         }
 
         // ---------------- Sync with the main player ----------------
 
         private void SyncTick(object? sender, EventArgs e)
         {
-            if (_blackout)
+            if (_mode != 0)
             {
                 IdleLabel.Visibility = Visibility.Collapsed;
                 return;
@@ -93,18 +114,33 @@ namespace BeatSyncStudioPro
 
         private void SourcePicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            _blackout = SourcePicker.SelectedIndex == 1;
-            if (_blackout)
+            if (ScenePicker == null || VisualImage == null) return; // still initializing
+            _mode = SourcePicker.SelectedIndex;
+            bool visuals = _mode == 1;
+            SceneLabel.Visibility = visuals ? Visibility.Visible : Visibility.Collapsed;
+            ScenePicker.Visibility = visuals ? Visibility.Visible : Visibility.Collapsed;
+            VisualImage.Visibility = visuals ? Visibility.Visible : Visibility.Collapsed;
+
+            if (_mode == 0)
+            {
+                OutputPlayer.Visibility = Visibility.Visible;
+            }
+            else
             {
                 try { OutputPlayer.Pause(); } catch { }
                 _playing = false;
                 OutputPlayer.Visibility = Visibility.Collapsed;
                 IdleLabel.Visibility = Visibility.Collapsed;
+                if (visuals) _sceneSince = DateTime.Now;
             }
+        }
+
+        private void ScenePicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ScenePicker.SelectedIndex > 0)
+                SwitchScene(ScenePicker.SelectedIndex);
             else
-            {
-                OutputPlayer.Visibility = Visibility.Visible;
-            }
+                _sceneSince = DateTime.Now; // Auto: restart the cycle clock
         }
 
         private void Topmost_Changed(object sender, RoutedEventArgs e)
@@ -180,6 +216,184 @@ namespace BeatSyncStudioPro
             WindowState = WindowState.Normal;
             Left = target.Left + 40;
             Top = target.Top + 40;
+        }
+
+        // =========================
+        // VISUALS (FFT scenes, crossfaded)
+        // =========================
+
+        private void SwitchScene(int scene)
+        {
+            if (scene == _scene) { _sceneSince = DateTime.Now; return; }
+            try
+            {
+                FadeImage.Source = new WriteableBitmap(_wbmp);
+                FadeImage.Opacity = 1;
+                FadeImage.Visibility = Visibility.Visible;
+                _fadeOpacity = 1;
+            }
+            catch { }
+            _scene = scene;
+            _sceneSince = DateTime.Now;
+            Array.Clear(_pixels, 0, _pixels.Length);
+            _rings.Clear();
+        }
+
+        private void RenderTick(object? sender, EventArgs e)
+        {
+            if (_mode != 1) return;
+            var tap = _owner.AudioTap;
+            if (tap == null) return;
+
+            if (ScenePicker.SelectedIndex == 0 && (DateTime.Now - _sceneSince).TotalSeconds > 24)
+                SwitchScene(_scene % 3 + 1);
+
+            if (_fadeOpacity > 0)
+            {
+                _fadeOpacity -= 0.05;
+                FadeImage.Opacity = Math.Max(0, _fadeOpacity);
+                if (_fadeOpacity <= 0) FadeImage.Visibility = Visibility.Collapsed;
+            }
+
+            Decay(0.80f);
+            switch (_scene)
+            {
+                case 2: DrawScope(tap); break;
+                case 3: DrawRings(tap); break;
+                default: DrawBars(tap); break;
+            }
+            _wbmp.WritePixels(new Int32Rect(0, 0, VisW, VisH), _pixels, VisW * 4, 0);
+        }
+
+        private static int Pack(byte r, byte g, byte b) => (255 << 24) | (r << 16) | (g << 8) | b;
+        private static readonly int ColGreen = Pack(0x1D, 0xB9, 0x54);
+        private static readonly int ColGold = Pack(0xFF, 0xC8, 0x3D);
+        private static readonly int ColPurple = Pack(0xB3, 0x88, 0xFF);
+        private static readonly int ColRed = Pack(0xFF, 0x5A, 0x5A);
+        private static readonly int ColWhite = Pack(0xF5, 0xF5, 0xF5);
+
+        private void Decay(float keep)
+        {
+            for (int i = 0; i < _pixels.Length; i++)
+            {
+                int p = _pixels[i];
+                if (p == 0) continue;
+                int r = (int)(((p >> 16) & 0xFF) * keep);
+                int g = (int)(((p >> 8) & 0xFF) * keep);
+                int b = (int)((p & 0xFF) * keep);
+                _pixels[i] = (255 << 24) | (r << 16) | (g << 8) | b;
+            }
+        }
+
+        private void SetPixel(int x, int y, int color)
+        {
+            if ((uint)x < VisW && (uint)y < VisH) _pixels[y * VisW + x] = color;
+        }
+
+        private void FillRect(int x, int y, int w, int h, int color)
+        {
+            for (int yy = y; yy < y + h; yy++)
+                for (int xx = x; xx < x + w; xx++)
+                    SetPixel(xx, yy, color);
+        }
+
+        private void DrawLine(int x0, int y0, int x1, int y1, int color)
+        {
+            int dx = Math.Abs(x1 - x0), dy = -Math.Abs(y1 - y0);
+            int sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+            int err = dx + dy;
+            while (true)
+            {
+                SetPixel(x0, y0, color);
+                SetPixel(x0, y0 + 1, color);
+                if (x0 == x1 && y0 == y1) break;
+                int e2 = 2 * err;
+                if (e2 >= dy) { err += dy; x0 += sx; }
+                if (e2 <= dx) { err += dx; y0 += sy; }
+            }
+        }
+
+        private void DrawCircle(int cx, int cy, int radius, int color)
+        {
+            if (radius <= 0) return;
+            int x = radius, y = 0, err = 0;
+            while (x >= y)
+            {
+                SetPixel(cx + x, cy + y, color); SetPixel(cx + y, cy + x, color);
+                SetPixel(cx - y, cy + x, color); SetPixel(cx - x, cy + y, color);
+                SetPixel(cx - x, cy - y, color); SetPixel(cx - y, cy - x, color);
+                SetPixel(cx + y, cy - x, color); SetPixel(cx + x, cy - y, color);
+                y++;
+                if (err <= 0) err += 2 * y + 1;
+                if (err > 0) { x--; err -= 2 * x + 1; }
+            }
+        }
+
+        private void DrawBars(AudioTapSampleProvider tap)
+        {
+            const int bars = 56;
+            var spectrum = tap.GetSpectrum(bars);
+            int bw = VisW / bars;
+            for (int i = 0; i < bars; i++)
+            {
+                float v = spectrum[i];
+                int h = (int)(v * (VisH - 40));
+                int color = v > 0.85f ? ColRed : v > 0.55f ? ColGold : ColGreen;
+                int x = i * bw + 2;
+                if (h > 0) FillRect(x, VisH - h, bw - 4, h, color);
+                if (v > _peakCaps[i]) _peakCaps[i] = v; else _peakCaps[i] *= 0.97f;
+                int capY = VisH - (int)(_peakCaps[i] * (VisH - 40));
+                FillRect(x, Math.Max(0, capY - 3), bw - 4, 3, ColWhite);
+            }
+        }
+
+        private void DrawScope(AudioTapSampleProvider tap)
+        {
+            var wave = tap.GetWaveform(480);
+            int mid = VisH / 2;
+            for (int i = 1; i < wave.Length; i++)
+            {
+                int x0 = (i - 1) * VisW / wave.Length, x1 = i * VisW / wave.Length;
+                int y0 = mid - (int)(wave[i - 1] * (VisH * 0.42));
+                int y1 = mid - (int)(wave[i] * (VisH * 0.42));
+                DrawLine(x0, y0, x1, y1, ColGreen);
+                DrawLine(x0, y0 + 130, x1, y1 + 130, ColPurple);
+            }
+        }
+
+        private void DrawRings(AudioTapSampleProvider tap)
+        {
+            float bass = tap.BassLevel;
+            float level = tap.Level;
+            if (bass > _lastBass + 0.06f && bass > 0.25f && (DateTime.Now - _lastRing).TotalMilliseconds > 240)
+            {
+                _rings.Add((12, 1.0, _ringFlip++ % 2));
+                _lastRing = DateTime.Now;
+            }
+            _lastBass = bass;
+
+            int cx = VisW / 2, cy = VisH / 2;
+            for (int i = _rings.Count - 1; i >= 0; i--)
+            {
+                var ring = _rings[i];
+                double r = ring.R + 6;
+                double a = ring.Alpha - 0.016;
+                if (a <= 0 || r > 760) { _rings.RemoveAt(i); continue; }
+                _rings[i] = (r, a, ring.ColorIdx);
+                int faded = FadeColor(ring.ColorIdx == 0 ? ColGold : ColGreen, a);
+                DrawCircle(cx, cy, (int)r, faded);
+                DrawCircle(cx, cy, (int)r + 1, faded);
+            }
+            int core = 18 + (int)(level * 90);
+            for (int r = core; r > 0; r -= 3) DrawCircle(cx, cy, r, ColPurple);
+        }
+
+        private static int FadeColor(int color, double alpha)
+        {
+            int r = (int)(((color >> 16) & 0xFF) * alpha);
+            int g = (int)(((color >> 8) & 0xFF) * alpha);
+            int b = (int)((color & 0xFF) * alpha);
+            return (255 << 24) | (r << 16) | (g << 8) | b;
         }
     }
 
