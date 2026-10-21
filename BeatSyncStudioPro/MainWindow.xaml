@@ -52,6 +52,7 @@
                 <MenuItem Header="🎚️ Mixer" Click="BtnMixer_Click"/>
                 <MenuItem Header="📺 Output Window" Click="BtnOutput_Click"/>
                 <MenuItem Header="🎧 DJ Decks" Click="BtnDj_Click"/>
+                <MenuItem Header="🥁 Patterns..." Click="BtnPatterns_Click"/>
                 <MenuItem Header="🔊 Monitor FX" Click="BtnMonitorFx_Click"/>
                 <MenuItem Header="📝 Transcript..." Click="BtnTranscript_Click"/>
                 <MenuItem Header="🎚️ Stem Splitter..." Click="BtnStemSplit_Click"/>

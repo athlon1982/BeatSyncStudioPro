@@ -1044,6 +1044,7 @@ namespace BeatSyncStudioPro
                 new("Monitor FX", "View", "Ctrl+Shift+M", () => BtnMonitorFx_Click(this, ev)),
                 new("Transcript…", "View", "", () => BtnTranscript_Click(this, ev)),
                 new("Stem Splitter…", "View", "", () => BtnStemSplit_Click(this, ev)),
+                new("Patterns (Step Sequencer)…", "View", "", () => BtnPatterns_Click(this, ev)),
                 new("Render Queue…", "File", "", () => BtnRenderQueue_Click(this, ev)),
                 new("Batch Convert…", "File", "", () => BtnBatchConvert_Click(this, ev)),
                 new("Start Screen…", "File", "", () => MenuStartScreen_Click(this, ev)),
@@ -1122,6 +1123,39 @@ namespace BeatSyncStudioPro
             LoopEnabled = true;
             UpdateLoopButtons();
             TimelineScrollViewer.ScrollToHorizontalOffset(Math.Max(0, LoopStartX.Value - 200));
+        }
+
+        // ---- Patterns (step sequencer) ----
+        public List<PatternData> Patterns { get; } = new List<PatternData>();
+
+        private PatternWindow? _patternWindow;
+        private void BtnPatterns_Click(object sender, RoutedEventArgs e)
+        {
+            if (_patternWindow != null) { _patternWindow.Activate(); return; }
+            _patternWindow = new PatternWindow(this) { Owner = this };
+            _patternWindow.Closed += (s, ev) => _patternWindow = null;
+            _patternWindow.Show();
+        }
+
+        /// <summary>Add a rendered pattern WAV to the library and drop it on track 1 at the start. Returns the final name.</summary>
+        public string AddRenderedPatternToTimeline(byte[] wavBytes, string desiredName)
+        {
+            string name = desiredName;
+            int n = 2;
+            while (ZipSounds.ContainsKey(name))
+            {
+                name = $"{System.IO.Path.GetFileNameWithoutExtension(desiredName)} ({n}).wav";
+                n++;
+            }
+            ZipSounds[name] = wavBytes;
+            ListContainer.Children.Add(CreateAssetButton($"🎵 {name}", name));
+            if (AudioTrackCount > 0 && TimelineCanvas != null)
+            {
+                var block = new FixedBlock(this, TimelineCanvas, 0, name, 0, wavBytes, "wav");
+                TimelineBlocks.Add(block);
+                RenderStudioGridLanes();
+            }
+            return name;
         }
 
         private StemSplitWindow? _stemSplitWindow;
@@ -1868,6 +1902,7 @@ namespace BeatSyncStudioPro
                     Bpm = this.ProjectBpm,
                     BeatOffsetSeconds = this.BeatOffsetSeconds,
                     SnapToBeat = this.SnapToBeatEnabled,
+                    Patterns = this.Patterns,
                     TrackVolumes = this.TrackVolumeValues,
                     TrackPans = this.TrackPanValues,
                     TrackFx = this.TrackFxValues,
@@ -2000,6 +2035,19 @@ namespace BeatSyncStudioPro
                     if (root.TryGetProperty("Bpm", out var bpmEl)) ProjectBpm = bpmEl.GetDouble();
                     if (root.TryGetProperty("BeatOffsetSeconds", out var boEl)) BeatOffsetSeconds = boEl.GetDouble();
                     if (root.TryGetProperty("SnapToBeat", out var sbEl)) SnapToBeatEnabled = sbEl.GetBoolean();
+                    if (root.TryGetProperty("Patterns", out var patEl))
+                    {
+                        try
+                        {
+                            var pats = JsonSerializer.Deserialize<List<PatternData>>(patEl.GetRawText());
+                            if (pats != null)
+                            {
+                                Patterns.Clear();
+                                Patterns.AddRange(pats);
+                            }
+                        }
+                        catch { }
+                    }
                     if (root.TryGetProperty("TrackVolumes", out var tvs))
                     {
                         TrackVolumeValues.Clear();
