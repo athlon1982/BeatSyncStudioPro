@@ -20,6 +20,7 @@
         <!-- Main menu bar -->
         <Menu Grid.Row="0" Grid.ColumnSpan="2" Background="#1E222B" Foreground="White" Padding="6,2" BorderBrush="#333" BorderThickness="0,0,0,1">
             <MenuItem Header="_File" Padding="10,4">
+                <MenuItem Header="🏠 Start Screen..." Click="MenuStartScreen_Click"/>
                 <MenuItem Header="📂 Open Project..." Click="BtnOpenProject_Click" InputGestureText="Ctrl+O"/>
                 <MenuItem Header="💾 Save Project" Click="BtnSave_Click" InputGestureText="Ctrl+S"/>
                 <Separator/>

@@ -169,6 +169,14 @@ namespace BeatSyncStudioPro
             RenderTimeRulerHeaders();
             RenderStudioGridLanes();
             MasterVolumeSlider.ValueChanged += (s, e) => UpdateVolumeDisplay();
+
+            // Start screen once, at launch, when nothing is loaded yet
+            Loaded += (s, e) =>
+            {
+                if (_startScreenShownOnce) return;
+                _startScreenShownOnce = true;
+                if (StartScreenEnabled && TimelineBlocks.Count == 0) OpenStartScreen();
+            };
             MasterVideoPlayer.MediaOpened += MasterVideoPlayer_MediaOpened;
         }
 
@@ -1034,6 +1042,7 @@ namespace BeatSyncStudioPro
                 new("DJ Decks", "View", "Ctrl+Shift+D", () => BtnDj_Click(this, ev)),
                 new("Output Window", "View", "Ctrl+Shift+O", () => BtnOutput_Click(this, ev)),
                 new("Monitor FX", "View", "Ctrl+Shift+M", () => BtnMonitorFx_Click(this, ev)),
+                new("Start Screen…", "File", "", () => MenuStartScreen_Click(this, ev)),
                 new("About BeatSync", "Help", "F1", () => MenuAbout_Click(this, ev)),
                 new("Exit", "File", "", () => MenuExit_Click(this, ev)),
             };
@@ -1082,6 +1091,125 @@ namespace BeatSyncStudioPro
         }
 
         private void MenuPalette_Click(object sender, RoutedEventArgs e) => OpenCommandPalette();
+
+        // =========================
+        // START SCREEN + RECENT PROJECTS
+        // =========================
+
+        private bool _startScreenShownOnce;
+        private string? _openPathOverride;
+
+        private static string AppDataDir => System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BeatSyncStudioPro");
+        private static string RecentProjectsPath => System.IO.Path.Combine(AppDataDir, "recent-projects.json");
+        private static string AppSettingsPath => System.IO.Path.Combine(AppDataDir, "app-settings.json");
+
+        public static List<string> GetRecentProjects()
+        {
+            try
+            {
+                if (!File.Exists(RecentProjectsPath)) return new List<string>();
+                var list = JsonSerializer.Deserialize<List<string>>(File.ReadAllText(RecentProjectsPath)) ?? new List<string>();
+                return list.Where(File.Exists).Take(8).ToList();
+            }
+            catch { return new List<string>(); }
+        }
+
+        public static void RememberRecentProject(string path)
+        {
+            try
+            {
+                var list = GetRecentProjects();
+                list.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
+                list.Insert(0, path);
+                Directory.CreateDirectory(AppDataDir);
+                File.WriteAllText(RecentProjectsPath, JsonSerializer.Serialize(list.Take(8).ToList()));
+            }
+            catch { }
+        }
+
+        public bool StartScreenEnabled
+        {
+            get
+            {
+                try
+                {
+                    if (File.Exists(AppSettingsPath))
+                    {
+                        using var doc = JsonDocument.Parse(File.ReadAllText(AppSettingsPath));
+                        if (doc.RootElement.TryGetProperty("ShowStartScreen", out var v)) return v.GetBoolean();
+                    }
+                }
+                catch { }
+                return true;
+            }
+            set
+            {
+                try
+                {
+                    Directory.CreateDirectory(AppDataDir);
+                    File.WriteAllText(AppSettingsPath, JsonSerializer.Serialize(new { ShowStartScreen = value }));
+                }
+                catch { }
+            }
+        }
+
+        public void OpenStartScreen()
+        {
+            var start = new StartScreenWindow(this) { Owner = this };
+            start.ShowDialog();
+        }
+
+        private void MenuStartScreen_Click(object sender, RoutedEventArgs e) => OpenStartScreen();
+
+        /// <summary>Public entry the start screen uses to run the normal open-project dialog flow.</summary>
+        public void BtnOpenProjectPublic() => BtnOpenProject_Click(this, new RoutedEventArgs());
+
+        /// <summary>Open a specific .bsp without showing the file dialog (recent-projects list).</summary>
+        public void OpenProjectFromPath(string path)
+        {
+            _openPathOverride = path;
+            try { BtnOpenProject_Click(this, new RoutedEventArgs()); }
+            finally { _openPathOverride = null; }
+        }
+
+        /// <summary>
+        /// Start-screen template: optionally clear the timeline (library stays),
+        /// set the track count and beat grid, then run a follow-up action.
+        /// </summary>
+        public void StartNewProject(int audioTracks, double bpm, bool openDj, bool importVideo)
+        {
+            if (TimelineBlocks.Count > 0)
+            {
+                var confirm = MessageBox.Show(
+                    "Start fresh? The current timeline will be cleared (your imported library stays).",
+                    "Start Screen", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (confirm != MessageBoxResult.Yes) return;
+
+                isPlayingTimeline = false;
+                playbackCancelToken?.Cancel();
+                MasterVideoPlayer.Stop();
+                MasterVideoPlayer.Source = null;
+                VideoPath = null;
+                SetVideoAudioSeparated(false);
+                SetVideoSpeed(1.0);
+                TimelineBlocks.Clear();
+            }
+
+            while (AudioTrackCount < audioTracks) AudioTrackCount++;
+            while (AudioTrackCount > Math.Max(1, audioTracks)) AudioTrackCount--;
+            ProjectBpm = bpm;
+            BeatOffsetSeconds = 0;
+            LoopStartX = null;
+            LoopEndX = null;
+            LoopEnabled = false;
+            UpdateLoopButtons();
+            BuildTrackChains();
+            RenderStudioGridLanes();
+
+            if (openDj) BtnDj_Click(this, new RoutedEventArgs());
+            if (importVideo) BtnImportVideo_Click(this, new RoutedEventArgs());
+        }
 
         private void BtnMonitorFx_Click(object sender, RoutedEventArgs e)
         {
@@ -1732,6 +1860,7 @@ namespace BeatSyncStudioPro
                     }
                 }
 
+                RememberRecentProject(dlg.FileName);
                 MessageBox.Show($"✅ Project saved successfully!\n\n📁 {dlg.FileName}", "Save Complete", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
@@ -1742,8 +1871,13 @@ namespace BeatSyncStudioPro
 
         private void BtnOpenProject_Click(object sender, RoutedEventArgs e)
         {
-            var dlg = new OpenFileDialog { Filter = "BeatSync Project (*.bsp)|*.bsp", Title = "Open Project" };
-            if (dlg.ShowDialog() != true) return;
+            string? fileName = _openPathOverride;
+            if (fileName == null)
+            {
+                var dlg = new OpenFileDialog { Filter = "BeatSync Project (*.bsp)|*.bsp", Title = "Open Project" };
+                if (dlg.ShowDialog() != true) return;
+                fileName = dlg.FileName;
+            }
 
             if (TimelineBlocks.Count > 0)
             {
@@ -1773,7 +1907,7 @@ namespace BeatSyncStudioPro
 
                 int missing = 0;
 
-                using (var fs = new FileStream(dlg.FileName, FileMode.Open, FileAccess.Read))
+                using (var fs = new FileStream(fileName, FileMode.Open, FileAccess.Read))
                 using (var archive = new ZipArchive(fs, ZipArchiveMode.Read))
                 {
                     var pjEntry = archive.GetEntry("project.json");
@@ -1920,7 +2054,8 @@ namespace BeatSyncStudioPro
                 if (TimelineBlocks.Any(b => b.IsVideoAudio)) SetVideoAudioSeparated(true);
                 RenderStudioGridLanes();
 
-                string msg = $"✅ Project loaded!\n\n📁 {dlg.FileName}\n🎞️ {TimelineBlocks.Count} clip(s) on the timeline";
+                RememberRecentProject(fileName);
+                string msg = $"✅ Project loaded!\n\n📁 {fileName}\n🎞️ {TimelineBlocks.Count} clip(s) on the timeline";
                 if (missing > 0) msg += $"\n\n⚠️ {missing} clip(s) were skipped because their sound file wasn't in the project bundle.";
                 MessageBox.Show(msg, "Open Complete", MessageBoxButton.OK, MessageBoxImage.Information);
             }
