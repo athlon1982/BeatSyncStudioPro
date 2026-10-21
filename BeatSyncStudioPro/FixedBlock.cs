@@ -39,6 +39,9 @@ namespace BeatSyncStudioPro
         /// <summary>Playback speed for audio clips (1.0 = original). Pitch shifts with it.</summary>
         public double Speed { get; set; } = 1.0;
 
+        /// <summary>When true, speed changes use WSOLA time-stretching so the pitch stays put.</summary>
+        public bool KeepPitch { get; set; }
+
         /// <summary>How far into the underlying sound this clip starts (seconds, at speed 1.0) — set by left-edge trims.</summary>
         public double SourceStartSeconds { get; set; }
 
@@ -405,6 +408,10 @@ namespace BeatSyncStudioPro
                 normalizeItem.Click += (s, e) => { Normalize = normalizeItem.IsChecked; _owner.RefreshAfterBlockEdit(); };
                 menu.Items.Add(normalizeItem);
 
+                var keepPitchItem = new MenuItem { Header = "🎵 Keep pitch at this speed", IsCheckable = true, IsChecked = KeepPitch };
+                keepPitchItem.Click += (s, e) => { KeepPitch = keepPitchItem.IsChecked; _owner.RefreshAfterBlockEdit(); };
+                menu.Items.Add(keepPitchItem);
+
                 var nudgeItem = new MenuItem { Header = "⏱️ Nudge audio…" };
                 nudgeItem.Click += (s, e) => _owner.OpenNudgeDialog(this);
                 menu.Items.Add(nudgeItem);
@@ -433,6 +440,7 @@ namespace BeatSyncStudioPro
                 {
                     reverseItem.IsChecked = Reverse;
                     normalizeItem.IsChecked = Normalize;
+                    keepPitchItem.IsChecked = KeepPitch;
                     nudgeItem.Header = NudgeMs == 0 ? "⏱️ Nudge audio…" : $"⏱️ Nudge audio… ({NudgeMs:+0;-0} ms)";
                 };
 
@@ -445,6 +453,7 @@ namespace BeatSyncStudioPro
                     SetSpeed(1.0);
                     Reverse = false;
                     Normalize = false;
+                    KeepPitch = false;
                     NudgeMs = 0;
                     ClipFx = new TrackFxSettings();
                     VolumePoints.Clear();

@@ -174,6 +174,190 @@ namespace BeatSyncStudioPro
         }
     }
 
+    /// <summary>
+    /// WSOLA time-stretching + the "keep pitch" segment builder: same window
+    /// math as BuildSegment, but the window is stretched (ratio 1/speed) by
+    /// waveform-similarity overlap-add instead of rate-sampled, so the pitch
+    /// stays put while the length changes.
+    /// </summary>
+    public static class TimeStretch
+    {
+        public static ISampleProvider BuildSegmentStretched(byte[] bytes, string soundType, double speed,
+            double sourceStartSeconds, double lengthSeconds, double extraSkipSeconds, bool reverse, bool normalize)
+        {
+            IWaveProvider reader = soundType.ToLower() == "wav"
+                ? new WaveFileReader(new MemoryStream(bytes))
+                : (IWaveProvider)new Mp3FileReader(new MemoryStream(bytes));
+            ISampleProvider provider = new WdlResamplingSampleProvider(reader.ToSampleProvider(), 44100).ToStereo();
+
+            var all = new List<float>();
+            var buf = new float[44100 * 2];
+            int read;
+            while ((read = provider.Read(buf, 0, buf.Length)) > 0)
+                for (int i = 0; i < read; i++) all.Add(buf[i]);
+            var source = all.ToArray();
+            long srcFrames = source.Length / 2;
+
+            // Same window as BuildSegment: first output frame hears source
+            // frame (sourceStart + extraSkip*speed)*44100, span = length*speed.
+            long winStart = Math.Clamp((long)((sourceStartSeconds + extraSkipSeconds * speed) * 44100.0), 0, Math.Max(0, srcFrames - 1));
+            long winFrames = Math.Max(0, (long)(lengthSeconds * 44100.0 * speed));
+            var windowData = new float[winFrames * 2];
+            long copyFrames = Math.Min(winFrames, Math.Max(0, srcFrames - winStart));
+            if (copyFrames > 0) Array.Copy(source, winStart * 2, windowData, 0, copyFrames * 2);
+
+            var segment = Wsola(windowData, 1.0 / Math.Max(0.05, speed));
+
+            long outFrames = segment.Length / 2;
+            if (reverse)
+            {
+                for (long f = 0; f < outFrames / 2; f++)
+                {
+                    long a = f * 2, b = (outFrames - 1 - f) * 2;
+                    (segment[a], segment[b]) = (segment[b], segment[a]);
+                    (segment[a + 1], segment[b + 1]) = (segment[b + 1], segment[a + 1]);
+                }
+            }
+            if (normalize)
+            {
+                float peak = 0;
+                for (int i = 0; i < segment.Length; i++)
+                {
+                    float a = Math.Abs(segment[i]);
+                    if (a > peak) peak = a;
+                }
+                if (peak > 0.001f)
+                {
+                    float gain = 0.95f / peak;
+                    for (int i = 0; i < segment.Length; i++) segment[i] *= gain;
+                }
+            }
+            return new ArraySampleProvider(segment);
+        }
+
+        /// <summary>WSOLA stretch of interleaved-stereo 44.1 kHz audio. ratio = output/input length.</summary>
+        public static float[] Wsola(float[] stereo, double ratio)
+        {
+            int inFrames = stereo.Length / 2;
+            ratio = Math.Clamp(ratio, 0.25, 4.0);
+            if (inFrames == 0) return stereo;
+            int outFrames = Math.Max(1, (int)(inFrames * ratio));
+
+            const int W = 2048;
+            const int Hs = 512;
+            if (inFrames <= W * 2 || Math.Abs(ratio - 1) < 0.001)
+            {
+                // Degenerate cases: linear resample to the target length.
+                var naive = new float[outFrames * 2];
+                for (int f = 0; f < outFrames; f++)
+                {
+                    double srcPos = f / ratio;
+                    long idx = Math.Min((long)srcPos, inFrames - 1);
+                    double frac = srcPos - idx;
+                    int i0 = (int)(idx * 2);
+                    int i1 = Math.Min(i0 + 2, stereo.Length - 2);
+                    naive[f * 2] = (float)(stereo[i0] * (1 - frac) + stereo[i1] * frac);
+                    naive[f * 2 + 1] = (float)(stereo[i0 + 1] * (1 - frac) + stereo[i1 + 1] * frac);
+                }
+                return naive;
+            }
+
+            var output = new float[outFrames * 2];
+            var norm = new float[outFrames];
+            var win = new float[W];
+            for (int i = 0; i < W; i++) win[i] = (float)(0.5 * (1 - Math.Cos(2 * Math.PI * i / (W - 1))));
+
+            var mono = new float[inFrames];
+            for (int i = 0; i < inFrames; i++) mono[i] = (stereo[i * 2] + stereo[i * 2 + 1]) * 0.5f;
+
+            double Ha = Hs / ratio;
+            const int searchRange = 384;
+            const int corrLen = 512;
+
+            void Place(int inPos, int outPos)
+            {
+                int frames = Math.Min(W, outFrames - outPos);
+                for (int i = 0; i < frames; i++)
+                {
+                    int src = inPos + i;
+                    if (src >= inFrames) break;
+                    float w = win[i];
+                    output[(outPos + i) * 2] += stereo[src * 2] * w;
+                    output[(outPos + i) * 2 + 1] += stereo[src * 2 + 1] * w;
+                    norm[outPos + i] += w;
+                }
+            }
+
+            int prevPos = 0;
+            Place(0, 0);
+            int outPos = Hs;
+            while (outPos + W <= outFrames)
+            {
+                double nominalD = prevPos + Ha;
+                int nominal = (int)Math.Round(nominalD);
+                int lo = Math.Max(0, nominal - searchRange);
+                int hi = Math.Min(inFrames - W, nominal + searchRange);
+                if (hi < lo) hi = lo;
+                // Target: what the previous segment contributed to the overlap
+                // zone — its frames [Hs .. Hs+corrLen) in source terms.
+                int targetStart = prevPos + Hs;
+                int best = lo;
+                double bestScore = double.NegativeInfinity;
+                if (targetStart + corrLen <= inFrames)
+                {
+                    for (int c = lo; c <= hi; c++)
+                    {
+                        double score = DotMono(mono, c, targetStart, corrLen);
+                        if (score > bestScore) { bestScore = score; best = c; }
+                    }
+                }
+                else
+                {
+                    best = Math.Clamp(nominal, lo, hi);
+                }
+                Place(best, outPos);
+                prevPos = best;
+                outPos += Hs;
+            }
+            // Tail: fill any remainder with a final window at the proportional spot.
+            if (outPos < outFrames)
+            {
+                int tailIn = Math.Clamp((int)(outPos / ratio), 0, Math.Max(0, inFrames - 1));
+                Place(tailIn, outPos);
+            }
+
+            for (int f = 0; f < outFrames; f++)
+            {
+                if (norm[f] > 1e-4f)
+                {
+                    output[f * 2] /= norm[f];
+                    output[f * 2 + 1] /= norm[f];
+                }
+            }
+            return output;
+        }
+
+        private static double DotMono(float[] mono, int aStart, int bStart, int length)
+        {
+            double sum = 0;
+            int i = 0;
+            int vecLen = System.Numerics.Vector<float>.Count;
+            if (System.Numerics.Vector.IsHardwareAccelerated)
+            {
+                var acc = System.Numerics.Vector<float>.Zero;
+                for (; i + vecLen <= length; i += vecLen)
+                {
+                    var va = new System.Numerics.Vector<float>(mono, aStart + i);
+                    var vb = new System.Numerics.Vector<float>(mono, bStart + i);
+                    acc += va * vb;
+                }
+                for (int k = 0; k < vecLen; k++) sum += acc[k];
+            }
+            for (; i < length; i++) sum += mono[aStart + i] * mono[bStart + i];
+            return sum;
+        }
+    }
+
     /// <summary>One volume-automation breakpoint on a clip (time from the clip's audible start).</summary>
     public class EnvelopePoint
     {

@@ -1492,7 +1492,8 @@ namespace BeatSyncStudioPro
                     Fx = block.ClipFx,
                     VolumePoints = block.VolumePoints,
                     GateOn = block.GateOn,
-                    GateThresholdDb = block.GateThresholdDb
+                    GateThresholdDb = block.GateThresholdDb,
+                    KeepPitch = block.KeepPitch
                 };
                 if (fadeByBlock.TryGetValue(block, out var fades))
                 {
@@ -1636,11 +1637,15 @@ namespace BeatSyncStudioPro
                     : Math.Max(0.05, block.FileDurationSeconds / Math.Max(0.01, block.Speed));
 
                 ISampleProvider provider;
-                if (block.Reverse || block.Normalize)
+                bool useStretch = block.KeepPitch && Math.Abs(block.Speed - 1.0) > 0.001;
+                if (block.Reverse || block.Normalize || useStretch)
                 {
-                    // Both need the whole segment decoded in memory
-                    provider = ClipAudio.BuildSegment(block.RawBytes, block.SoundType, block.Speed,
-                        block.SourceStartSeconds, audibleLen, extraSkip, block.Reverse, block.Normalize);
+                    // All three need the whole segment decoded in memory
+                    provider = useStretch
+                        ? TimeStretch.BuildSegmentStretched(block.RawBytes, block.SoundType, block.Speed,
+                            block.SourceStartSeconds, audibleLen, extraSkip, block.Reverse, block.Normalize)
+                        : ClipAudio.BuildSegment(block.RawBytes, block.SoundType, block.Speed,
+                            block.SourceStartSeconds, audibleLen, extraSkip, block.Reverse, block.Normalize);
                 }
                 else
                 {
@@ -1982,7 +1987,8 @@ namespace BeatSyncStudioPro
                         ClipFx = b.ClipFx,
                         VolumePoints = b.VolumePoints,
                         b.GateOn,
-                        b.GateThresholdDb
+                        b.GateThresholdDb,
+                        b.KeepPitch
                     }).ToList()
                 };
 
@@ -2213,6 +2219,7 @@ namespace BeatSyncStudioPro
                             }
                             bool gateOn = b.TryGetProperty("GateOn", out var goEl) && goEl.GetBoolean();
                             double gateDb = b.TryGetProperty("GateThresholdDb", out var gdEl) ? gdEl.GetDouble() : -45;
+                            bool keepPitch = b.TryGetProperty("KeepPitch", out var kpEl) && kpEl.GetBoolean();
 
                             if (isVideo)
                             {
@@ -2248,6 +2255,7 @@ namespace BeatSyncStudioPro
                                 if (volPoints != null) block.VolumePoints = volPoints;
                                 block.GateOn = gateOn;
                                 block.GateThresholdDb = gateDb;
+                                block.KeepPitch = keepPitch;
                                 if (length > 0)
                                 {
                                     block.LengthSeconds = length;

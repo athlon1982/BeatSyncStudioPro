@@ -29,6 +29,7 @@ namespace BeatSyncStudioPro
         public System.Collections.Generic.List<EnvelopePoint> VolumePoints = new System.Collections.Generic.List<EnvelopePoint>();
         public bool GateOn;
         public double GateThresholdDb = -45;
+        public bool KeepPitch;
 
         /// <summary>When the clip's audio actually starts in the export (nudge applied, never negative).</summary>
         public double DelaySeconds => Math.Max(0, StartSeconds + NudgeMs / 1000.0);
@@ -316,10 +317,14 @@ namespace BeatSyncStudioPro
                     : 0;
 
                 ISampleProvider provider;
-                if ((clip.Reverse || clip.Normalize) && clip.RawBytes != null)
+                bool useStretch = clip.KeepPitch && Math.Abs(clip.Speed - 1.0) > 0.001;
+                if ((clip.Reverse || clip.Normalize || useStretch) && clip.RawBytes != null)
                 {
-                    provider = ClipAudio.BuildSegment(clip.RawBytes, clip.SoundType, clip.Speed,
-                        clip.SourceStartSeconds, audibleLen, extraSkip, clip.Reverse, clip.Normalize);
+                    provider = useStretch
+                        ? TimeStretch.BuildSegmentStretched(clip.RawBytes, clip.SoundType, clip.Speed,
+                            clip.SourceStartSeconds, audibleLen, extraSkip, clip.Reverse, clip.Normalize)
+                        : ClipAudio.BuildSegment(clip.RawBytes, clip.SoundType, clip.Speed,
+                            clip.SourceStartSeconds, audibleLen, extraSkip, clip.Reverse, clip.Normalize);
                 }
                 else
                 {
