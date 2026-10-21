@@ -3,6 +3,17 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.4 — AI Lab, My Songs & Real Deck Mixing
+### Added
+- **AI Lab** (View → AI Lab): connect an AI and generate **song lyrics**, **title ideas**, or a **beat from your description** — a generated beat opens straight in the step sequencer. Providers: **OpenCode's free models** (uses your OpenCode app sign-in, no key), **Ollama** (runs 100% on this PC), **Google Gemini** (free key), **OpenRouter** (free models), **ChatGPT / OpenAI** (your own key), or any **custom OpenAI-compatible endpoint**. Keys are stored encrypted on this PC.
+- **My Songs** (View → My Songs): all 17 published Rad-Dad songs in one panel — pick one and it plays right in the app (SoundCloud links play in an embedded player too), or open it in your browser. Add and remove songs anytime; your list is saved on this PC. Streaming stays listening-only: to edit a song's audio, import the file — the app never logs into Suno or downloads from it.
+- **Deck track lists**: every DJ deck now has its own **track list** — add songs (multi-select), double-click or use Prev / Next to load them, and tick **Auto-play next** to roll into the following track when a song ends. Queue up each deck's set and crossfade between them.
+- **Per-deck visuals**: each deck shows its **own** live sound under the waveform — **Spectrum**, **Waveform**, or **Off** — so you can see what each deck is doing while you mix.
+### Fixed
+- **Scratch now follows your hand**: hand speed is measured over a short window instead of instant-by-instant, so a steady drag sounds like the record moving (slow drag = slow motion), and the old "it just pauses" behavior is gone. Letting the record sit still still holds it silent, like a real deck.
+### Changed
+- The "Created by" line no longer sits on the splash screen, the Start Screen, or the main window — it lives in the About box, where it belongs.
+
 ## Version 3.3 — Scratch & the Waveform Ring
 ### Added
 - **Scratch mode** (per deck): an ✋ Scratch toggle — **off by default**, so the record can't be grabbed by accident. Turn it on, grab the vinyl with the mouse and move it: the audio follows your hand forward and backward, goes silent while you hold the record still, and spins back up to speed when you let go — just like a real deck.

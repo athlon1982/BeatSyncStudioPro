@@ -55,9 +55,9 @@ namespace BeatSyncStudioPro
             _owner.AttachDjMixer(_recorder);
 
             _panelA = new DeckPanel(this, _deckA, () => _deckB, _fxA, "DECK A",
-                new SolidColorBrush(Color.FromRgb(0x1D, 0xB9, 0x54)), DeckHostA, chainA.Channel);
+                new SolidColorBrush(Color.FromRgb(0x1D, 0xB9, 0x54)), DeckHostA, chainA.Channel, chainA.Tap);
             _panelB = new DeckPanel(this, _deckB, () => _deckA, _fxB, "DECK B",
-                new SolidColorBrush(Color.FromRgb(0xB3, 0x88, 0xFF)), DeckHostB, chainB.Channel);
+                new SolidColorBrush(Color.FromRgb(0xB3, 0x88, 0xFF)), DeckHostB, chainB.Channel, chainB.Tap);
 
             XfadeSlider.ValueChanged += (s, e) => UpdateCrossfader();
             CurvePicker.SelectionChanged += (s, e) => UpdateCrossfader();
@@ -70,16 +70,17 @@ namespace BeatSyncStudioPro
             Closed += (s, e) => { _timer.Stop(); _recorder.Stop(); };
         }
 
-        private (VolumeSampleProvider Xfade, VolumeSampleProvider Channel) BuildDeckChain(
+        private (VolumeSampleProvider Xfade, VolumeSampleProvider Channel, AudioTapSampleProvider Tap) BuildDeckChain(
             DjDeck deck, TrackFxSettings fx, MixingSampleProvider master)
         {
-            var eq = new EqSampleProvider(deck, fx);
+            var tap = new AudioTapSampleProvider(deck);
+            var eq = new EqSampleProvider(tap, fx);
             var delay = new DelaySampleProvider(eq, fx);
             var reverb = new ReverbSampleProvider(delay, fx);
             var channel = new VolumeSampleProvider(reverb) { Volume = 1.0f };
             var xfade = new VolumeSampleProvider(channel) { Volume = 0.707f };
             master.AddMixerInput(xfade);
-            return (xfade, channel);
+            return (xfade, channel, tap);
         }
 
         private void UpdateCrossfader()
@@ -203,13 +204,24 @@ namespace BeatSyncStudioPro
             private bool _dragging;
             private double _lastAngle;
             private long _lastDragMs;
-            private double _smoothRate;
+            private readonly List<(long Ms, double HandPos)> _dragTrail = new List<(long, double)>();
+            private double _handPos;
+            private readonly AudioTapSampleProvider _tap;
+            private ComboBox _visualPicker = null!;
+            private Border _visualBorder = null!;
+            private Image _visualImage = null!;
+            private readonly List<string> _queuePaths = new List<string>();
+            private int _queueIndex = -1;
+            private ListBox _queueList = null!;
+            private TextBlock _queueCount = null!;
+            private CheckBox _autoNextBox = null!;
+            private bool _wasPlayingLastTick;
 
             private static readonly Brush PanelBtn = new SolidColorBrush(Color.FromRgb(0x2A, 0x30, 0x3C));
             private static readonly Brush MutedText = new SolidColorBrush(Color.FromRgb(0xA0, 0xA5, 0xB5));
 
             public DeckPanel(DjWindow window, DjDeck deck, Func<DjDeck> other, TrackFxSettings fx, string name,
-                SolidColorBrush accent, Border host, VolumeSampleProvider channelGain)
+                SolidColorBrush accent, Border host, VolumeSampleProvider channelGain, AudioTapSampleProvider tap)
             {
                 _window = window;
                 _deck = deck;
@@ -218,6 +230,7 @@ namespace BeatSyncStudioPro
                 _name = name;
                 _accent = accent;
                 _channelGain = channelGain;
+                _tap = tap;
 
                 var root = new StackPanel();
 
@@ -247,6 +260,27 @@ namespace BeatSyncStudioPro
 
                 _timeText = new TextBlock { Text = "0:00 / 0:00", FontSize = 11, Foreground = MutedText, Margin = new Thickness(0, 4, 0, 2) };
                 root.Children.Add(_timeText);
+
+                // Live visual for THIS deck's own sound: spectrum / waveform / off
+                var visRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
+                visRow.Children.Add(new TextBlock { Text = "Visual", Foreground = MutedText, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Width = 42 });
+                _visualPicker = new ComboBox { Width = 130, VerticalAlignment = VerticalAlignment.Center };
+                _visualPicker.Items.Add(new ComboBoxItem { Content = "🌈 Spectrum" });
+                _visualPicker.Items.Add(new ComboBoxItem { Content = "〰️ Waveform" });
+                _visualPicker.Items.Add(new ComboBoxItem { Content = "Off" });
+                _visualPicker.SelectedIndex = 0;
+                _visualPicker.SelectionChanged += (s, e) =>
+                {
+                    if (_visualBorder != null)
+                        _visualBorder.Visibility = _visualPicker.SelectedIndex == 2 ? Visibility.Collapsed : Visibility.Visible;
+                };
+                visRow.Children.Add(_visualPicker);
+                visRow.Children.Add(new TextBlock { Text = "(this deck's own sound)", Foreground = MutedText, FontSize = 9, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
+                root.Children.Add(visRow);
+                _visualBorder = new Border { Height = 54, Margin = new Thickness(0, 4, 0, 0), Background = new SolidColorBrush(Color.FromRgb(0x14, 0x17, 0x1E)), CornerRadius = new CornerRadius(4) };
+                _visualImage = new Image { Stretch = Stretch.Fill };
+                _visualBorder.Child = _visualImage;
+                root.Children.Add(_visualBorder);
 
                 // Load row
                 var loadRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
@@ -366,6 +400,62 @@ namespace BeatSyncStudioPro
                 gainRow.Children.Add(gain);
                 root.Children.Add(gainRow);
 
+                // Track list for this deck: queue songs, step through them, mix on
+                var qHead = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 0) };
+                qHead.Children.Add(new TextBlock { Text = "🎧 TRACK LIST", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = (Brush)_accent });
+                _queueCount = new TextBlock { Text = "", Foreground = MutedText, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
+                qHead.Children.Add(_queueCount);
+                root.Children.Add(qHead);
+                _queueList = new ListBox
+                {
+                    Height = 74,
+                    Margin = new Thickness(0, 4, 0, 0),
+                    Background = new SolidColorBrush(Color.FromRgb(0x14, 0x17, 0x1E)),
+                    Foreground = Brushes.White,
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x33))
+                };
+                _queueList.MouseDoubleClick += (s, e) =>
+                {
+                    if (_queueList.SelectedIndex >= 0) LoadQueueItem(_queueList.SelectedIndex, true);
+                };
+                root.Children.Add(_queueList);
+                var qBtns = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
+                Button QBtn(string label)
+                {
+                    return new Button
+                    {
+                        Content = label,
+                        Padding = new Thickness(10, 4, 10, 4),
+                        Margin = new Thickness(0, 0, 6, 0),
+                        Background = new SolidColorBrush(Color.FromRgb(0x2A, 0x30, 0x3C)),
+                        Foreground = Brushes.White,
+                        BorderThickness = new Thickness(0),
+                        Cursor = Cursors.Hand,
+                        FontSize = 11
+                    };
+                }
+                var addBtn = QBtn("➕ Add Songs…");
+                addBtn.Click += (s, e) => AddToQueue();
+                var prevBtn = QBtn("⏮ Prev");
+                prevBtn.Click += (s, e) => { if (_queueIndex > 0) LoadQueueItem(_queueIndex - 1, true); };
+                var nextBtn = QBtn("⏭ Next");
+                nextBtn.Click += (s, e) => { if (_queueIndex + 1 < _queuePaths.Count) LoadQueueItem(_queueIndex + 1, true); };
+                var removeBtn = QBtn("🗑 Remove");
+                removeBtn.Click += (s, e) => RemoveFromQueue();
+                qBtns.Children.Add(addBtn);
+                qBtns.Children.Add(prevBtn);
+                qBtns.Children.Add(nextBtn);
+                qBtns.Children.Add(removeBtn);
+                root.Children.Add(qBtns);
+                _autoNextBox = new CheckBox
+                {
+                    Content = "Auto-play the next track when this song ends",
+                    Foreground = MutedText,
+                    FontSize = 11,
+                    Margin = new Thickness(0, 6, 0, 0)
+                };
+                root.Children.Add(_autoNextBox);
+
                 host.Child = root;
             }
 
@@ -382,6 +472,7 @@ namespace BeatSyncStudioPro
                     Height = 198,
                     Margin = new Thickness(0, 2, 0, 6),
                     Cursor = Cursors.Hand,
+                    Background = Brushes.Transparent,
                     ToolTip = "Click the vinyl to play / pause"
                 };
                 host.MouseLeftButtonDown += Platter_MouseDown;
@@ -542,7 +633,9 @@ namespace BeatSyncStudioPro
                 host.CaptureMouse();
                 _lastAngle = PointerAngle(e, host);
                 _lastDragMs = Environment.TickCount64;
-                _smoothRate = 0;
+                _handPos = _deck.PositionSeconds;
+                _dragTrail.Clear();
+                _dragTrail.Add((Environment.TickCount64, _handPos));
                 _deck.GrabRecord();
             }
 
@@ -556,12 +649,18 @@ namespace BeatSyncStudioPro
                 while (delta < -Math.PI) delta += 2 * Math.PI;
                 _lastAngle = angle;
                 long now = Environment.TickCount64;
-                double dt = Math.Max(1, now - _lastDragMs) / 1000.0;
                 _lastDragMs = now;
                 double seconds = delta / (2 * Math.PI) * 1.8; // one revolution = 1.8 s of audio
-                _deck.PositionSeconds = Math.Clamp(_deck.PositionSeconds + seconds, 0, Math.Max(0, _deck.TotalSeconds - 0.05));
-                _smoothRate = 0.65 * (seconds / dt) + 0.35 * _smoothRate;
-                _deck.ScratchRate = Math.Clamp(_smoothRate, -8, 8);
+                _handPos = Math.Clamp(_handPos + seconds, 0, Math.Max(0, _deck.TotalSeconds - 0.05));
+                // Hand speed measured over a trailing ~100 ms window — a steady
+                // drag reads as its true speed (slow drag = slow-motion sound),
+                // not as a string of near-zero instants the deck mutes.
+                _dragTrail.Add((now, _handPos));
+                while (_dragTrail.Count > 2 && now - _dragTrail[0].Ms > 100) _dragTrail.RemoveAt(0);
+                var first = _dragTrail[0];
+                double span = (now - first.Ms) / 1000.0;
+                if (span > 0.02)
+                    _deck.ScratchRate = Math.Clamp((_handPos - first.HandPos) / span, -10, 10);
             }
 
             private void Platter_MouseUp(object sender, MouseButtonEventArgs e)
@@ -609,7 +708,7 @@ namespace BeatSyncStudioPro
                 catch (Exception ex) { MessageBox.Show("Could not load that file: " + ex.Message, _name); }
             }
 
-            private void LoadBytes(byte[] bytes, string name)
+            private bool LoadBytes(byte[] bytes, string name)
             {
                 try
                 {
@@ -620,11 +719,69 @@ namespace BeatSyncStudioPro
                     RenderWaveform();
                     RenderPlatterRing();
                     _window.SetStatus($"{_name}: {_deck.Title} loaded ({FmtTime(_deck.TotalSeconds)}). Set the BPM to unlock SYNC and loops.");
+                    return true;
                 }
                 catch (Exception ex)
                 {
                     MessageBox.Show("Could not decode that song: " + ex.Message, _name);
+                    return false;
                 }
+            }
+
+            private void RefreshQueueList()
+            {
+                _queueList.Items.Clear();
+                for (int i = 0; i < _queuePaths.Count; i++)
+                {
+                    string marker = i == _queueIndex ? "▶ " : "";
+                    _queueList.Items.Add($"{marker}{i + 1}. {System.IO.Path.GetFileName(_queuePaths[i])}");
+                }
+                if (_queueIndex >= 0 && _queueIndex < _queueList.Items.Count)
+                    _queueList.SelectedIndex = _queueIndex;
+                _queueCount.Text = _queuePaths.Count == 0 ? "(empty — add songs to build your set)" : $"{_queuePaths.Count} song(s)";
+            }
+
+            private void AddToQueue()
+            {
+                var dialog = new OpenFileDialog
+                {
+                    Title = $"Add songs to {_name}'s track list",
+                    Filter = "Audio|*.mp3;*.wav",
+                    Multiselect = true
+                };
+                if (dialog.ShowDialog() != true) return;
+                foreach (var f in dialog.FileNames) _queuePaths.Add(f);
+                RefreshQueueList();
+                if (_queueIndex < 0 && _queuePaths.Count > 0)
+                    _window.SetStatus($"{_name}: {_queuePaths.Count} song(s) queued — double-click one (or press Next) to load it.");
+            }
+
+            private void RemoveFromQueue()
+            {
+                int i = _queueList.SelectedIndex;
+                if (i < 0 || i >= _queuePaths.Count) return;
+                _queuePaths.RemoveAt(i);
+                if (i < _queueIndex) _queueIndex--;
+                else if (i == _queueIndex) _queueIndex = -1; // the loaded song keeps playing from memory
+                RefreshQueueList();
+            }
+
+            private void LoadQueueItem(int i, bool autoplay)
+            {
+                if (i < 0 || i >= _queuePaths.Count) return;
+                try
+                {
+                    if (!LoadBytes(File.ReadAllBytes(_queuePaths[i]), System.IO.Path.GetFileName(_queuePaths[i]))) return;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Could not read that file: " + ex.Message, _name);
+                    return;
+                }
+                _queueIndex = i;
+                _title.Text = $"{_name} ({i + 1}/{_queuePaths.Count}) — {_deck.Title}";
+                RefreshQueueList();
+                if (autoplay && !_deck.IsPlaying) PlayPause();
             }
 
             private void RenderWaveform()
@@ -757,6 +914,20 @@ namespace BeatSyncStudioPro
 
             public void Refresh()
             {
+                // hand stopped moving mid-grab = record held still
+                if (_dragging && Environment.TickCount64 - _lastDragMs > 70) _deck.ScratchRate = 0;
+                // Track-list auto-advance: the deck flips IsPlaying off at the
+                // true end of a song — only then (and only near the end, so a
+                // manual pause never triggers it) roll into the next track.
+                if (_autoNextBox != null && _autoNextBox.IsChecked == true
+                    && _wasPlayingLastTick && !_deck.IsPlaying
+                    && _queueIndex >= 0 && _queueIndex + 1 < _queuePaths.Count
+                    && _deck.IsLoaded && _deck.TotalSeconds > 0
+                    && _deck.PositionSeconds >= _deck.TotalSeconds - 1.0)
+                {
+                    LoadQueueItem(_queueIndex + 1, true);
+                }
+                _wasPlayingLastTick = _deck.IsPlaying;
                 if (_deck.IsLoaded)
                     _platterSpin.Angle = _deck.PositionSeconds * 200.0 % 360.0; // 33⅓ RPM
                 if (_deck.IsLoaded)
@@ -793,6 +964,39 @@ namespace BeatSyncStudioPro
                         _haloFx.BlurRadius = 20 + level * 26;
                         _haloFx.Opacity = 0.65 + level * 0.35;
                     }
+                }
+                if (_visualBorder != null && _visualBorder.Visibility == Visibility.Visible && _visualPicker != null)
+                {
+                    const int W = 440, H = 54;
+                    var visual = new DrawingVisual();
+                    using (var dc = visual.RenderOpen())
+                    {
+                        if (_visualPicker.SelectedIndex == 0)
+                        {
+                            var bands = _tap.GetSpectrum(48);
+                            double bw = W / 48.0;
+                            for (int i = 0; i < 48; i++)
+                            {
+                                double h = Math.Max(1, bands[i] * (H - 4));
+                                dc.DrawRectangle((Brush)_accent, null, new Rect(i * bw + 1, H - h, bw - 2, h));
+                            }
+                        }
+                        else
+                        {
+                            var wave = _tap.GetWaveform(220);
+                            var pen = new Pen(_accent, 1.2);
+                            Point prev = new Point(0, H / 2.0 - wave[0] * (H / 2.0 - 2));
+                            for (int p = 1; p < wave.Length; p++)
+                            {
+                                var pt = new Point(p * 2, H / 2.0 - wave[p] * (H / 2.0 - 2));
+                                dc.DrawLine(pen, prev, pt);
+                                prev = pt;
+                            }
+                        }
+                    }
+                    var bmp = new RenderTargetBitmap(W, H, 96, 96, PixelFormats.Pbgra32);
+                    bmp.Render(visual);
+                    _visualImage.Source = bmp;
                 }
                 _playButton.Content = _deck.IsPlaying ? "⏸ PAUSE" : "▶ PLAY";
                 _effBpmText.Text = _deck.EffectiveBpm > 0 ? $"→ {_deck.EffectiveBpm:0.0} BPM" : "";

@@ -1057,6 +1057,8 @@ namespace BeatSyncStudioPro
                 new("Patterns (Step Sequencer)…", "View", "", () => BtnPatterns_Click(this, ev)),
                 new("Piano Roll…", "View", "", () => BtnPianoRoll_Click(this, ev)),
                 new("Drum Generator…", "Create", "", () => BtnDrumGenerator_Click(this, ev)),
+                new("AI Lab…", "Create", "", () => BtnAiLab_Click(this, ev)),
+                new("My Songs…", "View", "", () => BtnMySongs_Click(this, ev)),
                 new("Render Queue…", "File", "", () => BtnRenderQueue_Click(this, ev)),
                 new("Batch Convert…", "File", "", () => BtnBatchConvert_Click(this, ev)),
                 new("Start Screen…", "File", "", () => MenuStartScreen_Click(this, ev)),
@@ -2359,6 +2361,24 @@ namespace BeatSyncStudioPro
             _changelogWindow = new ChangelogWindow { Owner = this };
             _changelogWindow.Closed += (s, ev) => _changelogWindow = null;
             _changelogWindow.Show();
+        }
+
+        private AiLabWindow? _aiLabWindow;
+        private void BtnAiLab_Click(object sender, RoutedEventArgs e)
+        {
+            if (_aiLabWindow != null) { _aiLabWindow.Activate(); return; }
+            _aiLabWindow = new AiLabWindow(this) { Owner = this };
+            _aiLabWindow.Closed += (s, ev) => _aiLabWindow = null;
+            _aiLabWindow.Show();
+        }
+
+        private MySongsWindow? _mySongsWindow;
+        private void BtnMySongs_Click(object sender, RoutedEventArgs e)
+        {
+            if (_mySongsWindow != null) { _mySongsWindow.Activate(); return; }
+            _mySongsWindow = new MySongsWindow { Owner = this };
+            _mySongsWindow.Closed += (s, ev) => _mySongsWindow = null;
+            _mySongsWindow.Show();
         }
 
         private void MenuAbout_Click(object sender, RoutedEventArgs e)

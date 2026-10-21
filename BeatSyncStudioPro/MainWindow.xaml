@@ -128,10 +128,9 @@
                     <Image Source="/Assets/app-icon.png" Width="34" Height="34"/>
                     <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="19" FontWeight="Bold"><Run Text="BEATSYNC" Foreground="#FFFFFF"/><Run Text=" STUDIO PRO" Foreground="#1DB954"/></TextBlock>
                     <Border Background="#1B212E" BorderBrush="#2A3446" BorderThickness="1" CornerRadius="9" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="v3.3" FontSize="11" Foreground="#A0A5B5" FontWeight="Bold"/>
+                        <TextBlock Text="v3.4" FontSize="11" Foreground="#A0A5B5" FontWeight="Bold"/>
                     </Border>
                 </StackPanel>
-                <TextBlock Text="Created by Michael DeCato" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="#8A93A5" FontSize="12"/>
             </Grid>
         </Border>
 
@@ -176,6 +175,8 @@
                 <MenuItem Header="🔊 Monitor FX" Click="BtnMonitorFx_Click"/>
                 <MenuItem Header="📝 Transcript..." Click="BtnTranscript_Click"/>
                 <MenuItem Header="🎚️ Stem Splitter..." Click="BtnStemSplit_Click"/>
+                <MenuItem Header="🤖 AI Lab..." Click="BtnAiLab_Click"/>
+                <MenuItem Header="🎵 My Songs..." Click="BtnMySongs_Click"/>
             </MenuItem>
             <MenuItem Header="_Help" Padding="10,4">
                 <MenuItem Header="⌨️ Command Palette..." Click="MenuPalette_Click" InputGestureText="Ctrl+K"/>
@@ -307,7 +308,6 @@
                         <TextBlock x:Name="TimeDisplay" Text="0:00 / 0:00" Foreground="#69F0AE" VerticalAlignment="Center" Margin="18,0,0,0" FontSize="15" FontWeight="Bold" FontFamily="Consolas"/>
                     </StackPanel>
 
-                    <TextBlock Text="Created by Michael DeCato" Foreground="#59637A" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Right"/>
                 </Grid>
             </Border>
         </Grid>

@@ -1,0 +1,63 @@
+<Window x:Class="BeatSyncStudioPro.MySongsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="My Songs — BeatSync Studio Pro" Icon="/Assets/app.ico"
+        Width="980" Height="640" MinWidth="760" MinHeight="480"
+        Background="#1E222B" Foreground="#FFFFFF" WindowStartupLocation="CenterOwner">
+    <Grid Margin="14">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="270"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Grid Grid.Column="0" Margin="0,0,12,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <StackPanel Grid.Row="0">
+                <TextBlock Text="🎵 My Songs" FontSize="16" FontWeight="Bold"/>
+                <TextBlock Text="Your published songs, one click away. Pick one to play it here."
+                           Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,8"/>
+            </StackPanel>
+            <ListBox x:Name="SongsList" Grid.Row="1" Background="#14171E" Foreground="White" BorderBrush="#333"
+                     SelectionChanged="SongsList_SelectionChanged"/>
+            <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                <TextBlock Text="Add a song (Suno or SoundCloud link)" Foreground="#A0A5B5" FontSize="11"/>
+                <TextBox x:Name="TitleBox" Margin="0,4,0,0" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="6,4"
+                         ToolTip="Title"/>
+                <TextBox x:Name="UrlBox" Margin="0,4,0,0" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="6,4"
+                         ToolTip="https://suno.com/song/… or https://soundcloud.com/…"/>
+                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                    <Button Content="➕ Add" Click="Add_Click" Padding="12,5" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                    <Button Content="🗑 Remove" Click="Remove_Click" Padding="12,5" Margin="8,0,0,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                </StackPanel>
+            </StackPanel>
+            <TextBlock Grid.Row="3" Margin="0,10,0,0" Foreground="#666666" FontSize="10" TextWrapping="Wrap"
+                       Text="Streaming pages play here for listening. To edit a song's audio in the timeline or the DJ decks, import the audio file itself — the app never logs into Suno or downloads from it."/>
+        </Grid>
+
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Border Grid.Row="0" BorderBrush="#2A3446" BorderThickness="1" CornerRadius="6" Background="#14171E">
+                <Grid>
+                    <wv2:WebView2 x:Name="Player"/>
+                    <TextBlock x:Name="FallbackText" Visibility="Collapsed" TextWrapping="Wrap" Margin="20"
+                               Foreground="#A0A5B5" FontSize="13"
+                               Text="The in-app player couldn't start on this PC — use “Open in Browser” below to play the song instead."/>
+                </Grid>
+            </Border>
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
+                <TextBlock x:Name="NowText" Text="Pick a song on the left" VerticalAlignment="Center" Foreground="#A0A5B5" FontSize="12"/>
+                <Button Content="🌐 Open in Browser" Click="OpenBrowser_Click" Padding="12,5" Margin="14,0,0,0"
+                        Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
