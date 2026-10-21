@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="BeatSync Studio Pro" Height="800" Width="1400" WindowState="Maximized" MinWidth="900" MinHeight="600"
+        Title="BeatSync Studio Pro" Icon="/Assets/app.ico" Height="800" Width="1400" WindowState="Maximized" MinWidth="900" MinHeight="600"
         Background="#14171E" Foreground="#FFFFFF" SnapsToDevicePixels="True" WindowStartupLocation="CenterScreen">
     <Grid>
         <Grid.ColumnDefinitions>
