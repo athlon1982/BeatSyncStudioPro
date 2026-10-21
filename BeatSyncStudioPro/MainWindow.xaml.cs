@@ -928,6 +928,19 @@ namespace BeatSyncStudioPro
                 });
             }
 
+            // Auto-crossfade lengths per clip (same math as live playback)
+            var fadeByBlock = new Dictionary<FixedBlock, (double Fin, double Fout)>();
+            if (AutoCrossfadeEnabled)
+            {
+                var audioBlocks = TimelineBlocks.Where(x => x.IsAudio).ToList();
+                var lanes = audioBlocks.Select(x => (x.LaneIndex, x.StartX / 100.0, x.LengthSeconds)).ToList();
+                for (int i = 0; i < audioBlocks.Count; i++)
+                {
+                    if (audioBlocks[i].LengthSeconds > 0.2)
+                        fadeByBlock[audioBlocks[i]] = ClipAudio.ComputeFades(lanes, i);
+                }
+            }
+
             double total = 0;
             foreach (var block in TimelineBlocks.Where(b => !b.IsVideo))
             {
@@ -935,7 +948,7 @@ namespace BeatSyncStudioPro
                 int chain = block.IsVideoAudio ? AudioTrackCount : Math.Clamp(block.TrackId, 0, AudioTrackCount - 1);
                 double length = block.LengthSeconds > 0 ? block.LengthSeconds
                     : (double.IsNaN(block.Width) ? 0 : block.Width / 100.0);
-                job.Clips.Add(new ExportClip
+                var clip = new ExportClip
                 {
                     RawBytes = block.RawBytes,
                     SoundType = block.SoundType,
@@ -944,8 +957,17 @@ namespace BeatSyncStudioPro
                     SourceStartSeconds = block.SourceStartSeconds,
                     LengthSeconds = block.LengthSeconds,
                     Volume = block.Volume * MasterVolume,
-                    ChainIndex = chain
-                });
+                    ChainIndex = chain,
+                    Reverse = block.Reverse,
+                    Normalize = block.Normalize,
+                    NudgeMs = block.NudgeMs
+                };
+                if (fadeByBlock.TryGetValue(block, out var fades))
+                {
+                    clip.FadeInSeconds = fades.Fin;
+                    clip.FadeOutSeconds = fades.Fout;
+                }
+                job.Clips.Add(clip);
                 total = Math.Max(total, block.StartX / 100.0 + length);
             }
 
@@ -1020,7 +1042,7 @@ namespace BeatSyncStudioPro
                     }
                 });
 
-                foreach (var block in TimelineBlocks.Where(b => !b.IsVideo && !playedBlocks.Contains(b) && currentX >= b.StartX))
+                foreach (var block in TimelineBlocks.Where(b => !b.IsVideo && !playedBlocks.Contains(b) && currentX >= b.EffectiveStartX))
                 {
                     playedBlocks.Add(block);
                     Task.Run(() => PlayBlockSoundThreaded(block));
@@ -1038,32 +1060,73 @@ namespace BeatSyncStudioPro
             });
         }
 
+        /// <summary>When on, overlapping clips on the same lane crossfade into each other automatically.</summary>
+        public bool AutoCrossfadeEnabled { get; set; } = true;
+
+        private void MenuAutoCrossfade_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem item) AutoCrossfadeEnabled = item.IsChecked;
+        }
+
         private void PlayBlockSoundThreaded(FixedBlock block)
         {
             if (mixerEngine == null || block.SoundType == "image") return;
             try
             {
-                IWaveProvider reader = (block.SoundType.ToLower() == "wav")
-                    ? new WaveFileReader(new MemoryStream(block.RawBytes))
-                    : new Mp3FileReader(new MemoryStream(block.RawBytes));
+                // Nudge shifts the audible window: early nudges skip into the
+                // sound, and the window's audible length shrinks by the shift
+                // either way so the clip still ends on its boundary.
+                double shiftSec = block.NudgeMs / 1000.0;
+                double extraSkip = Math.Max(0, -(block.StartX / 100.0 + shiftSec));
+                double audibleLen = block.LengthSeconds > 0
+                    ? Math.Max(0.05, block.LengthSeconds - Math.Abs(shiftSec))
+                    : Math.Max(0.05, block.FileDurationSeconds / Math.Max(0.01, block.Speed));
 
-                ISampleProvider provider = new WdlResamplingSampleProvider(reader.ToSampleProvider(), 44100).ToStereo();
-
-                // Per-clip speed (pitch shifts with it, like a record)
-                if (Math.Abs(block.Speed - 1.0) > 0.001)
+                ISampleProvider provider;
+                if (block.Reverse || block.Normalize)
                 {
-                    provider = new SpeedSampleProvider(provider, block.Speed);
+                    // Both need the whole segment decoded in memory
+                    provider = ClipAudio.BuildSegment(block.RawBytes, block.SoundType, block.Speed,
+                        block.SourceStartSeconds, audibleLen, extraSkip, block.Reverse, block.Normalize);
+                }
+                else
+                {
+                    IWaveProvider reader = (block.SoundType.ToLower() == "wav")
+                        ? new WaveFileReader(new MemoryStream(block.RawBytes))
+                        : new Mp3FileReader(new MemoryStream(block.RawBytes));
+
+                    provider = new WdlResamplingSampleProvider(reader.ToSampleProvider(), 44100).ToStereo();
+
+                    // Per-clip speed (pitch shifts with it, like a record)
+                    if (Math.Abs(block.Speed - 1.0) > 0.001)
+                    {
+                        provider = new SpeedSampleProvider(provider, block.Speed);
+                    }
+
+                    // Play only the clip's window of the sound: skip the trimmed-off
+                    // front, stop at the trimmed end
+                    if (block.LengthSeconds > 0)
+                    {
+                        provider = new OffsetSampleProvider(provider)
+                        {
+                            SkipOver = TimeSpan.FromSeconds(block.SourceStartSeconds / block.Speed + extraSkip),
+                            Take = TimeSpan.FromSeconds(audibleLen)
+                        };
+                    }
                 }
 
-                // Play only the clip's window of the sound: skip the trimmed-off
-                // front, stop at the trimmed end
-                if (block.LengthSeconds > 0)
+                // Auto-crossfade where same-lane neighbours overlap this clip
+                if (AutoCrossfadeEnabled && block.LengthSeconds > 0.2)
                 {
-                    provider = new OffsetSampleProvider(provider)
+                    var audioBlocks = TimelineBlocks.Where(x => x.IsAudio).ToList();
+                    int idx = audioBlocks.IndexOf(block);
+                    if (idx >= 0)
                     {
-                        SkipOver = TimeSpan.FromSeconds(block.SourceStartSeconds / block.Speed),
-                        Take = TimeSpan.FromSeconds(block.LengthSeconds)
-                    };
+                        var lanes = audioBlocks.Select(x => (x.LaneIndex, x.StartX / 100.0, x.LengthSeconds)).ToList();
+                        var (fin, fout) = ClipAudio.ComputeFades(lanes, idx);
+                        if (fin > 0.005 || fout > 0.005)
+                            provider = new AutoFadeSampleProvider(provider, fin, fout, audibleLen);
+                    }
                 }
 
                 var volumeSampleProvider = new VolumeSampleProvider(provider) { Volume = (float)(block.Volume * MasterVolume) };
@@ -1079,6 +1142,16 @@ namespace BeatSyncStudioPro
         // =========================
         // CLIP ACTIONS (called from FixedBlock)
         // =========================
+
+        public void OpenNudgeDialog(FixedBlock block)
+        {
+            var dlg = new NudgeWindow(block.NudgeMs) { Owner = this };
+            if (dlg.ShowDialog() == true)
+            {
+                block.NudgeMs = dlg.ValueMs;
+                RefreshAfterBlockEdit();
+            }
+        }
 
         public void RemoveBlock(FixedBlock block)
         {
@@ -1294,7 +1367,10 @@ namespace BeatSyncStudioPro
                         b.Speed,
                         b.SourceStartSeconds,
                         b.IsVideoAudio,
-                        b.LengthSeconds
+                        b.LengthSeconds,
+                        b.Reverse,
+                        b.Normalize,
+                        b.NudgeMs
                     }).ToList()
                 };
 
@@ -1475,6 +1551,9 @@ namespace BeatSyncStudioPro
                             double sourceStart = b.TryGetProperty("SourceStartSeconds", out var ss) ? ss.GetDouble() : 0;
                             bool isVideoAudio = b.TryGetProperty("IsVideoAudio", out var iva) && iva.GetBoolean();
                             double length = b.TryGetProperty("LengthSeconds", out var ln) ? ln.GetDouble() : 0;
+                            bool reverse = b.TryGetProperty("Reverse", out var rv) && rv.GetBoolean();
+                            bool normalize = b.TryGetProperty("Normalize", out var nm) && nm.GetBoolean();
+                            int nudgeMs = b.TryGetProperty("NudgeMs", out var ng) ? ng.GetInt32() : 0;
 
                             if (isVideo)
                             {
@@ -1503,6 +1582,9 @@ namespace BeatSyncStudioPro
                                 block.Volume = volume;
                                 block.Speed = speed;
                                 block.SourceStartSeconds = sourceStart;
+                                block.Reverse = reverse;
+                                block.Normalize = normalize;
+                                block.NudgeMs = nudgeMs;
                                 if (length > 0)
                                 {
                                     block.LengthSeconds = length;

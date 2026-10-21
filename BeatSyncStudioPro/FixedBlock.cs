@@ -42,6 +42,18 @@ namespace BeatSyncStudioPro
         /// <summary>How far into the underlying sound this clip starts (seconds, at speed 1.0) — set by left-edge trims.</summary>
         public double SourceStartSeconds { get; set; }
 
+        /// <summary>Play this clip's audio backwards.</summary>
+        public bool Reverse { get; set; }
+
+        /// <summary>Normalize this clip's audio to about -0.5 dB peak.</summary>
+        public bool Normalize { get; set; }
+
+        /// <summary>Shift the audio by this many milliseconds without moving the clip (negative = earlier) — for A/V sync fixes.</summary>
+        public int NudgeMs { get; set; }
+
+        /// <summary>Where the clip's audio actually starts on the timeline once the nudge is applied (pixels).</summary>
+        public double EffectiveStartX => StartX + NudgeMs * 0.1;
+
         public string SoundType { get; set; }
         public bool IsVideo { get; set; }
 
@@ -374,11 +386,35 @@ namespace BeatSyncStudioPro
 
                 menu.Items.Add(new Separator());
 
+                var reverseItem = new MenuItem { Header = "🔄 Reverse", IsCheckable = true, IsChecked = Reverse };
+                reverseItem.Click += (s, e) => { Reverse = reverseItem.IsChecked; _owner.RefreshAfterBlockEdit(); };
+                menu.Items.Add(reverseItem);
+
+                var normalizeItem = new MenuItem { Header = "📈 Normalize (-0.5 dB)", IsCheckable = true, IsChecked = Normalize };
+                normalizeItem.Click += (s, e) => { Normalize = normalizeItem.IsChecked; _owner.RefreshAfterBlockEdit(); };
+                menu.Items.Add(normalizeItem);
+
+                var nudgeItem = new MenuItem { Header = "⏱️ Nudge audio…" };
+                nudgeItem.Click += (s, e) => _owner.OpenNudgeDialog(this);
+                menu.Items.Add(nudgeItem);
+
+                menu.Opened += (s, e) =>
+                {
+                    reverseItem.IsChecked = Reverse;
+                    normalizeItem.IsChecked = Normalize;
+                    nudgeItem.Header = NudgeMs == 0 ? "⏱️ Nudge audio…" : $"⏱️ Nudge audio… ({NudgeMs:+0;-0} ms)";
+                };
+
+                menu.Items.Add(new Separator());
+
                 var resetItem = new MenuItem { Header = "Reset volume & speed" };
                 resetItem.Click += (s, e) =>
                 {
                     Volume = 1.0;
                     SetSpeed(1.0);
+                    Reverse = false;
+                    Normalize = false;
+                    NudgeMs = 0;
                     _owner.RefreshAfterBlockEdit();
                 };
                 menu.Items.Add(resetItem);

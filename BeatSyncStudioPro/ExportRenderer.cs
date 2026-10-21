@@ -20,6 +20,17 @@ namespace BeatSyncStudioPro
         public double LengthSeconds;        // timeline window length; <= 0 means the whole sound
         public double Volume = 1.0;
         public int ChainIndex;
+        public bool Reverse;
+        public bool Normalize;
+        public int NudgeMs;
+        public double FadeInSeconds;
+        public double FadeOutSeconds;
+
+        /// <summary>When the clip's audio actually starts in the export (nudge applied, never negative).</summary>
+        public double DelaySeconds => Math.Max(0, StartSeconds + NudgeMs / 1000.0);
+
+        /// <summary>Extra source audio to skip because a negative nudge pulled the start before zero.</summary>
+        public double ExtraSkipSeconds => Math.Max(0, -(StartSeconds + NudgeMs / 1000.0));
     }
 
     /// <summary>One mixer chain in an export job (a snapshot of a track strip).</summary>
@@ -101,7 +112,7 @@ namespace BeatSyncStudioPro
                 var provider = BuildClipProvider(clip);
                 if (provider == null || chainMixers.Count == 0) continue;
                 int ci = Math.Clamp(clip.ChainIndex, 0, chainMixers.Count - 1);
-                chainMixers[ci].AddMixerInput(new StartDelayedSampleProvider(provider, clip.StartSeconds));
+                chainMixers[ci].AddMixerInput(new StartDelayedSampleProvider(provider, clip.DelaySeconds));
             }
 
             bool mp3 = outputPath.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase);
@@ -152,36 +163,57 @@ namespace BeatSyncStudioPro
         {
             try
             {
-                IWaveProvider reader;
-                if (clip.RawBytes != null)
+                double shiftSec = clip.NudgeMs / 1000.0;
+                double extraSkip = clip.ExtraSkipSeconds;
+                double audibleLen = clip.LengthSeconds > 0
+                    ? Math.Max(0.05, clip.LengthSeconds - Math.Abs(shiftSec))
+                    : 0;
+
+                ISampleProvider provider;
+                if ((clip.Reverse || clip.Normalize) && clip.RawBytes != null)
                 {
-                    reader = clip.SoundType.ToLower() == "wav"
-                        ? new WaveFileReader(new MemoryStream(clip.RawBytes))
-                        : (IWaveProvider)new Mp3FileReader(new MemoryStream(clip.RawBytes));
-                }
-                else if (clip.FilePath != null)
-                {
-                    reader = new MediaFoundationReader(clip.FilePath);
+                    provider = ClipAudio.BuildSegment(clip.RawBytes, clip.SoundType, clip.Speed,
+                        clip.SourceStartSeconds, audibleLen, extraSkip, clip.Reverse, clip.Normalize);
                 }
                 else
                 {
-                    return null;
-                }
-
-                ISampleProvider provider = new WdlResamplingSampleProvider(reader.ToSampleProvider(), 44100).ToStereo();
-
-                if (Math.Abs(clip.Speed - 1.0) > 0.001)
-                {
-                    provider = new SpeedSampleProvider(provider, clip.Speed);
-                }
-
-                if (clip.LengthSeconds > 0)
-                {
-                    provider = new OffsetSampleProvider(provider)
+                    IWaveProvider reader;
+                    if (clip.RawBytes != null)
                     {
-                        SkipOver = TimeSpan.FromSeconds(clip.SourceStartSeconds / clip.Speed),
-                        Take = TimeSpan.FromSeconds(clip.LengthSeconds)
-                    };
+                        reader = clip.SoundType.ToLower() == "wav"
+                            ? new WaveFileReader(new MemoryStream(clip.RawBytes))
+                            : (IWaveProvider)new Mp3FileReader(new MemoryStream(clip.RawBytes));
+                    }
+                    else if (clip.FilePath != null)
+                    {
+                        reader = new MediaFoundationReader(clip.FilePath);
+                    }
+                    else
+                    {
+                        return null;
+                    }
+
+                    provider = new WdlResamplingSampleProvider(reader.ToSampleProvider(), 44100).ToStereo();
+
+                    if (Math.Abs(clip.Speed - 1.0) > 0.001)
+                    {
+                        provider = new SpeedSampleProvider(provider, clip.Speed);
+                    }
+
+                    if (clip.LengthSeconds > 0)
+                    {
+                        provider = new OffsetSampleProvider(provider)
+                        {
+                            SkipOver = TimeSpan.FromSeconds(clip.SourceStartSeconds / clip.Speed + extraSkip),
+                            Take = TimeSpan.FromSeconds(audibleLen)
+                        };
+                    }
+                }
+
+                if (clip.FadeInSeconds > 0.005 || clip.FadeOutSeconds > 0.005)
+                {
+                    double total = audibleLen > 0 ? audibleLen : clip.LengthSeconds;
+                    if (total > 0) provider = new AutoFadeSampleProvider(provider, clip.FadeInSeconds, clip.FadeOutSeconds, total);
                 }
 
                 return new VolumeSampleProvider(provider) { Volume = (float)clip.Volume };

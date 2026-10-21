@@ -38,6 +38,8 @@
                 <Separator/>
                 <MenuItem Header="🎬 Add Video to Timeline" Click="BtnAddVideoToTimeline_Click"/>
                 <MenuItem Header="🗑️ Remove Video Track" Click="BtnRemoveVideo_Click"/>
+                <Separator/>
+                <MenuItem Header="Auto-Crossfade" IsCheckable="True" IsChecked="True" Click="MenuAutoCrossfade_Click"/>
             </MenuItem>
             <MenuItem Header="_View" Padding="10,4">
                 <MenuItem Header="🎚️ Mixer" Click="BtnMixer_Click"/>
