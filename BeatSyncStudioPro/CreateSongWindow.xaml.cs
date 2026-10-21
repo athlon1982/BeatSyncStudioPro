@@ -149,14 +149,21 @@ namespace BeatSyncStudioPro
                 StatusText.Text = "☁️ Song generation isn't wired to the Hugging Face free tier yet (their free song models come and go). Switch the online provider to Replicate or fal.ai in the AI Lab, or use your local engine once it's set up.";
                 return;
             }
+            bool remote = compute.OnlineProvider == "remote";
+            string remoteUrl = compute.RemoteEngineUrl.Trim();
+            if (remote && remoteUrl.Length == 0)
+            {
+                StatusText.Text = "🏠 Your Remote GPU provider is picked, but there's no engine address yet. Open 🌐 Providers (the button below) → the 🏠 Remote GPU card → type your other PC's address (like http://192.168.1.50:7860) and Save. The free BeatSync Engine has to be running on that PC.";
+                return;
+            }
             bool fal = compute.OnlineProvider == "fal";
-            if (fal && compute.GetFalKey().Length == 0)
+            if (!remote && fal && compute.GetFalKey().Length == 0)
             {
                 StatusText.Text = "☁️ Add your fal.ai API key first — AI Lab → 🔑 Keys & Compute tab (fal.ai is paid per run; there's a signup button right there).";
                 return;
             }
             string key = compute.GetOnlineKey();
-            if (!fal && key.Length == 0)
+            if (!remote && !fal && key.Length == 0)
             {
                 StatusText.Text = "☁️ Add your Replicate API key first — AI Lab → 🔑 Keys & Compute tab (there's a 'Sign up for Replicate' button right there).";
                 return;
@@ -171,6 +178,10 @@ namespace BeatSyncStudioPro
                 var (data, ext) = fal
                     ? await FalOnline.GenerateAceStepAsync(
                         compute.GetFalKey(), StyleBox.Text.Trim(), LyricsBox.Text.Trim(),
+                        DurationSeconds, msg => StatusText.Text = msg, _cts.Token)
+                    : remote
+                    ? await RemoteEngine.GenerateSongAsync(
+                        remoteUrl, title, StyleBox.Text.Trim(), LyricsBox.Text.Trim(),
                         DurationSeconds, msg => StatusText.Text = msg, _cts.Token)
                     : await OnlineSongs.GenerateAceStepAsync(
                         key, title, StyleBox.Text.Trim(), LyricsBox.Text.Trim(),

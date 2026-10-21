@@ -59,7 +59,7 @@ namespace BeatSyncStudioPro
         {
             _computeLoading = true;
             ComputePicker.SelectedIndex = _compute.Mode switch { "CPU" => 1, "GPU" => 2, "Online" => 3, _ => 0 };
-            OnlineProviderPicker.SelectedIndex = _compute.OnlineProvider switch { "huggingface" => 1, "fal" => 2, _ => 0 };
+            OnlineProviderPicker.SelectedIndex = _compute.OnlineProvider switch { "huggingface" => 1, "fal" => 2, "remote" => 3, _ => 0 };
             LoadProviderKey();
             var gpus = ComputeSettings.GpuNames();
             GpuPicker.Items.Clear();
@@ -213,9 +213,18 @@ namespace BeatSyncStudioPro
 
         private bool HfSelected => OnlineProviderPicker.SelectedIndex == 1;
         private bool FalSelected => OnlineProviderPicker.SelectedIndex == 2;
+        private bool RemoteSelected => OnlineProviderPicker.SelectedIndex == 3;
 
         private void LoadProviderKey()
         {
+            if (RemoteSelected)
+            {
+                OnlineKeyBox.Password = "";
+                OnlineKeyStatus.Text = _compute.RemoteEngineUrl.Trim().Length > 0
+                    ? $"Engine: {_compute.RemoteEngineUrl.Trim()} — edit it in 🌐 Providers"
+                    : "No key needed — set the engine address in 🌐 Providers → 🏠 Remote GPU";
+                return;
+            }
             OnlineKeyBox.Password = HfSelected ? _compute.GetHfKey()
                 : FalSelected ? _compute.GetFalKey()
                 : _compute.GetOnlineKey();
@@ -225,7 +234,7 @@ namespace BeatSyncStudioPro
         private void OnlineProviderPicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_computeLoading || !IsLoaded) return;
-            _compute.OnlineProvider = HfSelected ? "huggingface" : FalSelected ? "fal" : "replicate";
+            _compute.OnlineProvider = HfSelected ? "huggingface" : FalSelected ? "fal" : RemoteSelected ? "remote" : "replicate";
             _compute.Save();
             LoadProviderKey();
             RefreshComputeInfo();
@@ -239,6 +248,11 @@ namespace BeatSyncStudioPro
 
         private void OnlineSaveKey_Click(object sender, RoutedEventArgs e)
         {
+            if (RemoteSelected)
+            {
+                OnlineKeyStatus.Text = "Remote GPU uses an address, not a key — 🌐 Providers → 🏠 Remote GPU card";
+                return;
+            }
             if (HfSelected) _compute.SetHfKey(OnlineKeyBox.Password);
             else if (FalSelected) _compute.SetFalKey(OnlineKeyBox.Password);
             else _compute.SetOnlineKey(OnlineKeyBox.Password);

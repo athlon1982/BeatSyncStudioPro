@@ -275,7 +275,7 @@
                         </StackPanel>
                         <Border x:Name="OnlinePanel" BorderBrush="#2A3446" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,6,0,0" Visibility="Collapsed">
                             <StackPanel>
-                                <TextBlock Text="Online compute runs on a cloud provider (Demucs for stems; ACE-Step for songs). Replicate — paid per run. Hugging Face — FREE tier. fal.ai — paid per run. Keys are stored encrypted on this PC and only ever sent to the provider you picked."
+                                <TextBlock Text="Online compute runs on a cloud provider (Demucs for stems; ACE-Step for songs). Replicate — paid per run. Hugging Face — FREE tier. fal.ai — paid per run. 🏠 Remote GPU — FREE: your other PC does the work (address lives in 🌐 Providers). Keys are stored encrypted on this PC and only ever sent to the provider you picked."
                                            Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                     <TextBlock Text="Provider" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
@@ -283,6 +283,7 @@
                                         <ComboBoxItem Content="Replicate — paid, fast, reliable"/>
                                         <ComboBoxItem Content="Hugging Face — FREE tier, slower"/>
                                         <ComboBoxItem Content="fal.ai — paid, fast (songs + stems)"/>
+                                        <ComboBoxItem Content="🏠 Remote GPU — FREE (my other PC)"/>
                                     </ComboBox>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">

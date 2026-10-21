@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -36,6 +37,10 @@ namespace BeatSyncStudioPro
                 "The home of open AI models, with a free tier. In this app: stem splitting at no cost.",
                 "Works in BeatSync today — a free account token is all it takes.",
                 "https://huggingface.co/join", "https://huggingface.co/settings/tokens", "hf"),
+            new("🏠 Remote GPU — my other PC", true, false, true,
+                "Songs generated on YOUR other computer's graphics card: the free BeatSync Engine runs there, and this app sends it jobs over your home network (or Tailscale, from anywhere). No per-run fees, no cloud, your music never leaves your machines. Your Rad-Dad voice conversion will live there too.",
+                "Works in BeatSync today — save the engine address below, pick 🏠 Remote GPU as the online provider in Create Song / AI Lab, and use 🩺 Test to check the connection. The engine itself gets installed on that PC once — that's the next setup step.",
+                "", "", "remote"),
             new("Freesound", true, false, true,
                 "Millions of free sound effects and samples for your library, straight from the 🌐 Freesound window.",
                 "Free — its key lives in the Freesound window (View menu → 🌐 Freesound).",
@@ -87,6 +92,7 @@ namespace BeatSyncStudioPro
             "fal" => _cs.GetFalKey(),
             "replicate" => _cs.GetOnlineKey(),
             "hf" => _cs.GetHfKey(),
+            "remote" => _cs.RemoteEngineUrl,
             _ => ""
         };
 
@@ -97,6 +103,7 @@ namespace BeatSyncStudioPro
                 case "fal": _cs.SetFalKey(key); break;
                 case "replicate": _cs.SetOnlineKey(key); break;
                 case "hf": _cs.SetHfKey(key); break;
+                case "remote": _cs.RemoteEngineUrl = key.Trim(); break;
             }
             _cs.Save();
         }
@@ -148,7 +155,47 @@ namespace BeatSyncStudioPro
                 FontSize = 11, FontStyle = FontStyles.Italic, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0)
             });
 
-            if (p.KeyId != null)
+            if (p.KeyId == "remote")
+            {
+                var urlRow = new Grid { Margin = new Thickness(0, 8, 0, 0) };
+                urlRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                urlRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                urlRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var urlBox = new TextBox
+                {
+                    Text = GetKey("remote"),
+                    Background = new SolidColorBrush(Color.FromRgb(0x12, 0x15, 0x1C)),
+                    Foreground = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(0x2A, 0x30, 0x3C)),
+                    Padding = new Thickness(6, 4, 6, 4),
+                    ToolTip = "Your engine PC's address, e.g. http://192.168.1.50:7860 — or its Tailscale address"
+                };
+                var urlState = new TextBlock
+                {
+                    Text = GetKey("remote").Length > 0 ? "✓ address saved" : "no address yet",
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0x90, 0xA0)), FontSize = 11,
+                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0)
+                };
+                var urlSave = Btn("💾 Save"); urlSave.Margin = new Thickness(8, 0, 0, 0);
+                Grid.SetColumn(urlSave, 1);
+                urlSave.Click += (s, e) => { SetKey("remote", urlBox.Text); urlState.Text = urlBox.Text.Trim().Length > 0 ? "✓ address saved" : "address cleared"; };
+                var urlTest = Btn("🩺 Test"); urlTest.Margin = new Thickness(8, 0, 0, 0);
+                Grid.SetColumn(urlTest, 2);
+                urlTest.Click += async (s, e) =>
+                {
+                    string u = urlBox.Text.Trim();
+                    if (u.Length == 0) { urlState.Text = "Type the engine address first."; return; }
+                    urlTest.IsEnabled = false; urlState.Text = "Testing — asking the engine PC to say hello…";
+                    try { urlState.Text = "✓ " + await RemoteEngine.HealthAsync(u, CancellationToken.None); }
+                    catch (Exception ex) { urlState.Text = "✗ " + ex.Message; }
+                    finally { urlTest.IsEnabled = true; }
+                };
+                urlRow.Children.Add(urlBox);
+                urlRow.Children.Add(urlSave);
+                urlRow.Children.Add(urlTest);
+                root.Children.Add(urlRow);
+                root.Children.Add(urlState);
+            }
+            else if (p.KeyId != null)
             {
                 var keyRow = new Grid { Margin = new Thickness(0, 8, 0, 0) };
                 keyRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -186,7 +233,7 @@ namespace BeatSyncStudioPro
                 root.Children.Add(keyRow);
             }
 
-            var links = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
+            var links = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0), Visibility = p.KeyId == "remote" ? Visibility.Collapsed : Visibility.Visible };
             var signup = Btn("🆕 Sign up");
             signup.Click += (s, e) => OpenUrl(p.SignupUrl);
             links.Children.Add(signup);

@@ -27,6 +27,9 @@ namespace BeatSyncStudioPro
         /// <summary>Cloud compute provider when Mode is Online: "replicate" (paid, fast), "huggingface" (free tier) or "fal" (paid, fast).</summary>
         public string OnlineProvider { get; set; } = "replicate";
 
+        /// <summary>Address of the BeatSync Engine on Michael's OTHER PC (OnlineProvider "remote", v3.23) — e.g. http://192.168.1.50:7860 or its Tailscale address. A plain URL, not a secret, so it is stored unencrypted like Mode/Provider.</summary>
+        public string RemoteEngineUrl { get; set; } = "";
+
         /// <summary>fal.ai API key, DPAPI-encrypted.</summary>
         public string FalKeyEncrypted { get; set; } = "";
 
@@ -183,7 +186,9 @@ namespace BeatSyncStudioPro
                 "CPU" => $"CPU only (detected: {gpuPart})",
                 "GPU" => gpus.Count == 0 ? "GPU requested, but no GPU was detected — CPU will be used"
                     : $"GPU #{GpuIndex} of: {gpuPart}",
-                "Online" => OnlineProvider == "huggingface"
+                "Online" => OnlineProvider == "remote"
+                    ? (RemoteEngineUrl.Trim().Length > 0 ? $"☁️ Online via 🏠 Remote GPU — your other PC at {RemoteEngineUrl.Trim()} (FREE)" : "☁️ Online via 🏠 Remote GPU (no engine address saved yet — set it in 🌐 Providers)")
+                    : OnlineProvider == "huggingface"
                     ? (GetHfKey().Length > 0 ? "☁️ Online via Hugging Face free tier (token saved)" : "☁️ Online via Hugging Face free tier (no token saved yet — add it below)")
                     : OnlineProvider == "fal"
                     ? (GetFalKey().Length > 0 ? "☁️ Online via fal.ai (paid, key saved)" : "☁️ Online via fal.ai (paid — no key saved yet, add it below)")
