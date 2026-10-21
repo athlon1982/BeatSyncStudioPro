@@ -1,0 +1,17 @@
+<Window x:Class="BeatSyncStudioPro.TrackFxWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Track FX" Icon="/Assets/app.ico"
+        Width="430" Height="560" MinWidth="380" MinHeight="480"
+        Background="#14171E" Foreground="#FFFFFF" WindowStartupLocation="CenterOwner">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <TextBlock x:Name="FxTitle" Text="🎛️ TRACK FX" FontSize="15" FontWeight="Bold" Margin="0,0,0,8"/>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="FxPanel"/>
+        </ScrollViewer>
+    </Grid>
+</Window>

@@ -42,6 +42,7 @@ namespace BeatSyncStudioPro
         private readonly List<ISampleProvider> _trackChainOutputs = new List<ISampleProvider>();
         public List<double> TrackVolumeValues { get; } = new List<double>();
         public List<double> TrackPanValues { get; } = new List<double>();
+        public List<TrackFxSettings> TrackFxValues { get; } = new List<TrackFxSettings>();
         private MixerWindow? _mixerWindow;
 
         // Pause state for the timeline transport
@@ -716,7 +717,11 @@ namespace BeatSyncStudioPro
             for (int i = 0; i < chainCount; i++)
             {
                 var trackMixer = new MixingSampleProvider(WaveFormat.CreateIeeeFloatWaveFormat(44100, 2)) { ReadFully = true };
-                var pan = new PanningSampleProvider(trackMixer) { Pan = (float)TrackPanValues[i] };
+                var fx = GetTrackFx(i);
+                var eq = new EqSampleProvider(trackMixer, fx);
+                var delay = new DelaySampleProvider(eq, fx);
+                var reverb = new ReverbSampleProvider(delay, fx);
+                var pan = new PanningSampleProvider(reverb) { Pan = (float)TrackPanValues[i] };
                 var gain = new VolumeSampleProvider(pan) { Volume = (float)TrackVolumeValues[i] };
                 _trackMixers.Add(trackMixer);
                 _trackPanFx.Add(pan);
@@ -726,6 +731,12 @@ namespace BeatSyncStudioPro
             }
 
             _mixerWindow?.RefreshStrips();
+        }
+
+        public TrackFxSettings GetTrackFx(int index)
+        {
+            while (TrackFxValues.Count <= index) TrackFxValues.Add(new TrackFxSettings());
+            return TrackFxValues[index];
         }
 
         public double GetTrackVolume(int index) => index >= 0 && index < TrackVolumeValues.Count ? TrackVolumeValues[index] : 1.0;
@@ -1031,6 +1042,7 @@ namespace BeatSyncStudioPro
                     MasterVolume = this.MasterVolume,
                     TrackVolumes = this.TrackVolumeValues,
                     TrackPans = this.TrackPanValues,
+                    TrackFx = this.TrackFxValues,
                     Blocks = this.TimelineBlocks.Select(b => new
                     {
                         b.Filename,
@@ -1156,6 +1168,19 @@ namespace BeatSyncStudioPro
                     {
                         TrackPanValues.Clear();
                         foreach (var x in tps.EnumerateArray()) TrackPanValues.Add(x.GetDouble());
+                    }
+                    if (root.TryGetProperty("TrackFx", out var tfx))
+                    {
+                        try
+                        {
+                            var list = JsonSerializer.Deserialize<List<TrackFxSettings>>(tfx.GetRawText());
+                            if (list != null)
+                            {
+                                TrackFxValues.Clear();
+                                TrackFxValues.AddRange(list);
+                            }
+                        }
+                        catch { }
                     }
                     BuildTrackChains();
 

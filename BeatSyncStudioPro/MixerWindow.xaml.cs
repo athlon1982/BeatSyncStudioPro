@@ -12,8 +12,26 @@ namespace BeatSyncStudioPro
     public partial class MixerWindow : Window
     {
         private readonly MainWindow _owner;
+        private TrackFxWindow? _fxWindow;
+        private int _fxIndex = -1;
         private static readonly Brush LabelBrush = new SolidColorBrush(Color.FromRgb(0xA0, 0xA5, 0xB5));
         private static readonly Brush StripBrush = new SolidColorBrush(Color.FromRgb(0x1E, 0x24, 0x30));
+
+        private void OpenFx(int index, string trackName)
+        {
+            if (_fxWindow == null || _fxIndex != index)
+            {
+                _fxWindow?.Close();
+                _fxWindow = new TrackFxWindow(_owner.GetTrackFx(index), trackName) { Owner = this };
+                _fxWindow.Closed += (s, e) => { _fxWindow = null; _fxIndex = -1; };
+                _fxIndex = index;
+                _fxWindow.Show();
+            }
+            else
+            {
+                _fxWindow.Activate();
+            }
+        }
 
         public MixerWindow(MainWindow owner)
         {
@@ -93,6 +111,20 @@ namespace BeatSyncStudioPro
                 Margin = new Thickness(0, 6, 0, 0)
             });
             panel.Children.Add(pan);
+
+            var fxButton = new Button
+            {
+                Content = "🎛️ FX…",
+                Margin = new Thickness(2, 8, 2, 0),
+                Padding = new Thickness(4, 3, 4, 3),
+                Background = new SolidColorBrush(Color.FromRgb(0x2A, 0x30, 0x3C)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            string stripName = isVideoAudio ? "VIDEO AUDIO" : $"TRACK {index + 1}";
+            fxButton.Click += (s, e) => OpenFx(index, stripName);
+            panel.Children.Add(fxButton);
 
             return new Border
             {
