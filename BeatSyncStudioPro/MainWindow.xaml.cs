@@ -21,6 +21,20 @@ namespace BeatSyncStudioPro
     public partial class MainWindow : Window
     {
         public Dictionary<string, byte[]> ZipSounds { get; private set; } = new Dictionary<string, byte[]>();
+
+        /// <summary>Library category per sound name (SoundCategorizer values). Saved in the project file.</summary>
+        public Dictionary<string, string> SoundCategories { get; private set; } = new Dictionary<string, string>();
+
+        // Live timeline voices, so Stop can cut sounds that are still ringing out
+        private readonly System.Collections.Generic.HashSet<KillableSampleProvider> _liveVoices = new System.Collections.Generic.HashSet<KillableSampleProvider>();
+        private readonly object _voicesLock = new object();
+
+        private void StopAllVoices()
+        {
+            KillableSampleProvider[] snapshot;
+            lock (_voicesLock) { snapshot = _liveVoices.ToArray(); _liveVoices.Clear(); }
+            foreach (var v in snapshot) v.Kill();
+        }
         public List<FixedBlock> TimelineBlocks { get; private set; } = new List<FixedBlock>();
         public Dictionary<string, string> VideoAssets { get; private set; } = new Dictionary<string, string>();
         public Dictionary<string, string> ImageAssets { get; private set; } = new Dictionary<string, string>();
@@ -717,6 +731,7 @@ namespace BeatSyncStudioPro
             Button btn = new Button
             {
                 Content = displayText,
+                Tag = assetName,
                 HorizontalContentAlignment = HorizontalAlignment.Left,
                 Background = Brushes.Transparent,
                 Foreground = Brushes.White,
@@ -949,6 +964,7 @@ namespace BeatSyncStudioPro
         {
             isPlayingTimeline = false;
             _isPaused = false;
+            StopAllVoices();
             playbackCancelToken?.Cancel();
             _playStopwatch?.Stop();
             if (outputDevice?.PlaybackState == PlaybackState.Paused) outputDevice.Play();
@@ -1124,6 +1140,7 @@ namespace BeatSyncStudioPro
                 new("My Songs…", "View", "", () => BtnMySongs_Click(this, ev)),
                 new("Freesound Sounds…", "Create", "", () => BtnFreesound_Click(this, ev)),
                 new("Sound Pack…", "Create", "", () => BtnSoundPack_Click(this, ev)),
+                new("Downloads…", "View", "", () => BtnDownloads_Click(this, ev)),
                 new("Create Song…", "Create", "", () => BtnCreateSong_Click(this, ev)),
                 new("Render Queue…", "File", "", () => BtnRenderQueue_Click(this, ev)),
                 new("Batch Convert…", "File", "", () => BtnBatchConvert_Click(this, ev)),
@@ -1230,18 +1247,25 @@ namespace BeatSyncStudioPro
             _patternWindow.Show();
         }
 
-        /// <summary>Add a WAV to the asset library under a unique name. Returns the final name.</summary>
-        public string AddToLibraryOnly(byte[] wavBytes, string desiredName)
+        /// <summary>
+        /// Add a sound to the asset library under a unique name, filed under
+        /// a category (explicit, or inferred from the name). Returns the final name.
+        /// </summary>
+        public string AddToLibraryOnly(byte[] wavBytes, string desiredName, string? category = null)
         {
             string name = desiredName;
             int n = 2;
             while (ZipSounds.ContainsKey(name))
             {
-                name = $"{System.IO.Path.GetFileNameWithoutExtension(desiredName)} ({n}).wav";
+                string ext = System.IO.Path.GetExtension(desiredName);
+                name = $"{System.IO.Path.GetFileNameWithoutExtension(desiredName)} ({n}){ext}";
                 n++;
             }
             ZipSounds[name] = wavBytes;
-            ListContainer.Children.Add(CreateAssetButton($"🎵 {name}", name));
+            string cat = category ?? SoundCategorizer.Infer(name);
+            SoundCategories[name] = cat;
+            ListContainer.Children.Add(CreateAssetButton($"{SoundCategorizer.Icon(cat)} {name}", name));
+            ApplyLibraryFilter();
             return name;
         }
 
@@ -1794,10 +1818,14 @@ namespace BeatSyncStudioPro
 
                 var volumeSampleProvider = new VolumeSampleProvider(provider) { Volume = (float)(block.Volume * MasterVolume) };
 
-                // Route through the clip's track chain (track volume + pan live there)
+                // Route through the clip's track chain (track volume + pan live there),
+                // wrapped so Stop can cut the voice dead instead of letting it ring out
                 int chain = block.IsVideoAudio ? AudioTrackCount : Math.Clamp(block.TrackId, 0, AudioTrackCount - 1);
                 var target = chain >= 0 && chain < _trackMixers.Count ? _trackMixers[chain] : mixerEngine;
-                target.AddMixerInput(volumeSampleProvider);
+                var voice = new KillableSampleProvider(volumeSampleProvider);
+                lock (_voicesLock) _liveVoices.Add(voice);
+                voice.Ended += () => { lock (_voicesLock) _liveVoices.Remove(voice); };
+                target.AddMixerInput(voice);
             }
             catch { }
         }
@@ -2066,6 +2094,7 @@ namespace BeatSyncStudioPro
                     SnapToBeat = this.SnapToBeatEnabled,
                     Patterns = this.Patterns,
                     PianoPatterns = this.PianoPatterns,
+                    SoundCategories = this.SoundCategories,
                     TrackVolumes = this.TrackVolumeValues,
                     TrackPans = this.TrackPanValues,
                     TrackFx = this.TrackFxValues,
@@ -2172,6 +2201,7 @@ namespace BeatSyncStudioPro
 
                 TimelineBlocks.Clear();
                 ZipSounds.Clear();
+                SoundCategories.Clear();
                 VideoAssets.Clear();
                 ImageAssets.Clear();
                 ListContainer.Children.Clear();
@@ -2225,6 +2255,16 @@ namespace BeatSyncStudioPro
                                 Patterns.Clear();
                                 Patterns.AddRange(pats);
                             }
+                        }
+                        catch { }
+                    }
+                    if (root.TryGetProperty("SoundCategories", out var scEl))
+                    {
+                        try
+                        {
+                            var cats = JsonSerializer.Deserialize<Dictionary<string, string>>(scEl.GetRawText());
+                            if (cats != null)
+                                foreach (var kv in cats) SoundCategories[kv.Key] = kv.Value;
                         }
                         catch { }
                     }
@@ -2465,6 +2505,41 @@ namespace BeatSyncStudioPro
             _soundPackWindow.Closed += (s, ev) => _soundPackWindow = null;
             _soundPackWindow.Show();
         }
+
+        private DownloadsWindow? _downloadsWindow;
+        private void BtnDownloads_Click(object sender, RoutedEventArgs e)
+        {
+            if (_downloadsWindow != null) { _downloadsWindow.Activate(); return; }
+            _downloadsWindow = new DownloadsWindow { Owner = this };
+            _downloadsWindow.Closed += (s, ev) => _downloadsWindow = null;
+            _downloadsWindow.Show();
+        }
+
+        /// <summary>Filter the asset library by the category dropdown and the search box.</summary>
+        public void ApplyLibraryFilter()
+        {
+            if (ListContainer == null || LibraryCategoryBox == null) return;
+            string selected = (LibraryCategoryBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
+            string[] known = { "All Sounds", SoundCategorizer.Drums, SoundCategorizer.Guitar, SoundCategorizer.Bass,
+                SoundCategorizer.Keys, SoundCategorizer.Loops, SoundCategorizer.Vocals, SoundCategorizer.Fx,
+                SoundCategorizer.Other, "Video", "Images" };
+            string filter = known.FirstOrDefault(k => selected.Contains(k)) ?? "";
+            string query = LibrarySearchBox?.Text?.Trim() ?? "";
+            foreach (var child in ListContainer.Children)
+            {
+                if (child is not Button btn || btn.Tag is not string name) continue;
+                string cat;
+                if (VideoAssets.ContainsKey(name)) cat = "Video";
+                else if (ImageAssets.ContainsKey(name)) cat = "Images";
+                else if (SoundCategories.TryGetValue(name, out var c)) cat = c;
+                else cat = SoundCategorizer.Infer(name);
+                bool catOk = filter.Length == 0 || filter == "All Sounds" || cat == filter;
+                bool queryOk = query.Length == 0 || name.Contains(query, StringComparison.OrdinalIgnoreCase);
+                btn.Visibility = catOk && queryOk ? Visibility.Visible : Visibility.Collapsed;
+            }
+        }
+
+        private void LibraryFilter_Changed(object sender, RoutedEventArgs e) => ApplyLibraryFilter();
 
         private CreateSongWindow? _createSongWindow;
         private void BtnCreateSong_Click(object sender, RoutedEventArgs e)

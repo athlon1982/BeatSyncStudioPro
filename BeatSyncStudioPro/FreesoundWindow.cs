@@ -42,7 +42,7 @@ namespace BeatSyncStudioPro
             KeyBox.Password = LoadKey();
             Closed += (s, e) => StopPreview();
             if (KeyBox.Password.Length == 0)
-                StatusText.Text = "Add your free Freesound API key to start (freesound.org/apiv2/apply — it's the client secret they give you).";
+                StatusText.Text = "Add your free Freesound API key to start — it's in the 🔑 Connect tab (the client secret they give you).";
         }
 
         // ---------- key storage (DPAPI, same pattern as the AI keys) ----------
@@ -92,7 +92,7 @@ namespace BeatSyncStudioPro
         private async Task SearchAsync()
         {
             string key = KeyBox.Password.Trim();
-            if (key.Length == 0) { StatusText.Text = "Add your Freesound API key first (top of this window)."; return; }
+            if (key.Length == 0) { StatusText.Text = "Add your Freesound API key first (🔑 Connect tab)."; return; }
             string q = QueryBox.Text.Trim();
             if (q.Length == 0) { StatusText.Text = "Type what you're hunting for — 'kick drum', 'vinyl crackle', 'rain'…"; return; }
 
@@ -184,14 +184,14 @@ namespace BeatSyncStudioPro
             var s = _results[idx];
             try
             {
-                StatusText.Text = $"Downloading {s.Name}…";
-                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
-                http.DefaultRequestHeaders.UserAgent.ParseAdd("BeatSyncStudioPro");
-                byte[] bytes = await http.GetByteArrayAsync(s.PreviewUrl);
+                StatusText.Text = $"Downloading {s.Name}… watch it in the ⬇ Downloads window (View menu).";
+                byte[] bytes = await DownloadManager.DownloadBytesAsync(s.PreviewUrl, s.Name);
                 string fileName = Sanitize(s.Name) + ".mp3";
-                string stored = _owner.AddToLibraryOnly(bytes, fileName);
-                StatusText.Text = $"✅ Added '{stored}' to your library — it now shows in the pattern channel pickers and the asset list. License: {s.License}; sound by {s.User} on freesound.org (sound #{s.Id}).";
+                string category = SoundCategorizer.Infer(s.Name + " " + QueryBox.Text);
+                string stored = _owner.AddToLibraryOnly(bytes, fileName, category);
+                StatusText.Text = $"✅ Added '{stored}' to your library under {SoundCategorizer.Icon(category)} {category} — find it with the library's category dropdown. License: {s.License}; sound by {s.User} on freesound.org (sound #{s.Id}).";
             }
+            catch (OperationCanceledException) { StatusText.Text = "Download cancelled."; }
             catch (Exception ex) { StatusText.Text = "Add failed: " + ex.Message; }
         }
 

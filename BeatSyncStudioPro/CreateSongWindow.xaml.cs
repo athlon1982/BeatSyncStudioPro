@@ -27,6 +27,7 @@ namespace BeatSyncStudioPro
             if (!string.IsNullOrWhiteSpace(lyrics)) LyricsBox.Text = lyrics;
             if (!string.IsNullOrWhiteSpace(style)) StyleBox.Text = style;
             ComputeText.Text = "Compute: " + ComputeSettings.Load().Describe();
+            BuildStyleChips();
             Closed += (s, e) => _cts?.Cancel();
         }
 
@@ -39,6 +40,86 @@ namespace BeatSyncStudioPro
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e) => _cts?.Cancel();
+
+        /// <summary>Suno-style preset chips (genres + descriptors, from Suno's style list).</summary>
+        private static readonly (string Label, string Prompt)[] StylePresets =
+        {
+            ("👑 My Style", "hip-hop, boom-rap, heavy 808 sub-bass, hard-hitting bass, country rap, Vermont"),
+            ("🚗 Phonk", "drift phonk, distorted 808 bass, memphis vocal chops, aggressive cowbell, dark atmosphere, 140 BPM"),
+            ("🔥 Trap", "melodic trap, heavy 808 bass, crisp hi-hat rolls, dark piano loop, atmospheric, 140 BPM"),
+            ("🌧️ Lo-Fi", "mellow lo-fi hip hop, dusty vinyl texture, jazzy rhodes chords, warm tape saturation, chill, 82 BPM"),
+            ("🤠 Country", "modern country, acoustic guitar, fiddle, heartfelt storytelling, warm, uplifting"),
+            ("🚜 Country Rap", "country rap, hick-hop, trap drums over banjo and guitar, muddy 808s, southern, anthemic"),
+            ("🎸 Rock", "alternative rock, overdriven electric guitars, live drum kit, gritty vocals, anthemic chorus, 128 BPM"),
+            ("🎆 EDM", "festival edm, punchy kick, supersaw chords, risers, euphoric drop, energetic, 126 BPM"),
+            ("🌆 Synthwave", "synthwave, retro 80s analog synths, gated reverb drums, dreamy, neon night drive"),
+            ("🎷 Soul / Gospel", "soulful gospel, choir harmonies, hammond organ, hand claps, uplifting, powerful vocals"),
+            ("🎺 Blues", "gritty blues, harmonica, slide guitar, slow groove, raspy vocals, heartfelt"),
+            ("🪕 Folk", "indie folk, acoustic guitar, soft harmonies, reflective, warm, melodic"),
+        };
+
+        private void BuildStyleChips()
+        {
+            foreach (var (label, prompt) in StylePresets)
+            {
+                var b = new Button
+                {
+                    Content = label,
+                    Margin = new Thickness(0, 0, 6, 6),
+                    Padding = new Thickness(9, 3, 9, 3),
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2A, 0x30, 0x3C)),
+                    Foreground = System.Windows.Media.Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    ToolTip = prompt
+                };
+                b.Click += (s, e) => StyleBox.Text = prompt;
+                StyleChips.Children.Add(b);
+            }
+        }
+
+        private string? _backingBeatName;
+
+        /// <summary>
+        /// The automatic backing track: a beat in the chosen style from the
+        /// built-in generator — added as an editable pattern AND a library loop.
+        /// </summary>
+        private void AutoBeat_Click(object sender, RoutedEventArgs e)
+        {
+            int bpm = int.TryParse(BpmBox.Text, out var b) ? Math.Clamp(b, 40, 240) : 95;
+            string s = StyleBox.Text.ToLowerInvariant();
+            string key = s.Contains("phonk") ? "phonk"
+                : s.Contains("dubstep") ? "dubstep"
+                : s.Contains("synthwave") ? "synthwave"
+                : s.Contains("afrobeat") ? "afrobeat"
+                : s.Contains("lo-fi") || s.Contains("lofi") ? "lofi"
+                : s.Contains("drill") ? "drill"
+                : s.Contains("dancehall") ? "dancehall"
+                : s.Contains("reggaeton") || s.Contains("dembow") ? "dembow"
+                : s.Contains("house") ? "house"
+                : s.Contains("techno") ? "techno"
+                : s.Contains("drum and bass") || s.Contains("dnb") ? "dnb"
+                : s.Contains("funk") ? "funk"
+                : s.Contains("west coast") || s.Contains("g-funk") ? "westcoast"
+                : s.Contains("country") && !s.Contains("rap") ? "country"
+                : s.Contains("rock") ? "rock"
+                : s.Contains("trap") ? "trap"
+                : "boomrap";
+            var pattern = DrumGenerator.Generate(key, bpm, 0.8, true, Environment.TickCount);
+            string title = string.IsNullOrWhiteSpace(TitleBox.Text) ? "Song" : TitleBox.Text.Trim();
+            pattern.Name = title + " Beat";
+            _owner.Patterns.Add(pattern);
+            byte[] wav = PatternRenderer.RenderWav(_owner, pattern, 8);
+            if (wav.Length > 0)
+            {
+                _backingBeatName = _owner.AddToLibraryOnly(wav, pattern.Name + ".wav", SoundCategorizer.Loops);
+                BeatText.Text = $"🥁 '{_backingBeatName}' — {bpm} BPM, filed under 🔁 Loops. The pattern's in 🥁 Patterns too, ready to edit. Layer the generated song over it on the timeline.";
+            }
+            else
+            {
+                BeatText.Text = "The pattern was created (see 🥁 Patterns), but it rendered silent — open it and check the channel sounds.";
+            }
+        }
 
         private int DurationSeconds => DurationPicker.SelectedIndex switch { 0 => 30, 1 => 60, 2 => 120, 4 => 240, _ => 180 };
 
@@ -62,7 +143,7 @@ namespace BeatSyncStudioPro
             string key = compute.GetOnlineKey();
             if (key.Length == 0)
             {
-                StatusText.Text = "☁️ Add your Replicate API key first — AI Lab → Compute → ☁️ Online (there's a 'Sign up for Replicate' button right there).";
+                StatusText.Text = "☁️ Add your Replicate API key first — AI Lab → 🔑 Keys & Compute tab (there's a 'Sign up for Replicate' button right there).";
                 return;
             }
 
@@ -78,6 +159,7 @@ namespace BeatSyncStudioPro
                     msg => StatusText.Text = msg, _cts.Token);
                 string stored = _owner.AddToLibraryOnly(data, title + "." + ext);
                 StatusText.Text = $"✅ '{stored}' is in your library — drag it onto the timeline to mix it." +
+                    (_backingBeatName != null ? $"\n🥁 Your backing beat '{_backingBeatName}' is in the library too — drop it on the track under the song." : "") +
                     (radDad
                         ? "\n👑 Voice note: this take is ACE-Step's own singer. Singing it in YOUR Rad-Dad voice is the voice-conversion stage, which runs once your voice model is trained on your engine PC — the Voice Influence slider above is saved for that stage."
                         : "");

@@ -7,53 +7,67 @@
     <Grid Margin="14">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Text="🌐 Freesound — Internet Sounds" FontSize="16" FontWeight="Bold"/>
 
-        <Grid Grid.Row="1" Margin="0,10,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock Text="API key" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#A0A5B5"/>
-            <PasswordBox x:Name="KeyBox" Grid.Column="1" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="6,4"
-                         ToolTip="Your free Freesound API key — the client secret from freesound.org/apiv2/apply"/>
-            <Button Grid.Column="2" Content="Save Key" Click="SaveKey_Click" Margin="8,0,0,0" Padding="12,4"
-                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
-            <Button Grid.Column="3" Content="🆕 Sign up for Freesound (free)" Click="Signup_Click" Margin="8,0,0,0" Padding="12,4"
-                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
-                    ToolTip="Opens freesound.org — create your free account and API key there"/>
-        </Grid>
+        <TabControl Grid.Row="1" Margin="0,10,0,0" Background="#1E222B" BorderBrush="#2A3446">
+            <TabItem Header="🔎 Search" Foreground="White">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-        <Grid Grid.Row="2" Margin="0,10,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBox x:Name="QueryBox" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8,6"
-                     KeyDown="QueryBox_KeyDown" ToolTip="kick drum, vinyl crackle, rain, crowd, riser…"/>
-            <Button x:Name="SearchButton" Grid.Column="1" Content="🔎 Search" Click="Search_Click" Margin="8,0,0,0" Padding="16,6"
-                    Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
-        </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="QueryBox" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8,6"
+                                 KeyDown="QueryBox_KeyDown" ToolTip="kick drum, vinyl crackle, rain, crowd, riser…"/>
+                        <Button x:Name="SearchButton" Grid.Column="1" Content="🔎 Search" Click="Search_Click" Margin="8,0,0,0" Padding="16,6"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                    </Grid>
 
-        <ListBox x:Name="ResultsList" Grid.Row="3" Margin="0,10,0,0" Background="#14171E" Foreground="White" BorderBrush="#333"/>
+                    <ListBox x:Name="ResultsList" Grid.Row="1" Margin="0,10,0,0" Background="#14171E" Foreground="White" BorderBrush="#333"/>
 
-        <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,10,0,0">
-            <Button Content="▶ Preview" Click="Preview_Click" Padding="14,6"
-                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
-            <Button Content="⬇ Add to Library" Click="Add_Click" Margin="8,0,0,0" Padding="14,6"
-                    Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
-        </StackPanel>
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
+                        <Button Content="▶ Preview" Click="Preview_Click" Padding="14,6"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        <Button Content="⬇ Add to Library" Click="Add_Click" Margin="8,0,0,0" Padding="14,6"
+                                Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                    </StackPanel>
 
-        <TextBlock Grid.Row="5" x:Name="StatusText" Margin="0,8,0,0" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"
-                   Text="Search freesound.org's library of licensed sounds. Added sounds are the preview MP3s; licenses and authors are shown for credit."/>
+                    <TextBlock Grid.Row="3" x:Name="StatusText" Margin="0,8,0,0" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"
+                               Text="Search freesound.org's library of licensed sounds. Added sounds are filed into library categories automatically; licenses and authors are shown for credit."/>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="🔑 Connect" Foreground="White">
+                <StackPanel Margin="10">
+                    <TextBlock Text="Freesound is free — it just needs your own API key so the downloads are yours. The key is the client secret from your Freesound API page; it's stored encrypted on this PC and only ever sent to freesound.org."
+                               Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                    <Grid Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="API key" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#A0A5B5"/>
+                        <PasswordBox x:Name="KeyBox" Grid.Column="1" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="6,4"
+                                     ToolTip="Your free Freesound API key — the client secret from freesound.org/apiv2/apply"/>
+                        <Button Grid.Column="2" Content="Save Key" Click="SaveKey_Click" Margin="8,0,0,0" Padding="12,4"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                    </Grid>
+                    <Button Content="🆕 Sign up for Freesound (free)" Click="Signup_Click" HorizontalAlignment="Left" Margin="0,14,0,0" Padding="12,6"
+                            Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
+                            ToolTip="Opens freesound.org — create your free account and API key there"/>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
     </Grid>
 </Window>

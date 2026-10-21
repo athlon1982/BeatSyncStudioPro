@@ -119,6 +119,11 @@ namespace BeatSyncStudioPro
             ("westcoast", "🌴 West Coast / G-Funk", 96),
             ("techno", "⚙️ Techno", 130),
             ("dnb", "⚡ Drum & Bass", 174),
+            ("phonk", "🚗 Phonk", 140),
+            ("dubstep", "🔊 Dubstep", 140),
+            ("synthwave", "🌆 Synthwave", 100),
+            ("afrobeat", "🥁 Afrobeat", 105),
+            ("country", "🤠 Country Train", 110),
         };
 
         public static (string Key, string Label, double Bpm) Find(string key)
@@ -146,6 +151,11 @@ namespace BeatSyncStudioPro
                 "westcoast" => "West Coast Beat",
                 "techno" => "Techno Beat",
                 "dnb" => "Drum & Bass Beat",
+                "phonk" => "Phonk Beat",
+                "dubstep" => "Dubstep Beat",
+                "synthwave" => "Synthwave Beat",
+                "afrobeat" => "Afrobeat Beat",
+                "country" => "Country Train Beat",
                 _ => "Generated Beat"
             };
             PatternChannel kick = Ch("builtin:kick"), snare = Ch("builtin:snare"),
@@ -256,6 +266,54 @@ namespace BeatSyncStudioPro
                     if (Chance(0.7)) Hit(ohat, rng, 14, 70);
                     Hit(b808, rng, 0, 105); if (Chance(0.6)) Hit(b808, rng, 11, 95);
                     p.Channels.AddRange(new[] { kick, snare, hat, ohat, b808 });
+                    break;
+
+                case "phonk": // drift phonk — cowbell leads, memphis bounce
+                {
+                    var bell = Ch("builtin:cowbell");
+                    Hit(kick, rng, 0); Hit(kick, rng, 6); if (Chance(0.8)) Hit(kick, rng, 10);
+                    Hit(snare, rng, 4); Hit(snare, rng, 12);
+                    foreach (var s in new[] { 0, 3, 6, 8, 11, 14 }) Hit(bell, rng, s, 95);
+                    if (Chance(0.7)) Hit(bell, rng, 15, 80);
+                    for (int s = 0; s < 16; s += 2) Hit(hat, rng, s, 75);
+                    Hit(b808, rng, 0, 115); if (Chance(0.7)) Hit(b808, rng, 6, 105);
+                    p.Channels.AddRange(new[] { kick, snare, bell, hat, b808 });
+                    break;
+                }
+
+                case "dubstep": // half-time slam with wobble 808s
+                    Hit(kick, rng, 0); if (Chance(0.6)) Hit(kick, rng, 7);
+                    Hit(snare, rng, 8);
+                    Hit(b808, rng, 0, 115); Hit(b808, rng, 3, 100); Hit(b808, rng, 6, 110); Hit(b808, rng, 10, 100); if (Chance(0.7)) Hit(b808, rng, 13, 105);
+                    for (int s = 0; s < 16; s += 4) Hit(hat, rng, s, 70);
+                    if (Chance(0.8)) Hit(crash, rng, 0, 85);
+                    p.Channels.AddRange(new[] { kick, snare, b808, hat, crash });
+                    break;
+
+                case "synthwave": // four-on-the-floor, gated 80s drive
+                    foreach (var s in new[] { 0, 4, 8, 12 }) Hit(kick, rng, s, 110);
+                    Hit(snare, rng, 4); Hit(snare, rng, 12);
+                    for (int s = 0; s < 16; s += 2) Hit(hat, rng, s, 85);
+                    foreach (var s in new[] { 2, 6, 10, 14 }) Hit(ohat, rng, s, 65);
+                    Hit(b808, rng, 0, 100); Hit(b808, rng, 8, 100);
+                    p.Channels.AddRange(new[] { kick, snare, hat, ohat, b808 });
+                    break;
+
+                case "afrobeat": // log-drum pulse, cross-stick and shaker
+                    Hit(kick, rng, 0); Hit(kick, rng, 5); Hit(kick, rng, 8); if (Chance(0.7)) Hit(kick, rng, 13);
+                    foreach (var s in new[] { 2, 7, 10, 15 }) Hit(rim, rng, s, 90);
+                    for (int s = 0; s < 16; s++) Hit(shaker, rng, s, s % 4 == 0 ? 85 : 60);
+                    Hit(b808, rng, 0, 105); if (Chance(0.8)) Hit(b808, rng, 8, 100);
+                    p.Channels.AddRange(new[] { kick, rim, shaker, b808 });
+                    break;
+
+                case "country": // train beat — snare chugs on every quarter
+                    Hit(kick, rng, 0); Hit(kick, rng, 8);
+                    foreach (var s in new[] { 0, 4, 8, 12 }) Hit(snare, rng, s, 95);
+                    foreach (var s in new[] { 2, 6, 10, 14 }) Hit(snare, rng, s, 55);
+                    for (int s = 0; s < 16; s += 2) Hit(hat, rng, s, 70);
+                    if (Chance(0.7)) Hit(rim, rng, 15, 60);
+                    p.Channels.AddRange(new[] { kick, snare, hat, rim });
                     break;
 
                 default: // boomrap — Michael's style

@@ -199,25 +199,15 @@ namespace BeatSyncStudioPro
 
         private async Task DownloadModelAsync(CancellationToken token)
         {
-            Directory.CreateDirectory(ModelDir);
-            StatusText.Text = "Downloading the HTDemucs model…";
-            using var http = new HttpClient();
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("BeatSyncStudioPro");
-            using var response = await http.GetAsync(ModelUrl, HttpCompletionOption.ResponseHeadersRead, token);
-            response.EnsureSuccessStatusCode();
-            long total = response.Content.Headers.ContentLength ?? 304321552;
-            await using var src = await response.Content.ReadAsStreamAsync(token);
-            await using var dst = File.Create(ModelPath);
-            var buffer = new byte[81920];
-            long done = 0;
-            int read;
-            while ((read = await src.ReadAsync(buffer, 0, buffer.Length, token)) > 0)
-            {
-                await dst.WriteAsync(buffer, 0, read, token);
-                done += read;
-                BusyBar.Value = total > 0 ? done * 100.0 / total : 0;
-                StatusText.Text = $"Downloading the HTDemucs model… {done / 1048576} MB of {total / 1048576} MB";
-            }
+            // Runs through the Downloads manager now — progress, speed, ETA,
+            // pause and cancel live in View → Downloads.
+            StatusText.Text = "Downloading the HTDemucs model… watch it in View → ⬇ Downloads.";
+            await DownloadManager.DownloadToFileAsync(ModelUrl, "HTDemucs AI model (stem splitter)", ModelPath,
+                item => Dispatcher.Invoke(() =>
+                {
+                    BusyBar.Value = item.Percent;
+                    StatusText.Text = $"Downloading the HTDemucs model… {item.Detail}";
+                }));
             StatusText.Text = "Model downloaded.";
         }
     }

@@ -223,6 +223,42 @@ namespace BeatSyncStudioPro
             private ComboBox _visualPicker = null!;
             private Border _visualBorder = null!;
             private Image _visualImage = null!;
+            private ComboBox _platterPicker = null!;
+            private ComboBox _colorPicker = null!;
+            private Grid? _vinylView;
+            private Grid? _cassetteView;
+            private RotateTransform? _reelSpinL, _reelSpinR;
+            private Ellipse? _tapeL, _tapeR;
+            private SolidColorBrush? _visualBrush, _visualBrush2;
+            private double _hueShift;
+
+            private bool IsDeckB => _name.EndsWith("B");
+
+            /// <summary>Color themes for the deck visuals (null primary = the deck's own accent).</summary>
+            private static readonly (string Name, Color? Primary, Color? Secondary, double Hue)[] VisualPalettes =
+            {
+                ("Deck Color", null, null, 0),
+                ("👑 Gold", Color.FromRgb(0xF5, 0xC5, 0x42), Color.FromRgb(0xFF, 0x8A, 0x3D), 40),
+                ("🟢 Green", Color.FromRgb(0x1D, 0xB9, 0x54), Color.FromRgb(0x8A, 0xFF, 0x5A), 130),
+                ("🟣 Purple", Color.FromRgb(0xB3, 0x88, 0xFF), Color.FromRgb(0xFF, 0x6E, 0xC7), 265),
+                ("🔵 Ice", Color.FromRgb(0x4F, 0xC3, 0xF7), Color.FromRgb(0xB3, 0xE5, 0xFC), 200),
+                ("🟠 Sunset", Color.FromRgb(0xFF, 0x70, 0x43), Color.FromRgb(0xFF, 0xC8, 0x3D), 20),
+                ("🩷 Pink", Color.FromRgb(0xFF, 0x6E, 0xC7), Color.FromRgb(0xF5, 0xC5, 0x42), 320),
+                ("⚪ White", Color.FromRgb(0xF5, 0xF5, 0xF5), Color.FromRgb(0x9E, 0x9E, 0x9E), 0),
+            };
+
+            private void ApplyPalette(string name)
+            {
+                foreach (var p in VisualPalettes)
+                {
+                    if (p.Name != name) continue;
+                    _visualBrush = p.Primary.HasValue ? new SolidColorBrush(p.Primary.Value) : null;
+                    _visualBrush2 = p.Secondary.HasValue ? new SolidColorBrush(p.Secondary.Value) : null;
+                    _hueShift = p.Hue;
+                    return;
+                }
+                _visualBrush = null; _visualBrush2 = null; _hueShift = 0;
+            }
             private float _specPeak = 0.2f;
             private readonly float[] _peakCaps = new float[48];
             private readonly float[] _dotPos = new float[48];
@@ -312,6 +348,47 @@ namespace BeatSyncStudioPro
                 visRow.Children.Add(_visualPicker);
                 visRow.Children.Add(new TextBlock { Text = "(this deck's own sound)", Foreground = MutedText, FontSize = 9, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
                 root.Children.Add(visRow);
+
+                // Style row: platter (vinyl / cassette) + visual colors
+                var styleRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+                styleRow.Children.Add(new TextBlock { Text = "Style", Foreground = MutedText, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Width = 42 });
+                _platterPicker = new ComboBox { Width = 110, VerticalAlignment = VerticalAlignment.Center };
+                _platterPicker.Items.Add(new ComboBoxItem { Content = "🎵 Vinyl" });
+                _platterPicker.Items.Add(new ComboBoxItem { Content = "📼 Cassette" });
+                string savedPlatter = IsDeckB ? DjSettings.Current.PlatterB : DjSettings.Current.PlatterA;
+                _platterPicker.SelectedIndex = savedPlatter == "Cassette" ? 1 : 0;
+                _platterPicker.SelectionChanged += (s, e) =>
+                {
+                    bool cassette = _platterPicker.SelectedIndex == 1;
+                    SetPlatterStyle(cassette);
+                    if (IsDeckB) DjSettings.Current.PlatterB = cassette ? "Cassette" : "Vinyl";
+                    else DjSettings.Current.PlatterA = cassette ? "Cassette" : "Vinyl";
+                    DjSettings.Current.Save();
+                };
+                styleRow.Children.Add(_platterPicker);
+                styleRow.Children.Add(new TextBlock { Text = "Colors", Foreground = MutedText, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 6, 0) });
+                _colorPicker = new ComboBox { Width = 130, VerticalAlignment = VerticalAlignment.Center };
+                string savedColor = IsDeckB ? DjSettings.Current.ColorB : DjSettings.Current.ColorA;
+                int colorIdx = 0;
+                for (int i = 0; i < VisualPalettes.Length; i++)
+                {
+                    _colorPicker.Items.Add(new ComboBoxItem { Content = VisualPalettes[i].Name });
+                    if (VisualPalettes[i].Name == savedColor) colorIdx = i;
+                }
+                _colorPicker.SelectedIndex = colorIdx;
+                ApplyPalette(savedColor);
+                _colorPicker.SelectionChanged += (s, e) =>
+                {
+                    if (_colorPicker.SelectedItem is ComboBoxItem item)
+                    {
+                        string name = item.Content?.ToString() ?? "Deck Color";
+                        ApplyPalette(name);
+                        if (IsDeckB) DjSettings.Current.ColorB = name; else DjSettings.Current.ColorA = name;
+                        DjSettings.Current.Save();
+                    }
+                };
+                styleRow.Children.Add(_colorPicker);
+                root.Children.Add(styleRow);
                 _visualBorder = new Border { Height = 54, Margin = new Thickness(0, 4, 0, 0), Background = new SolidColorBrush(Color.FromRgb(0x14, 0x17, 0x1E)), CornerRadius = new CornerRadius(4) };
                 _visualImage = new Image { Stretch = Stretch.Fill };
                 _visualBorder.Child = _visualImage;
@@ -524,6 +601,7 @@ namespace BeatSyncStudioPro
                 };
                 host.Children.Add(halo);
 
+                _vinylView = new Grid();
                 var vinyl = new Grid { Width = 180, Height = 180, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
                 _platterSpin.CenterX = 90;
                 _platterSpin.CenterY = 90;
@@ -570,7 +648,7 @@ namespace BeatSyncStudioPro
                     HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top,
                     Margin = new Thickness(0, 8, 0, 0)
                 });
-                host.Children.Add(vinyl);
+                _vinylView.Children.Add(vinyl);
 
                 // waveform ring: the song's peaks as bars inside the neon rim;
                 // played bars light up, the playhead bar pulses with the beat
@@ -592,9 +670,9 @@ namespace BeatSyncStudioPro
                     _ringLens[i] = 3;
                     ring.Children.Add(line);
                 }
-                host.Children.Add(ring);
+                _vinylView.Children.Add(ring);
 
-                host.Children.Add(new Ellipse
+                _vinylView.Children.Add(new Ellipse
                 {
                     Width = 12, Height = 12,
                     HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
@@ -603,7 +681,7 @@ namespace BeatSyncStudioPro
                 });
 
                 // tonearm: pivot disc top-right, arm angled in toward the record
-                host.Children.Add(new Ellipse
+                _vinylView.Children.Add(new Ellipse
                 {
                     Width = 30, Height = 30,
                     Fill = new SolidColorBrush(Color.FromRgb(0x1B, 0x1B, 0x20)),
@@ -611,7 +689,7 @@ namespace BeatSyncStudioPro
                     HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
                     Margin = new Thickness(0, 2, 6, 0)
                 });
-                host.Children.Add(new Border
+                _vinylView.Children.Add(new Border
                 {
                     Width = 9, Height = 92, CornerRadius = new CornerRadius(4),
                     Background = new SolidColorBrush(Color.FromRgb(0x8A, 0x92, 0xA0)),
@@ -619,7 +697,122 @@ namespace BeatSyncStudioPro
                     Margin = new Thickness(0, 12, 16, 0),
                     RenderTransform = new RotateTransform(24, 4.5, 6)
                 });
+                host.Children.Add(_vinylView);
+
+                _cassetteView = BuildCassetteView();
+                host.Children.Add(_cassetteView);
+                string saved = IsDeckB ? DjSettings.Current.PlatterB : DjSettings.Current.PlatterA;
+                SetPlatterStyle(saved == "Cassette");
                 return host;
+            }
+
+            private void SetPlatterStyle(bool cassette)
+            {
+                if (_vinylView != null) _vinylView.Visibility = cassette ? Visibility.Collapsed : Visibility.Visible;
+                if (_cassetteView != null) _cassetteView.Visibility = cassette ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            /// <summary>
+            /// The cassette alternative to the vinyl platter: a tape body with a
+            /// window, two reels that spin with playback, and tape that visibly
+            /// moves from the left reel to the right as the song plays.
+            /// </summary>
+            private Grid BuildCassetteView()
+            {
+                var wrap = new Grid { Visibility = Visibility.Collapsed };
+                var canvas = new Canvas { Width = 196, Height = 198, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+                wrap.Children.Add(canvas);
+
+                var body = new Border
+                {
+                    Width = 188, Height = 122, CornerRadius = new CornerRadius(10),
+                    Background = new SolidColorBrush(Color.FromRgb(0x17, 0x1A, 0x21)),
+                    BorderBrush = _accent, BorderThickness = new Thickness(2)
+                };
+                Canvas.SetLeft(body, 4); Canvas.SetTop(body, 38);
+                canvas.Children.Add(body);
+
+                var label = new Border
+                {
+                    Width = 172, Height = 30, CornerRadius = new CornerRadius(5),
+                    Background = new SolidColorBrush(Color.FromArgb(0x3D, _accent.Color.R, _accent.Color.G, _accent.Color.B))
+                };
+                Canvas.SetLeft(label, 12); Canvas.SetTop(label, 46);
+                canvas.Children.Add(label);
+                var labelText = new TextBlock
+                {
+                    Text = $"📼 DECK {_name.Substring(_name.Length - 1)} · CHROME 90",
+                    FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Brushes.White,
+                    Width = 172, TextAlignment = TextAlignment.Center
+                };
+                Canvas.SetLeft(labelText, 12); Canvas.SetTop(labelText, 53);
+                canvas.Children.Add(labelText);
+
+                var window = new Border
+                {
+                    Width = 150, Height = 54, CornerRadius = new CornerRadius(6),
+                    Background = new SolidColorBrush(Color.FromRgb(0x05, 0x07, 0x0A)),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(0x3A, 0x42, 0x52)), BorderThickness = new Thickness(1)
+                };
+                Canvas.SetLeft(window, 23); Canvas.SetTop(window, 84);
+                canvas.Children.Add(window);
+
+                Grid MakeReel(double left, bool isLeft)
+                {
+                    var reel = new Grid { Width = 46, Height = 46 };
+                    var tape = new Ellipse
+                    {
+                        Width = isLeft ? 42 : 26, Height = isLeft ? 42 : 26,
+                        Fill = new SolidColorBrush(Color.FromRgb(0x2E, 0x20, 0x16)),
+                        HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
+                    };
+                    if (isLeft) _tapeL = tape; else _tapeR = tape;
+                    reel.Children.Add(tape);
+                    var spokes = new Grid { Width = 46, Height = 46 };
+                    for (int s = 0; s < 3; s++)
+                    {
+                        var spoke = new Border
+                        {
+                            Width = 40, Height = 5, CornerRadius = new CornerRadius(2),
+                            Background = new SolidColorBrush(Color.FromRgb(0xC0, 0xC6, 0xD0)),
+                            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                            RenderTransform = new RotateTransform(s * 60, 20, 2.5)
+                        };
+                        spokes.Children.Add(spoke);
+                    }
+                    spokes.Children.Add(new Ellipse
+                    {
+                        Width = 10, Height = 10, Fill = new SolidColorBrush(Color.FromRgb(0x8A, 0x92, 0xA0)),
+                        HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
+                    });
+                    var spin = new RotateTransform();
+                    spin.CenterX = 23; spin.CenterY = 23;
+                    spokes.RenderTransform = spin;
+                    if (isLeft) _reelSpinL = spin; else _reelSpinR = spin;
+                    reel.Children.Add(spokes);
+                    Canvas.SetLeft(reel, left); Canvas.SetTop(reel, 88);
+                    canvas.Children.Add(reel);
+                    return reel;
+                }
+                MakeReel(42, true);
+                MakeReel(108, false);
+
+                // tape path line between the reels
+                var path = new Border { Width = 66, Height = 3, Background = new SolidColorBrush(Color.FromRgb(0x2E, 0x20, 0x16)) };
+                Canvas.SetLeft(path, 65); Canvas.SetTop(path, 132);
+                canvas.Children.Add(path);
+
+                // head opening + screws along the bottom edge
+                var headSlot = new Border { Width = 62, Height = 12, CornerRadius = new CornerRadius(3), Background = new SolidColorBrush(Color.FromRgb(0x0B, 0x0D, 0x11)) };
+                Canvas.SetLeft(headSlot, 67); Canvas.SetTop(headSlot, 146);
+                canvas.Children.Add(headSlot);
+                foreach (double sx in new[] { 12.0, 52.0, 138.0, 178.0 })
+                {
+                    var screw = new Ellipse { Width = 6, Height = 6, Fill = new SolidColorBrush(Color.FromRgb(0x8A, 0x92, 0xA0)) };
+                    Canvas.SetLeft(screw, sx); Canvas.SetTop(screw, 148);
+                    canvas.Children.Add(screw);
+                }
+                return wrap;
             }
 
             private static void PositionRingLine(Line line, double angle, double len)
@@ -757,13 +950,15 @@ namespace BeatSyncStudioPro
 
             private void DrawDeckVisual(DrawingContext dc, int mode, int W, int H)
             {
+                SolidColorBrush viz = _visualBrush ?? _accent;
+                SolidColorBrush viz2 = _visualBrush2 ?? new SolidColorBrush(Color.FromRgb(0xFF, 0xC8, 0x3D));
                 // Wave-based modes draw from the scope trace (flat line when idle)
                 if (mode == 7 || mode == 8)
                 {
                     var wave = _tap.GetWaveform(220);
                     if (mode == 8)
                     {
-                        var pen = new Pen(_accent, 1.2);
+                        var pen = new Pen(viz, 1.2);
                         Point prev = new Point(0, H / 2.0 - wave[0] * (H / 2.0 - 2));
                         for (int p = 1; p < wave.Length; p++)
                         {
@@ -783,8 +978,8 @@ namespace BeatSyncStudioPro
                             ctx.LineTo(new Point(W, H), true, false);
                         }
                         geo.Freeze();
-                        var fill = new SolidColorBrush(_accent.Color) { Opacity = 0.45 };
-                        dc.DrawGeometry(fill, new Pen(_accent, 1.2), geo);
+                        var fill = new SolidColorBrush(viz.Color) { Opacity = 0.45 };
+                        dc.DrawGeometry(fill, new Pen(viz, 1.2), geo);
                     }
                     return;
                 }
@@ -793,12 +988,12 @@ namespace BeatSyncStudioPro
                 {
                     if (mode == 9)
                     {
-                        DrawMeter(dc, 6, 0, (Brush)_accent, W);
-                        DrawMeter(dc, 30, 0, new SolidColorBrush(Color.FromRgb(0xFF, 0xC8, 0x3D)), W);
+                        DrawMeter(dc, 6, 0, (Brush)viz, W);
+                        DrawMeter(dc, 30, 0, viz2, W);
                     }
                     else
                     {
-                        var dim = new SolidColorBrush(_accent.Color) { Opacity = 0.45 };
+                        var dim = new SolidColorBrush(viz.Color) { Opacity = 0.45 };
                         dc.DrawRectangle(dim, null, new Rect(0, H - 4, W, 2));
                     }
                     return;
@@ -806,8 +1001,8 @@ namespace BeatSyncStudioPro
 
                 if (mode == 9)
                 {
-                    DrawMeter(dc, 6, _tap.Level, (Brush)_accent, W);
-                    DrawMeter(dc, 30, _tap.BassLevel, new SolidColorBrush(Color.FromRgb(0xFF, 0xC8, 0x3D)), W);
+                    DrawMeter(dc, 6, _tap.Level, (Brush)viz, W);
+                    DrawMeter(dc, 30, _tap.BassLevel, viz2, W);
                     return;
                 }
 
@@ -820,7 +1015,7 @@ namespace BeatSyncStudioPro
                         for (int i = 0; i < 48; i++)
                         {
                             double h = Math.Max(1, v[i] * (H - 4));
-                            dc.DrawRectangle((Brush)_accent, null, new Rect(i * bw + 1, H - h, bw - 2, h));
+                            dc.DrawRectangle((Brush)viz, null, new Rect(i * bw + 1, H - h, bw - 2, h));
                         }
                         break;
 
@@ -830,7 +1025,7 @@ namespace BeatSyncStudioPro
                         for (int i = 0; i < 48; i++)
                         {
                             int lit = (int)Math.Round(v[i] * rows);
-                            double hue = (360.0 - (i / 47.0) * 325.0 + 360.0) % 360.0;
+                            double hue = (360.0 - (i / 47.0) * 325.0 + _hueShift + 360.0) % 360.0;
                             var brush = new SolidColorBrush(HslToRgb(hue, 1.0, 0.55));
                             for (int r = 0; r < lit; r++)
                             {
@@ -845,7 +1040,7 @@ namespace BeatSyncStudioPro
                         for (int i = 0; i < 48; i++)
                         {
                             double h = Math.Max(1, v[i] * (H - 6));
-                            dc.DrawRectangle((Brush)_accent, null, new Rect(i * bw + 1, H - h, bw - 2, h));
+                            dc.DrawRectangle((Brush)viz, null, new Rect(i * bw + 1, H - h, bw - 2, h));
                             _peakCaps[i] = Math.Max((float)v[i], _peakCaps[i] - 0.008f);
                             double capY = H - 2 - _peakCaps[i] * (H - 6);
                             dc.DrawRectangle(Brushes.White, null, new Rect(i * bw + 1, capY, bw - 2, 2));
@@ -856,15 +1051,15 @@ namespace BeatSyncStudioPro
                         for (int i = 0; i < 48; i++)
                         {
                             double half = v[i] * (H / 2.0 - 2);
-                            dc.DrawRectangle((Brush)_accent, null, new Rect(i * bw + 1, H / 2.0 - half, bw - 2, half * 2));
+                            dc.DrawRectangle((Brush)viz, null, new Rect(i * bw + 1, H / 2.0 - half, bw - 2, half * 2));
                         }
                         break;
 
                     case 4: // Radial spectrum — bars radiating from a center circle
                     {
                         var center = new Point(W / 2.0, H / 2.0);
-                        var pen = new Pen(_accent, 2.5);
-                        dc.DrawEllipse(null, new Pen(_accent, 1), center, 8, 8);
+                        var pen = new Pen(viz, 2.5);
+                        dc.DrawEllipse(null, new Pen(viz, 1), center, 8, 8);
                         for (int i = 0; i < 48; i++)
                         {
                             double a = i / 48.0 * Math.PI * 2 - Math.PI / 2;
@@ -910,7 +1105,7 @@ namespace BeatSyncStudioPro
                             for (int i = 0; i < 48; i++)
                             {
                                 if (row[i] < 0.04) continue;
-                                var brush = new SolidColorBrush(_accent.Color) { Opacity = Math.Clamp(row[i], 0f, 1f) * (1 - r / 16.0) };
+                                var brush = new SolidColorBrush(viz.Color) { Opacity = Math.Clamp(row[i], 0f, 1f) * (1 - r / 16.0) };
                                 dc.DrawRectangle(brush, null, new Rect(i * bw + 0.5, r * cellH + 0.5, bw - 1, cellH - 1));
                             }
                         }
@@ -921,7 +1116,7 @@ namespace BeatSyncStudioPro
                         for (int i = 0; i < 48; i++)
                         {
                             double h = Math.Max(1, v[i] * (H - 6));
-                            var dimBar = new SolidColorBrush(_accent.Color) { Opacity = 0.35 };
+                            var dimBar = new SolidColorBrush(viz.Color) { Opacity = 0.35 };
                             dc.DrawRectangle(dimBar, null, new Rect(i * bw + 1, H - h, bw - 2, h));
                             if (v[i] >= _dotPos[i]) { _dotPos[i] = (float)v[i]; _dotVel[i] = 0; }
                             else
@@ -1182,6 +1377,16 @@ namespace BeatSyncStudioPro
                 _wasPlayingLastTick = _deck.IsPlaying;
                 if (_deck.IsLoaded)
                     _platterSpin.Angle = _deck.PositionSeconds * 200.0 % 360.0; // 33⅓ RPM
+                if (_deck.IsLoaded && _cassetteView != null && _cassetteView.Visibility == Visibility.Visible)
+                {
+                    double ang = _deck.PositionSeconds * 150.0 % 360.0;
+                    if (_reelSpinL != null) _reelSpinL.Angle = ang;
+                    if (_reelSpinR != null) _reelSpinR.Angle = ang;
+                    double frac = _deck.TotalSeconds > 0 ? Math.Clamp(_deck.PositionSeconds / _deck.TotalSeconds, 0, 1) : 0;
+                    double dl = 42 - 16 * frac, dr = 26 + 16 * frac;
+                    if (_tapeL != null) { _tapeL.Width = dl; _tapeL.Height = dl; }
+                    if (_tapeR != null) { _tapeR.Width = dr; _tapeR.Height = dr; }
+                }
                 if (_deck.IsLoaded)
                 {
                     _timeText.Text = $"{FmtTime(_deck.PositionSeconds)} / {FmtTime(_deck.TotalSeconds)}";

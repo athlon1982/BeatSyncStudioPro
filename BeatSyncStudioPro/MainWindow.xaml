@@ -128,7 +128,7 @@
                     <Image Source="/Assets/app-icon.png" Width="34" Height="34"/>
                     <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="19" FontWeight="Bold"><Run Text="BEATSYNC" Foreground="#FFFFFF"/><Run Text=" STUDIO PRO" Foreground="#1DB954"/></TextBlock>
                     <Border Background="#1B212E" BorderBrush="#2A3446" BorderThickness="1" CornerRadius="9" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="v3.11" FontSize="11" Foreground="#A0A5B5" FontWeight="Bold"/>
+                        <TextBlock Text="v3.12" FontSize="11" Foreground="#A0A5B5" FontWeight="Bold"/>
                     </Border>
                 </StackPanel>
             </Grid>
@@ -180,6 +180,7 @@
                 <MenuItem Header="🌐 Freesound Sounds..." Click="BtnFreesound_Click"/>
                 <MenuItem Header="🎁 Sound Pack..." Click="BtnSoundPack_Click"/>
                 <MenuItem Header="🎤 Create Song..." Click="BtnCreateSong_Click"/>
+                <MenuItem Header="⬇ Downloads..." Click="BtnDownloads_Click"/>
             </MenuItem>
             <MenuItem Header="_Help" Padding="10,4">
                 <MenuItem Header="⌨️ Command Palette..." Click="MenuPalette_Click" InputGestureText="Ctrl+K"/>
@@ -201,6 +202,35 @@
                 <StackPanel Grid.Row="0" Margin="0,0,0,12">
                     <TextBlock Text="🎬 Asset Library" FontSize="16" FontWeight="SemiBold" Foreground="#E2E8F0"/>
                     <Border Background="#1DB954" Height="2" Width="46" HorizontalAlignment="Left" CornerRadius="1" Margin="0,5,0,0"/>
+                </StackPanel>
+
+                <!-- Category filter + search + downloads -->
+                <StackPanel Grid.Row="1" Orientation="Vertical" Margin="0,0,0,8">
+                    <ComboBox x:Name="LibraryCategoryBox" SelectionChanged="LibraryFilter_Changed" Margin="0,0,0,6">
+                        <ComboBoxItem Content="🗂️ All Sounds" IsSelected="True"/>
+                        <ComboBoxItem Content="🥁 Drums"/>
+                        <ComboBoxItem Content="🎸 Guitar"/>
+                        <ComboBoxItem Content="🔊 Bass"/>
+                        <ComboBoxItem Content="🎹 Keys &amp; Pads"/>
+                        <ComboBoxItem Content="🔁 Loops"/>
+                        <ComboBoxItem Content="🎤 Vocals"/>
+                        <ComboBoxItem Content="✨ FX"/>
+                        <ComboBoxItem Content="🎵 Other"/>
+                        <ComboBoxItem Content="🎬 Video"/>
+                        <ComboBoxItem Content="🖼️ Images"/>
+                    </ComboBox>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="LibrarySearchBox" TextChanged="LibraryFilter_Changed" Padding="8,5"
+                                 Background="#14171E" Foreground="White" BorderBrush="#333"
+                                 ToolTip="Search your sounds by name"/>
+                        <Button Grid.Column="1" Content="⬇" Click="BtnDownloads_Click" Width="34" Margin="6,0,0,0"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                ToolTip="Downloads — progress, speed, pause and cancel"/>
+                    </Grid>
                 </StackPanel>
 
                 <!-- Quick Import Buttons (the full import menu lives in the top menu bar) -->

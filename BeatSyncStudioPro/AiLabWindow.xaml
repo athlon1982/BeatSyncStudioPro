@@ -7,13 +7,7 @@
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0">
@@ -22,145 +16,164 @@
                        Foreground="#A0A5B5" FontSize="12" Margin="0,4,0,10" TextWrapping="Wrap"/>
         </StackPanel>
 
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="290"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock Text="Provider" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <ComboBox x:Name="ProviderPicker" Grid.Column="1" SelectionChanged="ProviderPicker_SelectionChanged"/>
-            <TextBlock Text="Model" FontWeight="Bold" VerticalAlignment="Center" Margin="14,0,8,0" Grid.Column="2"/>
-            <ComboBox x:Name="ModelPicker" Grid.Column="3" IsEditable="True"/>
-            <Button x:Name="RefreshBtn" Grid.Column="4" Content="🔄" Width="36" Margin="8,0,0,0" Click="RefreshBtn_Click"
-                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Reload the model list"/>
-        </Grid>
+        <TabControl Grid.Row="1" Background="#1E222B" BorderBrush="#2A3446">
+            <TabItem Header="✨ Create" Foreground="White">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="2" Margin="0,8,0,0">
-            <TextBlock x:Name="InfoText" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
-            <Border x:Name="KeyPanel" BorderBrush="#2A3446" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,6,0,0" Visibility="Collapsed">
-                <StackPanel>
-                    <TextBlock x:Name="KeyHint" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
-                    <Grid Margin="0,6,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <PasswordBox x:Name="KeyBox" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="6,4"/>
-                        <Button Grid.Column="1" Content="Save Key" Click="SaveKey_Click" Margin="8,0,0,0" Padding="12,4"
-                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
-                        <TextBlock x:Name="KeyStatus" Grid.Column="2" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="#69F0AE" FontSize="11"/>
-                    </Grid>
-                    <Grid x:Name="CustomUrlRow" Margin="0,8,0,0" Visibility="Collapsed">
+                    <Grid Grid.Row="0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="290"/>
+                            <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="Base URL" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#A0A5B5" FontSize="11"/>
-                        <TextBox x:Name="CustomUrlBox" Grid.Column="1" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="6,4"
-                                 ToolTip="e.g. http://localhost:1234/v1 for LM Studio"/>
-                    </Grid>
-                </StackPanel>
-            </Border>
-            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                <TextBlock Text="Compute" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <ComboBox x:Name="ComputePicker" Width="160" SelectionChanged="ComputePicker_SelectionChanged">
-                    <ComboBoxItem Content="Auto (recommended)"/>
-                    <ComboBoxItem Content="CPU only"/>
-                    <ComboBoxItem Content="GPU"/>
-                    <ComboBoxItem Content="☁️ Online"/>
-                </ComboBox>
-                <ComboBox x:Name="GpuPicker" Width="230" Margin="8,0,0,0" SelectionChanged="GpuPicker_SelectionChanged"/>
-                <TextBlock x:Name="ComputeInfo" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="#A0A5B5" FontSize="11"/>
-            </StackPanel>
-            <Border x:Name="OnlinePanel" BorderBrush="#2A3446" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,6,0,0" Visibility="Collapsed">
-                <StackPanel>
-                    <TextBlock Text="Online compute runs on Replicate's cloud (Demucs for stems today; song generation next). It needs your own Replicate API key — splitting runs cost a few cents per song, billed by Replicate. The key is stored encrypted on this PC and only ever sent to Replicate."
-                               Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                         <TextBlock Text="Provider" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <ComboBox x:Name="OnlineProviderPicker" Width="250" SelectionChanged="OnlineProviderPicker_SelectionChanged">
-                            <ComboBoxItem Content="Replicate — paid, fast, reliable"/>
-                            <ComboBoxItem Content="Hugging Face — free tier, slower"/>
-                        </ComboBox>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <Button Content="🆕 Sign up for Replicate (free)" Click="ReplicateSignup_Click" Padding="12,4"
-                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
-                        <Button Content="🔑 Replicate API token" Click="ReplicateToken_Click" Margin="8,0,0,0" Padding="12,4"
-                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
-                        <Button Content="🆓 Free Hugging Face token" Click="HfToken_Click" Margin="8,0,0,0" Padding="12,4"
-                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
-                    </StackPanel>
-                    <Grid Margin="0,6,0,0">
+                        <ComboBox x:Name="ProviderPicker" Grid.Column="1" SelectionChanged="ProviderPicker_SelectionChanged"/>
+                        <TextBlock Text="Model" FontWeight="Bold" VerticalAlignment="Center" Margin="14,0,8,0" Grid.Column="2"/>
+                        <ComboBox x:Name="ModelPicker" Grid.Column="3" IsEditable="True"/>
+                        <Button x:Name="RefreshBtn" Grid.Column="4" Content="🔄" Width="36" Margin="8,0,0,0" Click="RefreshBtn_Click"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Reload the model list"/>
+                    </Grid>
+
+                    <Grid Grid.Row="1" Margin="0,12,0,0">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="240"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <PasswordBox x:Name="OnlineKeyBox" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="6,4"/>
-                        <Button Grid.Column="1" Content="Save Key" Click="OnlineSaveKey_Click" Margin="8,0,0,0" Padding="12,4"
-                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
-                        <TextBlock x:Name="OnlineKeyStatus" Grid.Column="2" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="#69F0AE" FontSize="11"/>
+                        <TextBlock Text="Make" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="ModePicker" Grid.Column="1" SelectedIndex="0">
+                            <ComboBoxItem Content="🎤 Song Lyrics"/>
+                            <ComboBoxItem Content="💡 Song Title Ideas"/>
+                            <ComboBoxItem Content="🥁 A Beat From My Description"/>
+                            <ComboBoxItem Content="💬 Free Chat"/>
+                        </ComboBox>
+                        <Button Grid.Column="2" Content="🎤 Create Song from this…" Click="CreateSongFromThis_Click" Margin="14,0,0,0" Padding="12,4"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                ToolTip="Open the Create Song panel with this text as the lyrics"/>
                     </Grid>
-                </StackPanel>
-            </Border>
-            <TextBlock Text="Compute applies to the Stem Splitter today, and to the song-generation engine when it's set up. Auto uses the GPU when a real graphics card is present; Online uses the cloud instead."
-                       Foreground="#666666" FontSize="10" Margin="0,4,0,0" TextWrapping="Wrap"/>
-        </StackPanel>
 
-        <Grid Grid.Row="3" Margin="0,12,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="240"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock Text="Make" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <ComboBox x:Name="ModePicker" Grid.Column="1" SelectedIndex="0">
-                <ComboBoxItem Content="🎤 Song Lyrics"/>
-                <ComboBoxItem Content="💡 Song Title Ideas"/>
-                <ComboBoxItem Content="🥁 A Beat From My Description"/>
-                <ComboBoxItem Content="💬 Free Chat"/>
-            </ComboBox>
-            <Button Grid.Column="2" Content="🎤 Create Song from this…" Click="CreateSongFromThis_Click" Margin="14,0,0,0" Padding="12,4"
-                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
-                    ToolTip="Open the Create Song panel with this text as the lyrics"/>
-        </Grid>
+                    <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                        <TextBlock Text="Topic / description / question" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="InputBox" Height="74" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
 
-        <StackPanel Grid.Row="4" Margin="0,10,0,0">
-            <TextBlock Text="Topic / description / question" Foreground="#A0A5B5" FontSize="11"/>
-            <TextBox x:Name="InputBox" Height="74" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
-                     VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
-        </StackPanel>
+                    <Grid Grid.Row="3" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="GenerateBtn" Content="✨ Generate" Click="Generate_Click" Height="36" Width="130"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                        <Button x:Name="CancelBtn" Grid.Column="1" Content="Cancel" Click="Cancel_Click" Height="36" Width="80" Margin="8,0,0,0"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" IsEnabled="False"/>
+                        <TextBlock x:Name="StatusText" Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                    </Grid>
 
-        <Grid Grid.Row="5" Margin="0,10,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-            <Button x:Name="GenerateBtn" Content="✨ Generate" Click="Generate_Click" Height="36" Width="130"
-                    Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
-            <Button x:Name="CancelBtn" Grid.Column="1" Content="Cancel" Click="Cancel_Click" Height="36" Width="80" Margin="8,0,0,0"
-                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" IsEnabled="False"/>
-            <TextBlock x:Name="StatusText" Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0"
-                       Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
-        </Grid>
+                    <StackPanel Grid.Row="4" Margin="0,12,0,0">
+                        <TextBlock Text="Result (yours to edit)" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="OutputBox" Height="190" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
 
-        <StackPanel Grid.Row="6" Margin="0,12,0,0">
-            <TextBlock Text="Result (yours to edit)" Foreground="#A0A5B5" FontSize="11"/>
-            <TextBox x:Name="OutputBox" Height="190" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
-                     VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
-        </StackPanel>
+                    <Grid Grid.Row="5" Margin="0,10,0,0">
+                        <Button Content="📋 Copy Result" Click="Copy_Click" HorizontalAlignment="Left" Padding="14,6"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        <TextBlock Text="Beats open straight in the step sequencer, ready to edit."
+                                   Foreground="#666666" FontSize="10" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
 
-        <Grid Grid.Row="7" Margin="0,10,0,0">
-            <Button Content="📋 Copy Result" Click="Copy_Click" HorizontalAlignment="Left" Padding="14,6"
-                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
-            <TextBlock Text="Beats open straight in the step sequencer, ready to edit."
-                       Foreground="#666666" FontSize="10" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-        </Grid>
+            <TabItem Header="🔑 Keys &amp; Compute" Foreground="White">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="10">
+                        <TextBlock x:Name="InfoText" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                        <Border x:Name="KeyPanel" BorderBrush="#2A3446" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,6,0,0" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock x:Name="KeyHint" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                                <Grid Margin="0,6,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <PasswordBox x:Name="KeyBox" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="6,4"/>
+                                    <Button Grid.Column="1" Content="Save Key" Click="SaveKey_Click" Margin="8,0,0,0" Padding="12,4"
+                                            Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                                    <TextBlock x:Name="KeyStatus" Grid.Column="2" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="#69F0AE" FontSize="11"/>
+                                </Grid>
+                                <Grid x:Name="CustomUrlRow" Margin="0,8,0,0" Visibility="Collapsed">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Base URL" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#A0A5B5" FontSize="11"/>
+                                    <TextBox x:Name="CustomUrlBox" Grid.Column="1" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="6,4"
+                                             ToolTip="e.g. http://localhost:1234/v1 for LM Studio"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <TextBlock Text="Compute" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ComboBox x:Name="ComputePicker" Width="160" SelectionChanged="ComputePicker_SelectionChanged">
+                                <ComboBoxItem Content="Auto (recommended)"/>
+                                <ComboBoxItem Content="CPU only"/>
+                                <ComboBoxItem Content="GPU"/>
+                                <ComboBoxItem Content="☁️ Online"/>
+                            </ComboBox>
+                            <ComboBox x:Name="GpuPicker" Width="230" Margin="8,0,0,0" SelectionChanged="GpuPicker_SelectionChanged"/>
+                            <TextBlock x:Name="ComputeInfo" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="#A0A5B5" FontSize="11"/>
+                        </StackPanel>
+                        <Border x:Name="OnlinePanel" BorderBrush="#2A3446" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,6,0,0" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock Text="Online compute runs on a cloud provider (Demucs for stems; ACE-Step for songs). Replicate is paid per run; Hugging Face has a free tier. Keys are stored encrypted on this PC and only ever sent to the provider you picked."
+                                           Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <TextBlock Text="Provider" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <ComboBox x:Name="OnlineProviderPicker" Width="250" SelectionChanged="OnlineProviderPicker_SelectionChanged">
+                                        <ComboBoxItem Content="Replicate — paid, fast, reliable"/>
+                                        <ComboBoxItem Content="Hugging Face — free tier, slower"/>
+                                    </ComboBox>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <Button Content="🆕 Sign up for Replicate (free)" Click="ReplicateSignup_Click" Padding="12,4"
+                                            Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                                    <Button Content="🔑 Replicate API token" Click="ReplicateToken_Click" Margin="8,0,0,0" Padding="12,4"
+                                            Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                                    <Button Content="🆓 Free Hugging Face token" Click="HfToken_Click" Margin="8,0,0,0" Padding="12,4"
+                                            Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                                </StackPanel>
+                                <Grid Margin="0,6,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <PasswordBox x:Name="OnlineKeyBox" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="6,4"/>
+                                    <Button Grid.Column="1" Content="Save Key" Click="OnlineSaveKey_Click" Margin="8,0,0,0" Padding="12,4"
+                                            Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                                    <TextBlock x:Name="OnlineKeyStatus" Grid.Column="2" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="#69F0AE" FontSize="11"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Text="Compute applies to the Stem Splitter and Create Song today, and to the local song-generation engine when it's set up. Auto uses the GPU when a real graphics card is present; Online uses the cloud instead."
+                                   Foreground="#666666" FontSize="10" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
     </Grid>
 </Window>

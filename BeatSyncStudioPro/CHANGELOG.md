@@ -3,6 +3,20 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.12 — Downloads, Categories & a Stop That Stops
+### Fixed
+- **Stop actually stops**: sounds triggered on the timeline used to ring out to their natural end after you hit Stop. Every voice is now tracked and cut with a fast fade the moment Stop is pressed.
+### Added
+- **⬇ Downloads window** (View menu / library button): every download in one place — file size, **live speed, time remaining**, and **pause / resume and cancel** per download. The AI model download and Freesound sounds run through it.
+- **Library categories**: every sound is filed automatically — 🥁 Drums, 🎸 Guitar, 🔊 Bass, 🎹 Keys & Pads, 🔁 Loops, 🎤 Vocals, ✨ FX, 🎵 Other (plus 🎬 Video / 🖼️ Images) — with a **category dropdown and a search box** at the top of the library. Downloads, pack sounds and renders all land in the right category, and categories save inside your project files.
+- **📼 Cassette platters**: each DJ deck's Style row switches the turntable from Vinyl to a **Cassette tape** — reels spin with the music and the tape visibly moves from the left reel to the right as the song plays.
+- **🎨 Visual colors**: the same Style row sets the color theme for that deck's visuals — Deck Color, 👑 Gold, Green, Purple, Ice, Sunset, Pink, White — and it retunes the Rainbow Spectrum too. Platter and color choices are remembered per deck.
+- **🥁 Auto-make the beat** (Create Song): builds a beat in your chosen style with the drum generator at your BPM — it lands as an editable pattern and a library loop to layer the generated song over.
+- **Suno-style preset chips** (Create Song): one tap fills the style box with a proper Suno-style prompt — 👑 My Style, Phonk, Trap, Lo-Fi, Country, Country Rap, Rock, EDM, Synthwave, Soul/Gospel, Blues, Folk — built from Suno's own style list. The **drum generator learned five of them too**: Phonk, Dubstep, Synthwave, Afrobeat and Country Train (17 generator styles now).
+### Changed
+- **AI Lab decluttered**: two tabs — **✨ Create** for making things, **🔑 Keys & Compute** for API keys and compute settings.
+- **Freesound decluttered the same way**: a clean **🔎 Search** tab up front; the API key lives in its own **🔑 Connect** tab.
+
 ## Version 3.11 — Create Song + Free Online Tier
 ### Added
 - **🎤 Create Song** (View menu / command palette / "Create Song from this…" in the AI Lab): the personal-Suno panel — title, style, lyrics, and **Style Influence, Voice Influence and Weirdness sliders**, a **Voice picker** (generated voice or 👑 Rad-Dad — my voice), song length, and the big **Generate Song** button. Routing follows your Compute choice: **☁️ Online via Replicate runs ACE-Step** (lyrics + style in, finished song into your library); the **local engine** on your stronger PC plugs into the same button when it's set up, and your Rad-Dad voice conversion is the stage that runs there once your voice model is trained.

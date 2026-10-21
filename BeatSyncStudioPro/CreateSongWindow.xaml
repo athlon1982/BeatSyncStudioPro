@@ -14,6 +14,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Text="🎤 Create Song" FontSize="16" FontWeight="Bold"/>
@@ -28,13 +29,20 @@
         </Grid>
 
         <Grid Grid.Row="2" Margin="0,8,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock Text="Style" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#A0A5B5"/>
-            <TextBox x:Name="StyleBox" Grid.Column="1" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="6,4"
-                     Text="hip-hop, boom-rap, heavy 808 sub-bass, hard-hitting bass, country rap, Vermont"/>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Style" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#A0A5B5"/>
+                <TextBox x:Name="StyleBox" Grid.Column="1" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="6,4"
+                         Text="hip-hop, boom-rap, heavy 808 sub-bass, hard-hitting bass, country rap, Vermont"/>
+            </Grid>
+            <WrapPanel x:Name="StyleChips" Grid.Row="1" Margin="34,6,0,0"/>
         </Grid>
 
         <Grid Grid.Row="3" Margin="0,10,0,0">
@@ -92,7 +100,24 @@
             </ComboBox>
         </Grid>
 
-        <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,14,0,0">
+        <Grid Grid.Row="6" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="52"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Beat" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#A0A5B5"/>
+            <TextBox x:Name="BpmBox" Grid.Column="1" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="6,4"
+                     Text="95" ToolTip="Beat tempo (BPM)"/>
+            <Button Grid.Column="2" Content="🥁 Auto-make the beat" Click="AutoBeat_Click" Margin="8,0,0,0" Padding="12,5"
+                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
+                    ToolTip="Builds a beat in your style from the built-in generator, adds it as an editable pattern and a loop in your library"/>
+            <TextBlock x:Name="BeatText" Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0"
+                       Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Text="No backing beat yet — make one, then layer the generated song over it on the timeline."/>
+        </Grid>
+
+        <StackPanel Grid.Row="7" Orientation="Horizontal" Margin="0,14,0,0">
             <Button x:Name="GenerateButton" Content="🎤 Generate Song" Click="Generate_Click" Padding="18,8"
                     Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
             <Button x:Name="CancelButton" Content="Cancel" Click="Cancel_Click" Padding="14,8" Margin="8,0,0,0" IsEnabled="False"
@@ -100,6 +125,6 @@
             <TextBlock x:Name="ComputeText" VerticalAlignment="Center" Margin="14,0,0,0" Foreground="#A0A5B5" FontSize="11"/>
         </StackPanel>
 
-        <TextBlock Grid.Row="7" x:Name="StatusText" Margin="0,10,0,0" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+        <TextBlock Grid.Row="8" x:Name="StatusText" Margin="0,10,0,0" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
     </Grid>
 </Window>

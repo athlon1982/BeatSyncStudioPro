@@ -115,7 +115,8 @@ namespace BeatSyncStudioPro
             if (idx < 0) { StatusText.Text = "Select a sound first."; return; }
             try
             {
-                string stored = _owner.AddToLibraryOnly(ReadEntry(_items[idx].Entry), _items[idx].Name + ".wav");
+                string stored = _owner.AddToLibraryOnly(ReadEntry(_items[idx].Entry), _items[idx].Name + ".wav",
+                    SoundCategorizer.FromPackFolder(_items[idx].Category));
                 StatusText.Text = $"✅ '{stored}' is in your library — find it in the asset list, the pattern channel pickers, and your kits.";
             }
             catch (Exception ex) { StatusText.Text = "Add failed: " + ex.Message; }
@@ -131,7 +132,8 @@ namespace BeatSyncStudioPro
             {
                 foreach (var it in _items.Where(i => i.Category == cat))
                 {
-                    _owner.AddToLibraryOnly(ReadEntry(it.Entry), it.Name + ".wav");
+                    _owner.AddToLibraryOnly(ReadEntry(it.Entry), it.Name + ".wav",
+                        SoundCategorizer.FromPackFolder(it.Category));
                     added++;
                 }
                 StatusText.Text = $"✅ Added all {added} {cat} sounds to your library.";
