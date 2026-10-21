@@ -40,6 +40,9 @@
                 <MenuItem Header="🗑️ Remove Video Track" Click="BtnRemoveVideo_Click"/>
                 <Separator/>
                 <MenuItem Header="Auto-Crossfade" IsCheckable="True" IsChecked="True" Click="MenuAutoCrossfade_Click"/>
+                <Separator/>
+                <MenuItem Header="🥁 Beat Grid…" Click="MenuBeatGrid_Click"/>
+                <MenuItem Header="🧲 Snap to Beat" IsCheckable="True" IsChecked="True" Click="MenuSnap_Click"/>
             </MenuItem>
             <MenuItem Header="_View" Padding="10,4">
                 <MenuItem Header="🎚️ Mixer" Click="BtnMixer_Click"/>

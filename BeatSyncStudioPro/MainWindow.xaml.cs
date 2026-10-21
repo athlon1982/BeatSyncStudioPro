@@ -54,6 +54,84 @@ namespace BeatSyncStudioPro
         public MonitorFxSettings MonitorSettings { get; private set; } = new MonitorFxSettings();
         private MonitorFxWindow? _monitorFxWindow;
 
+        // ---- Beat grid ----
+        public double ProjectBpm { get; set; }
+        public double BeatOffsetSeconds { get; set; }
+        public bool SnapToBeatEnabled { get; set; } = true;
+
+        /// <summary>Snap a timeline X (pixels) to the nearest beat line when within 8px and snapping is on.</summary>
+        public double SnapX(double x)
+        {
+            if (!SnapToBeatEnabled || ProjectBpm <= 0) return x;
+            double periodPx = 60.0 / ProjectBpm * 100.0;
+            double offsetPx = BeatOffsetSeconds * 100.0;
+            double n = Math.Round((x - offsetPx) / periodPx);
+            double snapped = offsetPx + n * periodPx;
+            return Math.Abs(snapped - x) <= 8 ? snapped : x;
+        }
+
+        private (double Bpm, double OffsetTimeline, double Confidence)? ComputeGridFromClip(
+            FixedBlock block, double bpm, double fileOffset, double confidence)
+        {
+            if (bpm <= 0) return null;
+            double period = 60.0 / bpm;
+            double k = Math.Ceiling((block.SourceStartSeconds - fileOffset) / period - 1e-6);
+            double beatFile = fileOffset + k * period;
+            double offsetTimeline = block.StartX / 100.0 + (beatFile - block.SourceStartSeconds) / Math.Max(0.01, block.Speed);
+            double cycle = 4 * period; // normalize while preserving the downbeat phase
+            offsetTimeline = ((offsetTimeline % cycle) + cycle) % cycle;
+            return (bpm, offsetTimeline, confidence);
+        }
+
+        /// <summary>Detect the beat grid from the first audio clip (used by the Beat Grid dialog).</summary>
+        public async System.Threading.Tasks.Task<(double Bpm, double OffsetTimeline, double Confidence)?> DetectBeatsForGridAsync()
+        {
+            var block = TimelineBlocks.FirstOrDefault(b => b.IsAudio && b.RawBytes != null && b.RawBytes.Length > 0);
+            if (block == null) return null;
+            var bytes = block.RawBytes;
+            var type = block.SoundType;
+            var (bpm, fileOffset, conf) = await System.Threading.Tasks.Task.Run(() => BeatDetector.Detect(bytes, type));
+            if (bpm <= 0) return null;
+            return ComputeGridFromClip(block, bpm, fileOffset, conf);
+        }
+
+        /// <summary>Detect the beat grid from one specific clip and apply it (clip context menu).</summary>
+        public async void DetectBeatsFromClip(FixedBlock block)
+        {
+            if (block.RawBytes == null || block.RawBytes.Length == 0) return;
+            var bytes = block.RawBytes;
+            var type = block.SoundType;
+            var (bpm, fileOffset, conf) = await System.Threading.Tasks.Task.Run(() => BeatDetector.Detect(bytes, type));
+            if (bpm <= 0)
+            {
+                MessageBox.Show("No steady beat found in that clip — you can set the grid by hand in Tracks → Beat Grid…", "Detect Beats");
+                return;
+            }
+            var grid = ComputeGridFromClip(block, bpm, fileOffset, conf);
+            if (grid == null) return;
+            ProjectBpm = grid.Value.Bpm;
+            BeatOffsetSeconds = grid.Value.OffsetTimeline;
+            RenderStudioGridLanes();
+            MessageBox.Show($"Beat grid set: {grid.Value.Bpm:0.0} BPM (confidence {grid.Value.Confidence * 100:0}%).\n\nBeat lines are on the timeline and clips snap to them while dragging.",
+                "Detect Beats");
+        }
+
+        private void MenuBeatGrid_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new BeatGridWindow(this) { Owner = this };
+            if (dlg.ShowDialog() == true)
+            {
+                ProjectBpm = dlg.Bpm;
+                BeatOffsetSeconds = dlg.OffsetSeconds;
+                RenderStudioGridLanes();
+            }
+        }
+
+        private void MenuSnap_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem item) SnapToBeatEnabled = item.IsChecked;
+        }
+
         // ---- A–B loop region (pixels on the timeline) ----
         public double? LoopStartX { get; private set; }
         public double? LoopEndX { get; private set; }
@@ -252,6 +330,27 @@ namespace BeatSyncStudioPro
             Canvas.SetTop(playheadHandle, 0);
             Panel.SetZIndex(playheadHandle, 1000);
             TimelineCanvas.Children.Add(playheadHandle);
+
+            // Beat grid lines (under the clips; every 4th line is a brighter downbeat)
+            if (ProjectBpm > 0)
+            {
+                double periodPx = 60.0 / ProjectBpm * 100.0;
+                double offsetPx = BeatOffsetSeconds * 100.0;
+                var beatBrush = new SolidColorBrush(Color.FromArgb(70, 0xFF, 0xC8, 0x3D));
+                var downbeatBrush = new SolidColorBrush(Color.FromArgb(170, 0xFF, 0xC8, 0x3D));
+                int beatIndex = 0;
+                for (double x = offsetPx; x < tlWidth && beatIndex <= 4000; x += periodPx, beatIndex++)
+                {
+                    var line = new Line
+                    {
+                        X1 = x, Y1 = 0, X2 = x, Y2 = timelineHeight,
+                        Stroke = beatIndex % 4 == 0 ? downbeatBrush : beatBrush,
+                        StrokeThickness = beatIndex % 4 == 0 ? 2 : 1
+                    };
+                    Panel.SetZIndex(line, 1);
+                    TimelineCanvas.Children.Add(line);
+                }
+            }
 
             foreach (var block in TimelineBlocks)
             {
@@ -888,14 +987,14 @@ namespace BeatSyncStudioPro
 
         private void BtnSetA_Click(object sender, RoutedEventArgs e)
         {
-            LoopStartX = _currentPlayX;
+            LoopStartX = SnapX(_currentPlayX);
             if (LoopEndX.HasValue && LoopEndX.Value <= LoopStartX.Value) LoopEndX = null;
             UpdateLoopButtons();
         }
 
         private void BtnSetB_Click(object sender, RoutedEventArgs e)
         {
-            LoopEndX = _currentPlayX;
+            LoopEndX = SnapX(_currentPlayX);
             if (LoopStartX.HasValue && LoopEndX.Value <= LoopStartX.Value) LoopStartX = null;
             UpdateLoopButtons();
         }
@@ -1443,6 +1542,9 @@ namespace BeatSyncStudioPro
                     Version = "2.0",
                     AudioTrackCount = this.AudioTrackCount,
                     MasterVolume = this.MasterVolume,
+                    Bpm = this.ProjectBpm,
+                    BeatOffsetSeconds = this.BeatOffsetSeconds,
+                    SnapToBeat = this.SnapToBeatEnabled,
                     TrackVolumes = this.TrackVolumeValues,
                     TrackPans = this.TrackPanValues,
                     TrackFx = this.TrackFxValues,
@@ -1565,6 +1667,9 @@ namespace BeatSyncStudioPro
 
                     if (root.TryGetProperty("AudioTrackCount", out var tc)) AudioTrackCount = Math.Max(1, tc.GetInt32());
                     if (root.TryGetProperty("MasterVolume", out var mv)) MasterVolumeSlider.Value = mv.GetDouble();
+                    if (root.TryGetProperty("Bpm", out var bpmEl)) ProjectBpm = bpmEl.GetDouble();
+                    if (root.TryGetProperty("BeatOffsetSeconds", out var boEl)) BeatOffsetSeconds = boEl.GetDouble();
+                    if (root.TryGetProperty("SnapToBeat", out var sbEl)) SnapToBeatEnabled = sbEl.GetBoolean();
                     if (root.TryGetProperty("TrackVolumes", out var tvs))
                     {
                         TrackVolumeValues.Clear();

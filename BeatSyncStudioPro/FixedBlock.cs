@@ -308,6 +308,7 @@ namespace BeatSyncStudioPro
             if (_dragMode == DragMode.Move)
             {
                 StartX = Math.Clamp(_origStartX + delta, 0, Math.Max(0, _canvas.Width - Width));
+                StartX = _owner.SnapX(StartX);
                 if (IsAudio && !IsVideoAudio)
                 {
                     int lane = (int)(canvasPos.Y / LaneHeight);
@@ -397,6 +398,10 @@ namespace BeatSyncStudioPro
                 var nudgeItem = new MenuItem { Header = "⏱️ Nudge audio…" };
                 nudgeItem.Click += (s, e) => _owner.OpenNudgeDialog(this);
                 menu.Items.Add(nudgeItem);
+
+                var detectItem = new MenuItem { Header = "🥁 Detect beats → set grid" };
+                detectItem.Click += (s, e) => _owner.DetectBeatsFromClip(this);
+                menu.Items.Add(detectItem);
 
                 menu.Opened += (s, e) =>
                 {
