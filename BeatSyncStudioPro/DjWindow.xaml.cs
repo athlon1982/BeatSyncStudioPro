@@ -591,6 +591,10 @@ namespace BeatSyncStudioPro
                 host.MouseMove += Platter_MouseMove;
                 host.MouseLeftButtonUp += Platter_MouseUp;
 
+                _vinylView = new Grid();
+                // The halo belongs INSIDE the vinyl view: it used to sit on the
+                // host directly, so switching to the cassette left the big
+                // black neon disc floating behind the tape (Michael, v3.16).
                 var halo = new Ellipse
                 {
                     Width = 190, Height = 190,
@@ -599,9 +603,7 @@ namespace BeatSyncStudioPro
                     Stroke = _accent, StrokeThickness = 3,
                     Effect = _haloFx = new DropShadowEffect { Color = _accent.Color, BlurRadius = 26, ShadowDepth = 0, Opacity = 0.85 }
                 };
-                host.Children.Add(halo);
-
-                _vinylView = new Grid();
+                _vinylView.Children.Add(halo);
                 var vinyl = new Grid { Width = 180, Height = 180, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
                 _platterSpin.CenterX = 90;
                 _platterSpin.CenterY = 90;
@@ -762,7 +764,7 @@ namespace BeatSyncStudioPro
                     var reel = new Grid { Width = 46, Height = 46 };
                     var tape = new Ellipse
                     {
-                        Width = isLeft ? 42 : 26, Height = isLeft ? 42 : 26,
+                        Width = isLeft ? 44 : 26, Height = isLeft ? 44 : 26,
                         Fill = new SolidColorBrush(Color.FromRgb(0x2E, 0x20, 0x16)),
                         HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
                     };
@@ -784,6 +786,15 @@ namespace BeatSyncStudioPro
                     {
                         Width = 10, Height = 10, Fill = new SolidColorBrush(Color.FromRgb(0x8A, 0x92, 0xA0)),
                         HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
+                    });
+                    // One accent marker dot near the rim: the 3-spoke pattern is
+                    // symmetrical, so without a marker the spin reads as static
+                    // (wagon-wheel effect). The dot makes rotation unmistakable.
+                    spokes.Children.Add(new Ellipse
+                    {
+                        Width = 8, Height = 8, Fill = _accent,
+                        HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top,
+                        Margin = new Thickness(0, 2, 0, 0)
                     });
                     var spin = new RotateTransform();
                     spin.CenterX = 23; spin.CenterY = 23;
@@ -1379,13 +1390,16 @@ namespace BeatSyncStudioPro
                     _platterSpin.Angle = _deck.PositionSeconds * 200.0 % 360.0; // 33⅓ RPM
                 if (_deck.IsLoaded && _cassetteView != null && _cassetteView.Visibility == Visibility.Visible)
                 {
-                    double ang = _deck.PositionSeconds * 150.0 % 360.0;
-                    if (_reelSpinL != null) _reelSpinL.Angle = ang;
-                    if (_reelSpinR != null) _reelSpinR.Angle = ang;
                     double frac = _deck.TotalSeconds > 0 ? Math.Clamp(_deck.PositionSeconds / _deck.TotalSeconds, 0, 1) : 0;
-                    double dl = 42 - 16 * frac, dr = 26 + 16 * frac;
+                    double dl = 44 - 18 * frac, dr = 26 + 18 * frac; // tape drains left → right
                     if (_tapeL != null) { _tapeL.Width = dl; _tapeL.Height = dl; }
                     if (_tapeR != null) { _tapeR.Width = dr; _tapeR.Height = dr; }
+                    // Each reel spins at its OWN speed, like a real deck: the
+                    // emptier a reel gets, the faster it turns (same tape
+                    // speed, smaller spool). Pure function of position, so
+                    // scrubbing and scratching turn the reels too.
+                    if (_reelSpinL != null) _reelSpinL.Angle = _deck.PositionSeconds * 170.0 * (44.0 / dl) % 360.0;
+                    if (_reelSpinR != null) _reelSpinR.Angle = _deck.PositionSeconds * 170.0 * (44.0 / dr) % 360.0;
                 }
                 if (_deck.IsLoaded)
                 {

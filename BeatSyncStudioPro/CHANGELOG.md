@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.16 — Cassette Deck Fixes
+### Fixed
+- **Switching a deck to the cassette left the vinyl behind**: the record's big black neon halo disc was added to the deck outside the vinyl group, so hiding the vinyl never hid it. The halo now lives inside the vinyl view — cassette mode shows the tape, clean, with nothing of the record left over.
+- **The cassette now clearly animates while music plays**: each reel carries an accent marker dot (the bare 3-spoke pattern is symmetrical and read as static — the wagon-wheel effect), the reels spin at *different, physical* speeds (the emptier a reel gets, the faster it turns, exactly like a real deck), and the tape pack visibly drains from the left reel to the right across the song, over a wider range than before. Scrubbing and scratching turn the reels too.
+
 ## Version 3.15 — Create Song Crash Fix
 ### Fixed
 - **Create Song crashed the whole app the moment it opened** (found via the PC's crash log): the window's XAML sets each influence slider's value while the window is still loading, which fired the slider handler before the % labels beside the later sliders existed — a null-reference crash inside `InitializeComponent`, present since the window was introduced in v3.11 (the AI Lab's Make-This-Into-A-Song button was simply the first door Michael walked through). Every label is now guarded on its own, and the labels re-sync once the window has fully loaded.
