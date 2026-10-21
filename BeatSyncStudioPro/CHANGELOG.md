@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.22 — Main Window Glow-Up
+### Changed
+- **The main window pops now** (Michael: "the splash makes u get excited, then open the app and it looks like that… make it pop more like a DJ setup"). Pure visual pass, no behavior changes: the window backdrop is a deeper diagonal gradient with a violet bloom; the brand bar sits over a green→gold→violet neon rule with a glowing wordmark and a gold version chip; panels use vertical gradient fills; the **video preview is framed in a violet-to-green neon border with a soft glow**; every major button is now a gradient — Play glows green, Pause is blue glass, Stop is red glass, the **🎧 DJ button is violet with a glow**, utilities are dark glass — and hovering any button adds a soft light halo; the time readout glows to match.
+
 ## Version 3.21 — Compute Choice Now Drives ffmpeg Too
 ### Changed
 - **The CPU/GPU compute choice now covers video export** (Michael: "for the option to use cpu or gpu prolly need to include ffmpeg or things like that too?"). ffmpeg used to encode every export with libx264 on the CPU no matter what was picked. Now the encoder follows the same setting that drives the stem splitter: **CPU → libx264; GPU / Auto → the hardware encoder** for the detected graphics — NVIDIA NVENC, **Intel QuickSync** (yes, integrated Intel counts here; QuickSync is built for exactly this), or AMD AMF. If the hardware encoder ever fails, the export quietly redoes itself on the CPU encoder instead of failing, and the export window's finish message names the encoder that actually did the work.

@@ -9,13 +9,46 @@
         Foreground="#FFFFFF" SnapsToDevicePixels="True" WindowStartupLocation="CenterScreen">
     <Window.Background>
         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#0B0E14" Offset="0"/>
-            <GradientStop Color="#131926" Offset="0.55"/>
-            <GradientStop Color="#0D1420" Offset="1"/>
+            <GradientStop Color="#0A0D13" Offset="0"/>
+            <GradientStop Color="#16203A" Offset="0.45"/>
+            <GradientStop Color="#1D1033" Offset="0.78"/>
+            <GradientStop Color="#0A0D13" Offset="1"/>
         </LinearGradientBrush>
     </Window.Background>
 
     <Window.Resources>
+        <!-- DJ glow-up (v3.22): gradient fills + neon glows so the main
+             window carries the splash screen's energy — Michael: "the
+             splash makes u get excited, then open the app and it looks
+             bland… make it pop like a DJ setup." -->
+        <LinearGradientBrush x:Key="GreenGrad" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#2BE07F" Offset="0"/><GradientStop Color="#17A74C" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="VioletGrad" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#9D7BFF" Offset="0"/><GradientStop Color="#5B3DF0" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="BlueGrad" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#4C9AFF" Offset="0"/><GradientStop Color="#1256B4" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="RedGrad" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#E5484D" Offset="0"/><GradientStop Color="#9E1B1B" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="DarkGrad" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#333E52" Offset="0"/><GradientStop Color="#202836" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="PanelGrad" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#212A3C" Offset="0"/><GradientStop Color="#171E2B" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="BrandLine" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#1DB954" Offset="0"/><GradientStop Color="#C9A227" Offset="0.5"/><GradientStop Color="#7C5CFF" Offset="1"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="VideoFrame" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#7C5CFF" Offset="0"/><GradientStop Color="#2A3446" Offset="0.55"/><GradientStop Color="#1DB954" Offset="1"/>
+        </LinearGradientBrush>
+        <DropShadowEffect x:Key="GlowGreen" Color="#1DB954" BlurRadius="16" ShadowDepth="0" Opacity="0.55"/>
+        <DropShadowEffect x:Key="GlowViolet" Color="#7C5CFF" BlurRadius="18" ShadowDepth="0" Opacity="0.5"/>
+        <DropShadowEffect x:Key="GlowText" Color="#1DB954" BlurRadius="8" ShadowDepth="0" Opacity="0.55"/>
+
         <!-- Rounded pro buttons: any background color, soft hover/press -->
         <Style TargetType="{x:Type Button}">
             <Setter Property="Foreground" Value="White"/>
@@ -34,7 +67,12 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Opacity" Value="0.86"/>
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.94"/>
+                                <Setter TargetName="Bd" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="#8FB8FF" BlurRadius="12" ShadowDepth="0" Opacity="0.35"/>
+                                    </Setter.Value>
+                                </Setter>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Bd" Property="Opacity" Value="0.7"/>
@@ -122,13 +160,13 @@
         </Grid.RowDefinitions>
 
         <!-- Brand bar -->
-        <Border Grid.Row="0" Grid.ColumnSpan="2" Background="#0A0D13" BorderBrush="#2A3446" BorderThickness="0,0,0,1" Padding="14,7">
+        <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="{StaticResource BrandLine}" BorderThickness="0,0,0,2" Padding="14,7"><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#0D1424" Offset="0"/><GradientStop Color="#07090D" Offset="1"/></LinearGradientBrush></Border.Background>
             <Grid>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Image Source="/Assets/app-icon.png" Width="34" Height="34"/>
-                    <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="19" FontWeight="Bold"><Run Text="BEATSYNC" Foreground="#FFFFFF"/><Run Text=" STUDIO PRO" Foreground="#1DB954"/></TextBlock>
-                    <Border Background="#1B212E" BorderBrush="#2A3446" BorderThickness="1" CornerRadius="9" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="v3.21" FontSize="11" Foreground="#A0A5B5" FontWeight="Bold"/>
+                    <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="19" FontWeight="Bold" Effect="{StaticResource GlowText}"><Run Text="BEATSYNC" Foreground="#FFFFFF"/><Run Text=" STUDIO PRO" Foreground="#1DB954"/></TextBlock>
+                    <Border Background="#1B212E" BorderBrush="#C9A227" BorderThickness="1" CornerRadius="9" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="v3.22" FontSize="11" Foreground="#E8C766" FontWeight="Bold"/>
                     </Border>
                 </StackPanel>
             </Grid>
@@ -190,7 +228,7 @@
         </Menu>
 
         <!-- ASSET LIBRARY SIDEBAR -->
-        <Border Grid.Row="2" Grid.Column="0" Background="#1B212E" Margin="10" CornerRadius="10" Padding="15" BorderBrush="#2A3446" BorderThickness="1">
+        <Border Grid.Row="2" Grid.Column="0" Background="{StaticResource PanelGrad}" Margin="10" CornerRadius="10" Padding="15" BorderBrush="#2A3446" BorderThickness="1">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -235,9 +273,9 @@
 
                 <!-- Quick Import Buttons (the full import menu lives in the top menu bar) -->
                 <StackPanel Grid.Row="2" Orientation="Vertical" Margin="0,0,0,8">
-                    <Button Content="🎬 Quick Video" Click="BtnImportVideo_Click" Padding="10,8" Margin="0,0,0,6" Background="#5B4A8F" Foreground="White" Height="36"/>
-                    <Button Content="🖼️ Quick Images" Click="BtnImportImages_Click" Padding="10,8" Margin="0,0,0,6" Background="#2A3446" Foreground="White" Height="36"/>
-                    <Button Content="🎵 Quick Audio" Click="BtnImportAudioOrZip_Click" Padding="10,8" Background="#1DB954" Foreground="White" Height="36"/>
+                    <Button Content="🎬 Quick Video" Click="BtnImportVideo_Click" Padding="10,8" Margin="0,0,0,6" Background="{StaticResource VioletGrad}" Foreground="White" Height="36"/>
+                    <Button Content="🖼️ Quick Images" Click="BtnImportImages_Click" Padding="10,8" Margin="0,0,0,6" Background="{StaticResource DarkGrad}" Foreground="White" Height="36"/>
+                    <Button Content="🎵 Quick Audio" Click="BtnImportAudioOrZip_Click" Padding="10,8" Background="{StaticResource GreenGrad}" Foreground="White" Height="36" Effect="{StaticResource GlowGreen}"/>
                 </StackPanel>
 
                 <ScrollViewer Grid.Row="3" Margin="0,10,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -256,25 +294,25 @@
             </Grid.RowDefinitions>
 
             <!-- Video preview -->
-            <Border Grid.Row="0" Background="#07090D" CornerRadius="10" Margin="10,5" BorderBrush="#2A3446" BorderThickness="1">
+            <Border Grid.Row="0" Background="#07090D" CornerRadius="10" Margin="10,5" BorderBrush="{StaticResource VideoFrame}" BorderThickness="1.5" Effect="{StaticResource GlowViolet}">
                 <Grid>
                     <MediaElement x:Name="MasterVideoPlayer" LoadedBehavior="Manual" UnloadedBehavior="Stop" Stretch="Uniform"/>
-                    <TextBlock Text="📹 No Video Loaded" Foreground="#59637A" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="18" FontWeight="Bold" x:Name="NoVideoLabel"/>
+                    <TextBlock Text="📹 No Video Loaded" Foreground="#93A0BC" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="18" FontWeight="Bold" x:Name="NoVideoLabel"/>
                 </Grid>
             </Border>
 
             <!-- Timeline header with professional controls -->
-            <Border Grid.Row="1" Background="#1B212E" Margin="10,5" CornerRadius="8" Padding="15" BorderBrush="#2A3446" BorderThickness="1">
+            <Border Grid.Row="1" Background="{StaticResource PanelGrad}" Margin="10,5" CornerRadius="8" Padding="15" BorderBrush="#2A3446" BorderThickness="1">
                 <Grid>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="⏱️ Multitrack Timeline Editor" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="#E2E8F0"/>
                         <Border Background="#1DB954" Height="2" Width="40" CornerRadius="1" Margin="12,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="🎬 Add Video" Click="BtnAddVideoToTimeline_Click" Padding="10,6" Margin="0,0,8,0" Background="#5B4A8F" Foreground="White" Height="36"/>
-                        <Button Content="➕ Add Audio Track" Click="BtnAddTrack_Click" Padding="10,6" Margin="0,0,8,0" Background="#1DB954" Foreground="White" Height="36"/>
-                        <Button Content="➖ Remove Audio Track" Click="BtnRemoveTrack_Click" Padding="10,6" Margin="0,0,8,0" Background="#A12424" Foreground="White" Height="36"/>
-                        <Button Content="🗑️ Remove Video Track" Click="BtnRemoveVideo_Click" Padding="10,6" Background="#5B4A8F" Foreground="White" Height="36"/>
+                        <Button Content="🎬 Add Video" Click="BtnAddVideoToTimeline_Click" Padding="10,6" Margin="0,0,8,0" Background="{StaticResource VioletGrad}" Foreground="White" Height="36"/>
+                        <Button Content="➕ Add Audio Track" Click="BtnAddTrack_Click" Padding="10,6" Margin="0,0,8,0" Background="{StaticResource GreenGrad}" Foreground="White" Height="36"/>
+                        <Button Content="➖ Remove Audio Track" Click="BtnRemoveTrack_Click" Padding="10,6" Margin="0,0,8,0" Background="{StaticResource RedGrad}" Foreground="White" Height="36"/>
+                        <Button Content="🗑️ Remove Video Track" Click="BtnRemoveVideo_Click" Padding="10,6" Background="{StaticResource VioletGrad}" Foreground="White" Height="36"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -320,25 +358,25 @@
             </Grid>
 
             <!-- Transport / mixer footer -->
-            <Border Grid.Row="3" Background="#1B212E" CornerRadius="8" Padding="15" Margin="10,5" BorderBrush="#2A3446" BorderThickness="1">
+            <Border Grid.Row="3" Background="{StaticResource PanelGrad}" CornerRadius="8" Padding="15" Margin="10,5" BorderBrush="#2A3446" BorderThickness="1">
                 <Grid>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                        <Button Content="▶ Play" Click="BtnPlay_Click" Width="104" Height="44" Margin="0,0,8,0" Background="#1DB954" Foreground="White" FontSize="14"/>
-                        <Button Content="⏸ Pause" Click="BtnPause_Click" Width="100" Height="44" Margin="0,0,8,0" Background="#1568DB" Foreground="White"/>
-                        <Button Content="⏹ Stop" Click="BtnStop_Click" Width="100" Height="44" Background="#A12424" Foreground="White"/>
-                        <Button x:Name="SetABtn" Content="Set A" Click="BtnSetA_Click" Width="80" Height="44" Margin="16,0,0,0" Background="#2A3446" Foreground="White"/>
-                        <Button x:Name="SetBBtn" Content="Set B" Click="BtnSetB_Click" Width="80" Height="44" Margin="8,0,0,0" Background="#2A3446" Foreground="White"/>
-                        <Button x:Name="LoopToggleBtn" Content="🔁 Loop" Click="BtnLoopToggle_Click" Width="100" Height="44" Margin="8,0,0,0" Background="#2A3446" Foreground="White"/>
-                        <Button Content="🎚️ Mixer" Click="BtnMixer_Click" Width="100" Height="44" Margin="8,0,0,0" Background="#2A3446" Foreground="White"/>
-                        <Button Content="💾 Export" Click="BtnExportAudio_Click" Width="100" Height="44" Margin="8,0,0,0" Background="#2A3446" Foreground="White"/>
-                        <Button Content="📺 Output" Click="BtnOutput_Click" Width="100" Height="44" Margin="8,0,0,0" Background="#2A3446" Foreground="White"/>
-                        <Button Content="🎧 DJ" Click="BtnDj_Click" Width="100" Height="44" Margin="8,0,0,0" Background="#2A3446" Foreground="White"/>
+                        <Button Content="▶ Play" Click="BtnPlay_Click" Width="104" Height="44" Margin="0,0,8,0" Background="{StaticResource GreenGrad}" Foreground="White" FontSize="14" FontWeight="Bold" Effect="{StaticResource GlowGreen}"/>
+                        <Button Content="⏸ Pause" Click="BtnPause_Click" Width="100" Height="44" Margin="0,0,8,0" Background="{StaticResource BlueGrad}" Foreground="White"/>
+                        <Button Content="⏹ Stop" Click="BtnStop_Click" Width="100" Height="44" Background="{StaticResource RedGrad}" Foreground="White"/>
+                        <Button x:Name="SetABtn" Content="Set A" Click="BtnSetA_Click" Width="80" Height="44" Margin="16,0,0,0" Background="{StaticResource DarkGrad}" Foreground="White"/>
+                        <Button x:Name="SetBBtn" Content="Set B" Click="BtnSetB_Click" Width="80" Height="44" Margin="8,0,0,0" Background="{StaticResource DarkGrad}" Foreground="White"/>
+                        <Button x:Name="LoopToggleBtn" Content="🔁 Loop" Click="BtnLoopToggle_Click" Width="100" Height="44" Margin="8,0,0,0" Background="{StaticResource DarkGrad}" Foreground="White"/>
+                        <Button Content="🎚️ Mixer" Click="BtnMixer_Click" Width="100" Height="44" Margin="8,0,0,0" Background="{StaticResource DarkGrad}" Foreground="White"/>
+                        <Button Content="💾 Export" Click="BtnExportAudio_Click" Width="100" Height="44" Margin="8,0,0,0" Background="{StaticResource DarkGrad}" Foreground="White"/>
+                        <Button Content="📺 Output" Click="BtnOutput_Click" Width="100" Height="44" Margin="8,0,0,0" Background="{StaticResource DarkGrad}" Foreground="White"/>
+                        <Button Content="🎧 DJ" Click="BtnDj_Click" Width="100" Height="44" Margin="8,0,0,0" Background="{StaticResource VioletGrad}" Foreground="White" FontWeight="Bold" Effect="{StaticResource GlowViolet}"/>
                         <Separator Width="1" Background="#2A3446" Margin="5,0"/>
-                        <Button x:Name="BtnMasterMute" Content="🔊" Click="BtnMute_Click" Width="50" Height="44" Background="#2A3446" Foreground="#A0A5B5"/>
+                        <Button x:Name="BtnMasterMute" Content="🔊" Click="BtnMute_Click" Width="50" Height="44" Background="{StaticResource DarkGrad}" Foreground="#A0A5B5"/>
                         <TextBlock Text="Master" Foreground="#A0A5B5" VerticalAlignment="Center" Margin="10,0,0,0" FontSize="11" FontWeight="SemiBold"/>
                         <Slider x:Name="MasterVolumeSlider" Minimum="0" Maximum="1" Value="0.8" Width="120" VerticalAlignment="Center" ValueChanged="VolumeSlider_ValueChanged"/>
                         <TextBlock x:Name="VolumePercent" Text="80%" Foreground="#A0A5B5" VerticalAlignment="Center" Width="40" FontSize="11" TextAlignment="Right"/>
-                        <TextBlock x:Name="TimeDisplay" Text="0:00 / 0:00" Foreground="#69F0AE" VerticalAlignment="Center" Margin="18,0,0,0" FontSize="15" FontWeight="Bold" FontFamily="Consolas"/>
+                        <TextBlock x:Name="TimeDisplay" Text="0:00 / 0:00" Foreground="#69F0AE" VerticalAlignment="Center" Margin="18,0,0,0" FontSize="15" FontWeight="Bold" FontFamily="Consolas" Effect="{StaticResource GlowText}"/>
                     </StackPanel>
 
                 </Grid>
