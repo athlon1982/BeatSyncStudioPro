@@ -41,6 +41,12 @@ namespace BeatSyncStudioPro
 
         public string SoundType { get; set; }
         public bool IsVideo { get; set; }
+
+        /// <summary>True for the soundtrack separated from the video: it lives on the lane directly under the video lane.</summary>
+        public bool IsVideoAudio { get; set; }
+
+        /// <summary>The lane this clip is drawn on: its audio track, the video lane, or the video-audio lane right under the video.</summary>
+        public int LaneIndex => IsVideo ? _owner.AudioTrackCount : IsVideoAudio ? _owner.AudioTrackCount + 1 : TrackId;
         public byte[] RawBytes { get; set; }
 
         /// <summary>On-timeline length of the clip in seconds (audio: FileDuration / Speed).</summary>
@@ -67,7 +73,7 @@ namespace BeatSyncStudioPro
         /// width is derived from the decoded audio duration.
         /// </param>
         public FixedBlock(MainWindow owner, Canvas canvas, int trackId, string filename,
-            double startX, byte[] rawBytes, string soundType, double width = 0, bool isVideo = false)
+            double startX, byte[] rawBytes, string soundType, double width = 0, bool isVideo = false, bool isVideoAudio = false)
         {
             _owner = owner ?? throw new ArgumentNullException(nameof(owner));
             _canvas = canvas ?? throw new ArgumentNullException(nameof(canvas));
@@ -78,6 +84,7 @@ namespace BeatSyncStudioPro
             RawBytes = rawBytes ?? Array.Empty<byte>();
             SoundType = (soundType ?? string.Empty).ToLowerInvariant();
             IsVideo = isVideo;
+            IsVideoAudio = isVideoAudio;
 
             double duration = 0;
             if (IsAudio && RawBytes.Length > 0)
@@ -229,7 +236,7 @@ namespace BeatSyncStudioPro
             if (_dragMode == DragMode.Move)
             {
                 StartX = Math.Clamp(_origStartX + delta, 0, Math.Max(0, _canvas.Width - Width));
-                if (IsAudio)
+                if (IsAudio && !IsVideoAudio)
                 {
                     int lane = (int)(canvasPos.Y / LaneHeight);
                     TrackId = Math.Clamp(lane, 0, Math.Max(0, _owner.AudioTrackCount - 1));
@@ -361,7 +368,7 @@ namespace BeatSyncStudioPro
             BlockVisual.Width = Width;
             BlockVisual.Height = BlockHeight;
 
-            double lane = IsVideo ? _owner.AudioTrackCount : TrackId;
+            double lane = LaneIndex;
             Canvas.SetLeft(BlockVisual, StartX);
             Canvas.SetTop(BlockVisual, lane * LaneHeight + LanePadding);
             Panel.SetZIndex(BlockVisual, 10);

@@ -125,7 +125,7 @@ namespace BeatSyncStudioPro
                     };
 
                     Canvas.SetLeft(waveImg, block.StartX + 2);
-                    Canvas.SetTop(waveImg, block.TrackId * 50 + 7);
+                    Canvas.SetTop(waveImg, block.LaneIndex * 50 + 7);
                     WaveformOverlayCanvas.Children.Add(waveImg);
                 }
                 catch { }
@@ -139,8 +139,9 @@ namespace BeatSyncStudioPro
             TimelineCanvas.Children.Clear();
             HeadersSidebar.Children.Clear();
 
-            // Keep the timeline tall enough for every lane (audio tracks + video lane)
-            double timelineHeight = Math.Max(450, (AudioTrackCount + 1) * 50 + 20);
+            // Keep the timeline tall enough for every lane (audio tracks + video lane + video-audio lane)
+            bool hasVideoAudio = TimelineBlocks.Any(b => b.IsVideoAudio);
+            double timelineHeight = Math.Max(450, (AudioTrackCount + 1 + (hasVideoAudio ? 1 : 0)) * 50 + 20);
             TimelineCanvas.Height = timelineHeight;
             if (WaveformOverlayCanvas != null) WaveformOverlayCanvas.Height = timelineHeight;
             if (TimelineHost != null) TimelineHost.Height = timelineHeight;
@@ -156,7 +157,7 @@ namespace BeatSyncStudioPro
 
             foreach (var block in TimelineBlocks)
             {
-                if (block.TrackId < AudioTrackCount || block.IsVideo)
+                if (block.TrackId < AudioTrackCount || block.IsVideo || block.IsVideoAudio)
                 {
                     if (!TimelineCanvas.Children.Contains(block.BlockVisual))
                     {
@@ -245,6 +246,32 @@ namespace BeatSyncStudioPro
                 Padding = new Thickness(4, 2, 4, 2)
             };
             HeadersSidebar.Children.Add(vLbl);
+
+            // Video-audio lane: the separated soundtrack sits directly under the video
+            if (hasVideoAudio)
+            {
+                double vaY = (AudioTrackCount + 1) * 50;
+
+                Line vaLine = new Line
+                {
+                    X1 = 0, Y1 = vaY, X2 = 2500, Y2 = vaY,
+                    Stroke = (Brush)converter.ConvertFromString("#1DB954")!,
+                    StrokeThickness = 2
+                };
+                TimelineCanvas.Children.Add(vaLine);
+
+                TextBlock vaLbl = new TextBlock
+                {
+                    Text = "🔊 VIDEO AUDIO",
+                    FontWeight = FontWeights.Bold,
+                    FontSize = 11,
+                    Foreground = (Brush)converter.ConvertFromString("#1DB954")!,
+                    Margin = new Thickness(8, vaY + 15, 0, 0),
+                    Background = (Brush)converter.ConvertFromString("#14171E")!,
+                    Padding = new Thickness(4, 2, 4, 2)
+                };
+                HeadersSidebar.Children.Add(vaLbl);
+            }
 
             RenderWaveformOverlay();
         }
@@ -543,7 +570,7 @@ namespace BeatSyncStudioPro
             if (AudioTrackCount > 1)
             {
                 int targetTrack = AudioTrackCount - 1;
-                TimelineBlocks.RemoveAll(b => b.TrackId == targetTrack && !b.IsVideo);
+                TimelineBlocks.RemoveAll(b => b.TrackId == targetTrack && !b.IsVideo && !b.IsVideoAudio);
                 AudioTrackCount--;
                 RenderStudioGridLanes();
             }
@@ -771,8 +798,8 @@ namespace BeatSyncStudioPro
 
         /// <summary>
         /// Full separation: the video's soundtrack becomes a normal audio clip on
-        /// Track 1 (same start position as the video) and the video itself goes
-        /// silent, so its sound can be edited like any other clip.
+        /// the lane directly under the video (same start position) and the video
+        /// itself goes silent, so its sound can be edited like any other clip.
         /// </summary>
         public void SeparateAudioFromVideo(FixedBlock block)
         {
@@ -789,13 +816,13 @@ namespace BeatSyncStudioPro
                 ZipSounds[audioName] = bytes;
                 ListContainer.Children.Add(CreateAssetButton($"🎵 {audioName}", audioName));
 
-                var audioBlock = new FixedBlock(this, TimelineCanvas, 0, audioName, block.StartX, bytes, "wav");
+                var audioBlock = new FixedBlock(this, TimelineCanvas, 0, audioName, block.StartX, bytes, "wav", 0, false, true);
                 TimelineBlocks.Add(audioBlock);
 
                 SetVideoAudioSeparated(true);
                 RenderStudioGridLanes();
 
-                MessageBox.Show($"✅ Audio separated!\n\n'{audioName}' is now on Audio Track 1 and the video is silent — edit the sound like any other clip (right-click it for volume/speed, drag its edge to stretch).\n\nTo hear the video's original sound again, right-click the video clip and turn its own sound back on.", "Separate Audio", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"✅ Audio separated!\n\n'{audioName}' is now on the VIDEO AUDIO lane directly under the video, and the video is silent — edit the sound like any other clip (right-click it for volume/speed, drag its edge to stretch).\n\nTo hear the video's original sound again, right-click the video clip and turn its own sound back on.", "Separate Audio", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
@@ -850,6 +877,8 @@ namespace BeatSyncStudioPro
                         b.Volume,
                         b.SoundType,
                         b.IsVideo,
+                        b.Speed,
+                        b.IsVideoAudio,
                         b.LengthSeconds
                     }).ToList()
                 };
