@@ -976,6 +976,163 @@ namespace BeatSyncStudioPro
             }
         }
 
+        private void BtnOpenProject_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFileDialog { Filter = "BeatSync Project (*.bsp)|*.bsp", Title = "Open Project" };
+            if (dlg.ShowDialog() != true) return;
+
+            if (TimelineBlocks.Count > 0)
+            {
+                var confirm = MessageBox.Show("Loading a project replaces everything currently on the timeline.\n\nContinue?", "Open Project", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (confirm != MessageBoxResult.Yes) return;
+            }
+
+            try
+            {
+                // Stop anything playing and clear the current project
+                isPlayingTimeline = false;
+                playbackCancelToken?.Cancel();
+                MasterVideoPlayer.Stop();
+                MasterVideoPlayer.Source = null;
+                VideoPath = null;
+                SetVideoAudioSeparated(false);
+                SetVideoSpeed(1.0);
+
+                TimelineBlocks.Clear();
+                ZipSounds.Clear();
+                VideoAssets.Clear();
+                ImageAssets.Clear();
+                ListContainer.Children.Clear();
+
+                string extractDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "BeatSyncStudioPro", "loaded-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(extractDir);
+
+                int missing = 0;
+
+                using (var fs = new FileStream(dlg.FileName, FileMode.Open, FileAccess.Read))
+                using (var archive = new ZipArchive(fs, ZipArchiveMode.Read))
+                {
+                    var pjEntry = archive.GetEntry("project.json");
+                    if (pjEntry == null) throw new InvalidDataException("project.json is missing — this doesn't look like a BeatSync project file.");
+
+                    JsonDocument doc;
+                    using (var es = pjEntry.Open())
+                    using (var ms = new MemoryStream())
+                    {
+                        es.CopyTo(ms);
+                        doc = JsonDocument.Parse(ms.ToArray());
+                    }
+
+                    var root = doc.RootElement;
+
+                    if (root.TryGetProperty("AudioTrackCount", out var tc)) AudioTrackCount = Math.Max(1, tc.GetInt32());
+                    if (root.TryGetProperty("MasterVolume", out var mv)) MasterVolumeSlider.Value = mv.GetDouble();
+
+                    // Bundled files: audio into memory, video/images extracted to disk
+                    foreach (var entry in archive.Entries)
+                    {
+                        string full = entry.FullName.Replace('\\', '/');
+                        if (full == "project.json" || entry.Name.Length == 0) continue;
+
+                        if (full.StartsWith("assets/"))
+                        {
+                            using var es = entry.Open();
+                            using var ms = new MemoryStream();
+                            es.CopyTo(ms);
+                            ZipSounds[entry.Name] = ms.ToArray();
+                            ListContainer.Children.Add(CreateAssetButton($"🎵 {entry.Name}", entry.Name));
+                        }
+                        else if (full.StartsWith("video/") || full.StartsWith("images/"))
+                        {
+                            string dest = System.IO.Path.Combine(extractDir, entry.Name);
+                            using (var es = entry.Open())
+                            using (var outFs = new FileStream(dest, FileMode.Create))
+                            {
+                                es.CopyTo(outFs);
+                            }
+
+                            if (full.StartsWith("video/"))
+                            {
+                                VideoAssets[entry.Name] = dest;
+                                ListContainer.Children.Add(CreateAssetButton($"🎬 {entry.Name}", entry.Name));
+                            }
+                            else
+                            {
+                                ImageAssets[entry.Name] = dest;
+                                ListContainer.Children.Add(CreateAssetButton($"🖼️ {entry.Name}", entry.Name));
+                            }
+                        }
+                    }
+
+                    // Rebuild the timeline clips with everything that was saved
+                    if (root.TryGetProperty("Blocks", out var blocks))
+                    {
+                        foreach (var b in blocks.EnumerateArray())
+                        {
+                            string filename = b.GetProperty("Filename").GetString() ?? "clip";
+                            int trackId = b.TryGetProperty("TrackId", out var t) ? t.GetInt32() : 0;
+                            double startX = b.TryGetProperty("StartX", out var sx) ? sx.GetDouble() : 0;
+                            double width = b.TryGetProperty("Width", out var w) ? w.GetDouble() : 0;
+                            double volume = b.TryGetProperty("Volume", out var v) ? v.GetDouble() : 1.0;
+                            string soundType = b.TryGetProperty("SoundType", out var st) ? (st.GetString() ?? "") : "";
+                            bool isVideo = b.TryGetProperty("IsVideo", out var iv) && iv.GetBoolean();
+                            double speed = b.TryGetProperty("Speed", out var sp) ? sp.GetDouble() : 1.0;
+                            double sourceStart = b.TryGetProperty("SourceStartSeconds", out var ss) ? ss.GetDouble() : 0;
+                            bool isVideoAudio = b.TryGetProperty("IsVideoAudio", out var iva) && iva.GetBoolean();
+                            double length = b.TryGetProperty("LengthSeconds", out var ln) ? ln.GetDouble() : 0;
+
+                            if (isVideo)
+                            {
+                                var block = new FixedBlock(this, TimelineCanvas, trackId, filename, startX,
+                                    Array.Empty<byte>(), soundType, width > 0 ? width : 280, true);
+                                if (length > 0) block.LengthSeconds = length;
+                                TimelineBlocks.Add(block);
+
+                                if (VideoAssets.TryGetValue(filename, out var vpath))
+                                {
+                                    VideoPath = vpath;
+                                    MasterVideoPlayer.Source = new Uri(vpath);
+                                    MasterVideoPlayer.Pause();
+                                }
+                            }
+                            else
+                            {
+                                if (!ZipSounds.TryGetValue(filename, out var bytes))
+                                {
+                                    missing++;
+                                    continue;
+                                }
+
+                                var block = new FixedBlock(this, TimelineCanvas, trackId, filename, startX,
+                                    bytes, soundType, 0, false, isVideoAudio);
+                                block.Volume = volume;
+                                block.Speed = speed;
+                                block.SourceStartSeconds = sourceStart;
+                                if (length > 0)
+                                {
+                                    block.LengthSeconds = length;
+                                    block.Width = width > 0 ? width : length * FixedBlock.PixelsPerSecond;
+                                }
+                                block.UpdateCanvasPosition();
+                                TimelineBlocks.Add(block);
+                            }
+                        }
+                    }
+                }
+
+                if (TimelineBlocks.Any(b => b.IsVideoAudio)) SetVideoAudioSeparated(true);
+                RenderStudioGridLanes();
+
+                string msg = $"✅ Project loaded!\n\n📁 {dlg.FileName}\n🎞️ {TimelineBlocks.Count} clip(s) on the timeline";
+                if (missing > 0) msg += $"\n\n⚠️ {missing} clip(s) were skipped because their sound file wasn't in the project bundle.";
+                MessageBox.Show(msg, "Open Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"❌ Could not open project: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private void BtnExport_Click(object sender, RoutedEventArgs e)
         {
             MessageBox.Show("🎬 Video export feature coming soon!\n\nThis will render your entire timeline with all audio & video synchronized.", "Export Video", MessageBoxButton.OK, MessageBoxImage.Information);

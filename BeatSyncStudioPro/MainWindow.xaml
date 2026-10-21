@@ -131,6 +131,7 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="📂 Open Project" Click="BtnOpenProject_Click" Width="130" Height="40" Margin="0,0,8,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
                         <Button Content="💾 Save Project" Click="BtnSave_Click" Width="130" Height="40" Margin="0,0,8,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
                         <Button Content="📂 Export Video" Click="BtnExport_Click" Width="130" Height="40" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" FontWeight="SemiBold"/>
                     </StackPanel>
