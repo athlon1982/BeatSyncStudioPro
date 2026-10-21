@@ -191,6 +191,20 @@ namespace BeatSyncStudioPro
             private readonly List<DateTime> _taps = new List<DateTime>();
             private readonly RotateTransform _platterSpin = new RotateTransform();
 
+            // waveform ring + scratch state
+            private const int RingBars = 120;
+            private readonly Line[] _ringLines = new Line[RingBars];
+            private readonly float[] _ringPeaks = new float[RingBars];
+            private readonly double[] _ringLens = new double[RingBars];
+            private Brush? _ringDim;
+            private DropShadowEffect? _haloFx;
+            private Button? _scratchBtn;
+            private bool _scratchOn;
+            private bool _dragging;
+            private double _lastAngle;
+            private long _lastDragMs;
+            private double _smoothRate;
+
             private static readonly Brush PanelBtn = new SolidColorBrush(Color.FromRgb(0x2A, 0x30, 0x3C));
             private static readonly Brush MutedText = new SolidColorBrush(Color.FromRgb(0xA0, 0xA5, 0xB5));
 
@@ -211,6 +225,13 @@ namespace BeatSyncStudioPro
                 root.Children.Add(_title);
 
                 root.Children.Add(BuildPlatter());
+
+                _scratchBtn = MakeButton("✋ Scratch: OFF", 170);
+                _scratchBtn.HorizontalAlignment = HorizontalAlignment.Center;
+                _scratchBtn.Margin = new Thickness(0, 0, 0, 4);
+                _scratchBtn.ToolTip = "Scratch mode: grab the vinyl and move it with the mouse. Off by default so the record can't be grabbed by accident.";
+                _scratchBtn.Click += (s, e) => SetScratch(!_scratchOn);
+                root.Children.Add(_scratchBtn);
 
                 // Waveform + playhead + scrub
                 var waveGrid = new Grid { Height = 74, Background = new SolidColorBrush(Color.FromRgb(0x14, 0x17, 0x1E)) };
@@ -363,7 +384,9 @@ namespace BeatSyncStudioPro
                     Cursor = Cursors.Hand,
                     ToolTip = "Click the vinyl to play / pause"
                 };
-                host.MouseLeftButtonDown += (s, e) => PlayPause();
+                host.MouseLeftButtonDown += Platter_MouseDown;
+                host.MouseMove += Platter_MouseMove;
+                host.MouseLeftButtonUp += Platter_MouseUp;
 
                 var halo = new Ellipse
                 {
@@ -371,7 +394,7 @@ namespace BeatSyncStudioPro
                     HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
                     Fill = new SolidColorBrush(Color.FromRgb(0x0A, 0x0A, 0x0C)),
                     Stroke = _accent, StrokeThickness = 3,
-                    Effect = new DropShadowEffect { Color = _accent.Color, BlurRadius = 26, ShadowDepth = 0, Opacity = 0.85 }
+                    Effect = _haloFx = new DropShadowEffect { Color = _accent.Color, BlurRadius = 26, ShadowDepth = 0, Opacity = 0.85 }
                 };
                 host.Children.Add(halo);
 
@@ -423,6 +446,28 @@ namespace BeatSyncStudioPro
                 });
                 host.Children.Add(vinyl);
 
+                // waveform ring: the song's peaks as bars inside the neon rim;
+                // played bars light up, the playhead bar pulses with the beat
+                _ringDim = new SolidColorBrush(Color.FromArgb(0x4D, _accent.Color.R, _accent.Color.G, _accent.Color.B));
+                var ring = new Canvas
+                {
+                    Width = 196, Height = 196, IsHitTestVisible = false,
+                    HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
+                };
+                for (int i = 0; i < RingBars; i++)
+                {
+                    var line = new Line
+                    {
+                        Stroke = _ringDim, StrokeThickness = 2.4,
+                        StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round
+                    };
+                    PositionRingLine(line, i * 2 * Math.PI / RingBars - Math.PI / 2, 3);
+                    _ringLines[i] = line;
+                    _ringLens[i] = 3;
+                    ring.Children.Add(line);
+                }
+                host.Children.Add(ring);
+
                 host.Children.Add(new Ellipse
                 {
                     Width = 12, Height = 12,
@@ -449,6 +494,83 @@ namespace BeatSyncStudioPro
                     RenderTransform = new RotateTransform(24, 4.5, 6)
                 });
                 return host;
+            }
+
+            private static void PositionRingLine(Line line, double angle, double len)
+            {
+                double cx = 98, cy = 98, outer = 93;
+                double dx = Math.Cos(angle), dy = Math.Sin(angle);
+                line.X1 = cx + dx * (outer - len);
+                line.Y1 = cy + dy * (outer - len);
+                line.X2 = cx + dx * outer;
+                line.Y2 = cy + dy * outer;
+            }
+
+            private void RenderPlatterRing()
+            {
+                var peaks = _deck.ComputePeaks(RingBars);
+                for (int i = 0; i < RingBars; i++) _ringPeaks[i] = peaks[i];
+            }
+
+            private void SetScratch(bool on)
+            {
+                _scratchOn = on;
+                if (_scratchBtn != null)
+                {
+                    _scratchBtn.Content = on ? "✋ Scratch: ON" : "✋ Scratch: OFF";
+                    _scratchBtn.Background = on ? (Brush)_accent : PanelBtn;
+                }
+                if (!on && _dragging)
+                {
+                    _dragging = false;
+                    _deck.ReleaseRecord();
+                }
+            }
+
+            private double PointerAngle(MouseEventArgs e, Grid host)
+            {
+                var p = e.GetPosition(host);
+                return Math.Atan2(p.Y - host.ActualHeight / 2, p.X - host.ActualWidth / 2);
+            }
+
+            private void Platter_MouseDown(object sender, MouseButtonEventArgs e)
+            {
+                if (!_scratchOn) { PlayPause(); return; }
+                if (!_deck.IsLoaded) return;
+                var host = (Grid)sender;
+                _dragging = true;
+                host.CaptureMouse();
+                _lastAngle = PointerAngle(e, host);
+                _lastDragMs = Environment.TickCount64;
+                _smoothRate = 0;
+                _deck.GrabRecord();
+            }
+
+            private void Platter_MouseMove(object sender, MouseEventArgs e)
+            {
+                if (!_dragging) return;
+                var host = (Grid)sender;
+                double angle = PointerAngle(e, host);
+                double delta = angle - _lastAngle;
+                while (delta > Math.PI) delta -= 2 * Math.PI;
+                while (delta < -Math.PI) delta += 2 * Math.PI;
+                _lastAngle = angle;
+                long now = Environment.TickCount64;
+                double dt = Math.Max(1, now - _lastDragMs) / 1000.0;
+                _lastDragMs = now;
+                double seconds = delta / (2 * Math.PI) * 1.8; // one revolution = 1.8 s of audio
+                _deck.PositionSeconds = Math.Clamp(_deck.PositionSeconds + seconds, 0, Math.Max(0, _deck.TotalSeconds - 0.05));
+                _smoothRate = 0.65 * (seconds / dt) + 0.35 * _smoothRate;
+                _deck.ScratchRate = Math.Clamp(_smoothRate, -8, 8);
+            }
+
+            private void Platter_MouseUp(object sender, MouseButtonEventArgs e)
+            {
+                if (!_dragging) return;
+                _dragging = false;
+                ((Grid)sender).ReleaseMouseCapture();
+                if (Environment.TickCount64 - _lastDragMs > 80) _deck.ScratchRate = 0;
+                _deck.ReleaseRecord();
             }
 
             private Button MakeButton(string text, double width) => new Button
@@ -496,6 +618,7 @@ namespace BeatSyncStudioPro
                     _bpmBox.Text = "";
                     _title.Text = $"{_name} — {_deck.Title}";
                     RenderWaveform();
+                    RenderPlatterRing();
                     _window.SetStatus($"{_name}: {_deck.Title} loaded ({FmtTime(_deck.TotalSeconds)}). Set the BPM to unlock SYNC and loops.");
                 }
                 catch (Exception ex)
@@ -537,6 +660,7 @@ namespace BeatSyncStudioPro
                 if (!_deck.IsPlaying && _deck.PositionSeconds >= _deck.TotalSeconds - 0.05)
                     _deck.PositionSeconds = 0;
                 _deck.IsPlaying = !_deck.IsPlaying;
+                if (_deck.IsPlaying) _window._owner.EnsureOutputRunning();
             }
 
             private void Cue()
@@ -644,6 +768,30 @@ namespace BeatSyncStudioPro
                         double x = _deck.TotalSeconds > 0 ? _deck.PositionSeconds / _deck.TotalSeconds * w : 0;
                         _playheadLine.X1 = x;
                         _playheadLine.X2 = x;
+                    }
+                }
+                if (_deck.IsLoaded && _ringDim != null)
+                {
+                    double level = _deck.IsPlaying ? _deck.Level : 0;
+                    int current = _deck.TotalSeconds > 0
+                        ? Math.Min(RingBars - 1, (int)(_deck.PositionSeconds / _deck.TotalSeconds * RingBars)) : 0;
+                    for (int i = 0; i < RingBars; i++)
+                    {
+                        var line = _ringLines[i];
+                        Brush target = i == current ? Brushes.White : i < current ? (Brush)_accent : _ringDim;
+                        if (line.Stroke != target) line.Stroke = target;
+                        double len = 3 + _ringPeaks[i] * 16;
+                        if (i == current) len *= 1 + 0.8 * level;
+                        if (Math.Abs(len - _ringLens[i]) > 0.05)
+                        {
+                            _ringLens[i] = len;
+                            PositionRingLine(line, i * 2 * Math.PI / RingBars - Math.PI / 2, len);
+                        }
+                    }
+                    if (_haloFx != null && _deck.IsPlaying)
+                    {
+                        _haloFx.BlurRadius = 20 + level * 26;
+                        _haloFx.Opacity = 0.65 + level * 0.35;
                     }
                 }
                 _playButton.Content = _deck.IsPlaying ? "⏸ PAUSE" : "▶ PLAY";

@@ -3,6 +3,14 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.3 — Scratch & the Waveform Ring
+### Added
+- **Scratch mode** (per deck): an ✋ Scratch toggle — **off by default**, so the record can't be grabbed by accident. Turn it on, grab the vinyl with the mouse and move it: the audio follows your hand forward and backward, goes silent while you hold the record still, and spins back up to speed when you let go — just like a real deck.
+- **Waveform ring**: each platter now carries the song's waveform as a ring of bars inside the neon rim. The played part lights up in the deck color, the playhead bar is white, and the ring and the platter's glow pulse with the beat as it plays.
+### Fixed
+- **MP3 loading is more robust**: files now decode through Windows Media Foundation first (with the classic MP3 reader as backup), and a file that decodes to almost no audio now says so instead of loading as an empty song.
+- **Decks can no longer be frozen by the timeline's pause**: pressing a deck's Play now resumes the shared output if it was paused, so the turntables always play when you hit play.
+
 ## Version 3.2 — Your Style, More Drums, Turntables
 ### Added
 - **Seven new built-in drum sounds** — open hat, rimshot, shaker, low tom, high tom, cowbell, and crash. The step sequencer now has 12 built-in drums.

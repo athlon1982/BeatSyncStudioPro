@@ -146,6 +146,16 @@ namespace BeatSyncStudioPro
             mixerEngine.AddMixerInput(provider);
             _djAttached = true;
         }
+
+        /// <summary>
+        /// The decks share the master output with the timeline; if the
+        /// timeline's pause froze that output, resume it so the decks can
+        /// always play when their own Play is pressed.
+        /// </summary>
+        public void EnsureOutputRunning()
+        {
+            try { if (outputDevice?.PlaybackState == PlaybackState.Paused) outputDevice.Play(); } catch { }
+        }
         private MixerWindow? _mixerWindow;
 
         // Pause state for the timeline transport
