@@ -95,10 +95,18 @@
                     </StackPanel>
 
                     <Grid Grid.Row="5" Margin="0,10,0,0">
-                        <Button Content="📋 Copy Result" Click="Copy_Click" HorizontalAlignment="Left" Padding="14,6"
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Content="📋 Copy Result" Click="Copy_Click" Padding="14,6" VerticalAlignment="Center"
                                 Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
-                        <TextBlock Text="Beats open straight in the step sequencer, ready to edit."
-                                   Foreground="#666666" FontSize="10" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="Beats open straight in the step sequencer, ready to edit."
+                                   Foreground="#666666" FontSize="10" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                        <Button Grid.Column="2" Content="🎤 Make THIS into a Song →" Click="CreateSongFromThis_Click" Height="40" Padding="20,6"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" FontSize="13" BorderThickness="0" Cursor="Hand"
+                                ToolTip="Take these lyrics into Create Song — pick the style, voice, sliders and an auto-made beat, then Generate Song"/>
                     </Grid>
                 </Grid>
             </TabItem>

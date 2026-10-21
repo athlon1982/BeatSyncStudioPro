@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.14 — Lyrics → Song, Front and Center
+### Changed
+- **The AI Lab's song hand-off is now impossible to miss**: a big green **🎤 Make THIS into a Song →** button sits right under the results. It carries your generated lyrics into Create Song **with your style already filled in** — from there the style chips, voice picker, influence sliders and 🥁 Auto-make the beat are all on the one screen, then **Generate Song**. After lyrics generate, the status line points you at the button, and if there's nothing generated yet it tells you so instead of opening an empty panel.
+
 ## Version 3.13 — Compare AIs + fal.ai
 ### Added
 - **🔀 Compare all AIs** (AI Lab → ✨ Create): check the box, hit Generate, and the **same prompt runs through every AI you've connected** — OpenCode, Gemini, OpenRouter, ChatGPT, Ollama, your custom endpoint — one at a time. The answers open **side by side in a compare window**, each labeled with the AI, the model, and how long it took; **✓ Use this one** sends the winner back to the Lab (for a beat answer, it builds the beat). AIs with no key saved yet are skipped with a note saying so.

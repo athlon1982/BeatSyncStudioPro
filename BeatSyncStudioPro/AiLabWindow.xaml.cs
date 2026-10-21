@@ -94,8 +94,16 @@ namespace BeatSyncStudioPro
         private CreateSongWindow? _createSong;
         private void CreateSongFromThis_Click(object sender, RoutedEventArgs e)
         {
+            if (string.IsNullOrWhiteSpace(OutputBox.Text))
+            {
+                StatusText.Text = "Generate some lyrics first — then this button carries them into Create Song with your style and voice ready.";
+                return;
+            }
             if (_createSong != null) { _createSong.Activate(); return; }
-            _createSong = new CreateSongWindow(_owner, OutputBox.Text) { Owner = this };
+            // Carry the lyrics AND Michael's standing style into Create Song,
+            // where the style chips, voice picker, sliders and auto-beat live.
+            _createSong = new CreateSongWindow(_owner, OutputBox.Text,
+                "hip-hop, boom-rap, heavy 808 sub-bass, hard-hitting bass, country rap, Vermont") { Owner = this };
             _createSong.Closed += (s, ev) => _createSong = null;
             _createSong.Show();
         }
@@ -322,7 +330,9 @@ namespace BeatSyncStudioPro
                 else
                 {
                     OutputBox.Text = reply;
-                    StatusText.Text = "Done — edit it, copy it, make it yours.";
+                    StatusText.Text = mode == "lyrics"
+                        ? "Done — like them? Hit 🎤 Make THIS into a Song (bottom right) to add your style, voice and a beat and generate the track."
+                        : "Done — edit it, copy it, make it yours.";
                 }
             }
             catch (OperationCanceledException)

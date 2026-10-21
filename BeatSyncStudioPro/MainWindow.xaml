@@ -128,7 +128,7 @@
                     <Image Source="/Assets/app-icon.png" Width="34" Height="34"/>
                     <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="19" FontWeight="Bold"><Run Text="BEATSYNC" Foreground="#FFFFFF"/><Run Text=" STUDIO PRO" Foreground="#1DB954"/></TextBlock>
                     <Border Background="#1B212E" BorderBrush="#2A3446" BorderThickness="1" CornerRadius="9" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="v3.13" FontSize="11" Foreground="#A0A5B5" FontWeight="Bold"/>
+                        <TextBlock Text="v3.14" FontSize="11" Foreground="#A0A5B5" FontWeight="Bold"/>
                     </Border>
                 </StackPanel>
             </Grid>
