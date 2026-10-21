@@ -3,6 +3,12 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.31 — 🎤 Live Mic Channel
+### New
+- **A real mic channel in the DJ mixer** (feature 7 of the DJ mega-queue): pick your input device, hit **🎤 MIC: LIVE**, and you're on the mix — voice runs through its own EQ (rumble cut + presence lift) and a touch of reverb, tuned for talk-over, and lands in **Record Mix** recordings too.
+- **Auto-duck**: with "Duck music while talking" on (default), the music pulls itself down to about a third the moment you speak and eases back up when you stop — fast down, slow up, like a radio board. Your voice is never ducked.
+- **Live level meter + mic level slider**, and a **🎛️ Mic FX** button opening the same FX editor the decks use, so the voice chain is fully tweakable. No microphone plugged in? The section says so politely instead of crashing. (Latency is announcement-grade — made for talking over the mix, not for singing along to yourself.)
+
 ## Version 3.30 — ⏭️ Beat Jump + Quantized Cues
 ### New
 - **Beat Jump row on each deck** (feature 6 of the DJ mega-queue): **-16 / -8 / -4 / +4 / +8 / +16** buttons hop the playhead by whole beats at the deck's effective BPM — skip the long intro, jump back 16 to re-drop the chorus — without ever losing the beat. No BPM set? The deck tells you to type or TAP one first.

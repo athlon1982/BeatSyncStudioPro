@@ -39,6 +39,11 @@ namespace BeatSyncStudioPro
         private readonly DeckPanel _panelB;
         private readonly DispatcherTimer _timer;
         private TrackFxWindow? _fxWindow;
+        // Live mic channel (v3.31)
+        private readonly MicChannel _mic = new MicChannel();
+        private VolumeSampleProvider _micGain = null!;
+        private bool _micOn;
+        private float _musicLevel = 0.9f;
         // Sampler (v3.27)
         private readonly SamplerEngine _sampler = new SamplerEngine();
         private readonly Button[] _padButtons = new Button[SamplerEngine.PadCount];
@@ -83,11 +88,20 @@ namespace BeatSyncStudioPro
             _xfadeA = chainA.Xfade;
             _xfadeB = chainB.Xfade;
             _masterGain = new VolumeSampleProvider(djMaster) { Volume = 0.9f };
-            _recorder = new RecordingSampleProvider(_masterGain);
+            // Final mix = music path (duckable) + mic path (never ducked), so
+            // Record Mix captures the voice over the music.
+            var finalMix = new MixingSampleProvider(format) { ReadFully = true };
+            finalMix.AddMixerInput(_masterGain);
+            _micGain = new VolumeSampleProvider(ClipFxChain.Apply(_mic, _mic.Fx)) { Volume = 0f };
+            finalMix.AddMixerInput(_micGain);
+            _recorder = new RecordingSampleProvider(finalMix);
             _owner.AttachDjMixer(_recorder);
             djMaster.AddMixerInput(_sampler.Output);
             SamplerVolumeSlider.ValueChanged += (s, e) => _sampler.Output.Volume = (float)SamplerVolumeSlider.Value;
             BuildSamplerPads();
+            for (int i = 0; i < MicChannel.DeviceCount; i++) MicDevicePicker.Items.Add(MicChannel.DeviceName(i));
+            if (MicDevicePicker.Items.Count > 0) MicDevicePicker.SelectedIndex = 0;
+            else MicDevicePicker.Items.Add("(no microphone found)");
 
             _panelA = new DeckPanel(this, _deckA, () => _deckB, _fxA, "DECK A",
                 new SolidColorBrush(Color.FromRgb(0x1D, 0xB9, 0x54)), DeckHostA, chainA.Channel, chainA.Tap);
@@ -96,11 +110,11 @@ namespace BeatSyncStudioPro
 
             XfadeSlider.ValueChanged += (s, e) => UpdateCrossfader();
             CurvePicker.SelectionChanged += (s, e) => UpdateCrossfader();
-            DjMasterSlider.ValueChanged += (s, e) => _masterGain.Volume = (float)DjMasterSlider.Value;
+            DjMasterSlider.ValueChanged += (s, e) => _musicLevel = (float)DjMasterSlider.Value;
             UpdateCrossfader();
 
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
-            _timer.Tick += (s, e) => { _panelA.Refresh(); _panelB.Refresh(); CruiseTick(); SamplerFlashTick(); };
+            _timer.Tick += (s, e) => { _panelA.Refresh(); _panelB.Refresh(); CruiseTick(); SamplerFlashTick(); MicTick(); };
             _timer.Start();
 
             // Never open larger than the screen's work area (scaled displays
@@ -115,7 +129,7 @@ namespace BeatSyncStudioPro
                 Left = wa.Left + Math.Max(0, (wa.Width - ActualWidth) / 2);
                 Top = wa.Top + Math.Max(0, (wa.Height - ActualHeight) / 2);
             };
-            Closed += (s, e) => { _timer.Stop(); _recorder.Stop(); };
+            Closed += (s, e) => { _timer.Stop(); _recorder.Stop(); _mic.Dispose(); };
         }
 
         private (VolumeSampleProvider Xfade, VolumeSampleProvider Channel, AudioTapSampleProvider Tap) BuildDeckChain(
@@ -429,6 +443,51 @@ namespace BeatSyncStudioPro
                 File.WriteAllText(PadAssignmentsPath, System.Text.Json.JsonSerializer.Serialize(map));
             }
             catch { }
+        }
+
+        private void MicButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_micOn) { StopMic(); return; }
+            if (MicChannel.DeviceCount == 0)
+            {
+                SetStatus("\U0001F3A4 No microphone found - plug one in and reopen the DJ window.");
+                return;
+            }
+            try
+            {
+                _mic.Start(Math.Max(0, MicDevicePicker.SelectedIndex));
+                _micOn = true;
+                _owner.EnsureOutputRunning();
+                MicButton.Content = "\U0001F3A4 MIC: LIVE";
+                MicButton.Background = new SolidColorBrush(Color.FromRgb(0xC0, 0x39, 0x2B));
+                SetStatus("\U0001F3A4 Mic is LIVE - you are on the mix (and in Record Mix).");
+            }
+            catch (Exception ex) { SetStatus("\U0001F3A4 Couldn't open the microphone: " + ex.Message); }
+        }
+
+        private void StopMic()
+        {
+            _mic.Stop();
+            _micOn = false;
+            MicButton.Content = "\U0001F3A4 MIC: OFF";
+            MicButton.Background = new SolidColorBrush(Color.FromRgb(0x2A, 0x30, 0x3C));
+            SetStatus("\U0001F3A4 Mic off.");
+        }
+
+        private void MicFxButton_Click(object sender, RoutedEventArgs e) => OpenFx(_mic.Fx, "MIC");
+
+        private void MicTick()
+        {
+            // Auto-duck: talking pulls the MUSIC down (never the mic), fast
+            // attack, slow release; otherwise the master slider rules.
+            bool ducking = _micOn && MicDuckBox.IsChecked == true && _mic.Level > 0.03f;
+            float target = ducking ? _musicLevel * 0.35f : _musicLevel;
+            float cur = _masterGain.Volume;
+            float factor = target < cur ? 0.5f : 0.12f;
+            _masterGain.Volume = cur + (target - cur) * factor;
+            if (_micGain != null) _micGain.Volume = _micOn ? (float)MicLevelSlider.Value : 0f;
+            if (MicMeterFill != null && MicMeterGrid != null)
+                MicMeterFill.Width = _micOn ? Math.Clamp(_mic.Level, 0f, 1f) * MicMeterGrid.ActualWidth : 0;
         }
 
         private void RecordButton_Click(object sender, RoutedEventArgs e)
