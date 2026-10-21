@@ -1,0 +1,33 @@
+<Window x:Class="BeatSyncStudioPro.StemSplitWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Stem Splitter" Icon="/Assets/app.ico"
+        Width="620" Height="500" ResizeMode="NoResize"
+        Background="#1E222B" Foreground="#FFFFFF" WindowStartupLocation="CenterOwner">
+    <StackPanel Margin="16">
+        <TextBlock Text="🎚️ Stem Splitter" FontSize="15" FontWeight="Bold"/>
+        <TextBlock Text="Split a song into drums, bass, other and vocals with the HTDemucs AI model (Meta's, MIT-licensed). It runs on your PC — a full song takes a few minutes on CPU. The model is a one-time ~304 MB download."
+                   Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,8"/>
+
+        <TextBlock Text="Source" FontWeight="Bold" Margin="0,4,0,4"/>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <ComboBox x:Name="ClipPicker"/>
+            <Button Grid.Column="1" Content="📁 Pick a File…" Click="PickFile_Click" Height="30" Padding="12,0" Margin="8,0,0,0"
+                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+        </Grid>
+        <TextBlock x:Name="FileLabel" Text="" Foreground="#A0A5B5" FontSize="11" Margin="0,4,0,0"/>
+
+        <ProgressBar x:Name="BusyBar" Height="8" Margin="0,14,0,0" Minimum="0" Maximum="100" Background="#14171E" Foreground="#1DB954" Visibility="Collapsed"/>
+        <TextBlock x:Name="StatusText" Text="" Foreground="#A0A5B5" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>
+
+        <ListBox x:Name="ResultList" Height="150" Margin="0,8,0,0" Background="#14171E" BorderBrush="#333" Foreground="White"/>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button x:Name="CancelButton" Content="Cancel" Click="Cancel_Click" Width="84" Height="32" IsEnabled="False"
+                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <Button x:Name="SplitButton" Content="Split Stems" Click="Split_Click" Width="110" Height="32" Margin="8,0,0,0"
+                    Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

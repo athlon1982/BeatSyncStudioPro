@@ -1043,6 +1043,7 @@ namespace BeatSyncStudioPro
                 new("Output Window", "View", "Ctrl+Shift+O", () => BtnOutput_Click(this, ev)),
                 new("Monitor FX", "View", "Ctrl+Shift+M", () => BtnMonitorFx_Click(this, ev)),
                 new("Transcript…", "View", "", () => BtnTranscript_Click(this, ev)),
+                new("Stem Splitter…", "View", "", () => BtnStemSplit_Click(this, ev)),
                 new("Render Queue…", "File", "", () => BtnRenderQueue_Click(this, ev)),
                 new("Batch Convert…", "File", "", () => BtnBatchConvert_Click(this, ev)),
                 new("Start Screen…", "File", "", () => MenuStartScreen_Click(this, ev)),
@@ -1121,6 +1122,15 @@ namespace BeatSyncStudioPro
             LoopEnabled = true;
             UpdateLoopButtons();
             TimelineScrollViewer.ScrollToHorizontalOffset(Math.Max(0, LoopStartX.Value - 200));
+        }
+
+        private StemSplitWindow? _stemSplitWindow;
+        private void BtnStemSplit_Click(object sender, RoutedEventArgs e)
+        {
+            if (_stemSplitWindow != null) { _stemSplitWindow.Activate(); return; }
+            _stemSplitWindow = new StemSplitWindow(this) { Owner = this };
+            _stemSplitWindow.Closed += (s, ev) => _stemSplitWindow = null;
+            _stemSplitWindow.Show();
         }
 
         private TranscriptWindow? _transcriptWindow;

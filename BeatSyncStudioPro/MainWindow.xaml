@@ -54,6 +54,7 @@
                 <MenuItem Header="🎧 DJ Decks" Click="BtnDj_Click"/>
                 <MenuItem Header="🔊 Monitor FX" Click="BtnMonitorFx_Click"/>
                 <MenuItem Header="📝 Transcript..." Click="BtnTranscript_Click"/>
+                <MenuItem Header="🎚️ Stem Splitter..." Click="BtnStemSplit_Click"/>
             </MenuItem>
             <MenuItem Header="_Help" Padding="10,4">
                 <MenuItem Header="⌨️ Command Palette..." Click="MenuPalette_Click" InputGestureText="Ctrl+K"/>
