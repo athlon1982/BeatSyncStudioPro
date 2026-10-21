@@ -60,6 +60,13 @@ namespace BeatSyncStudioPro
             catch { return ""; }
         }
 
+        private void Signup_Click(object sender, RoutedEventArgs e)
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://freesound.org/apiv2/apply") { UseShellExecute = true }); }
+            catch { }
+            StatusText.Text = "Opened freesound.org in your browser — sign up there (free), create an API key on that page, then paste the client secret here and Save Key.";
+        }
+
         private void SaveKey_Click(object sender, RoutedEventArgs e)
         {
             try

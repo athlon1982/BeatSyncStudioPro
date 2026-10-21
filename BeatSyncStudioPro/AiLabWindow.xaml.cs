@@ -57,8 +57,8 @@ namespace BeatSyncStudioPro
         {
             _computeLoading = true;
             ComputePicker.SelectedIndex = _compute.Mode switch { "CPU" => 1, "GPU" => 2, "Online" => 3, _ => 0 };
-            OnlineKeyBox.Password = _compute.GetOnlineKey();
-            OnlineKeyStatus.Text = _compute.GetOnlineKey().Length > 0 ? "Key saved ✓" : "";
+            OnlineProviderPicker.SelectedIndex = _compute.OnlineProvider == "huggingface" ? 1 : 0;
+            LoadProviderKey();
             var gpus = ComputeSettings.GpuNames();
             GpuPicker.Items.Clear();
             if (gpus.Count == 0)
@@ -91,6 +91,15 @@ namespace BeatSyncStudioPro
             RefreshComputeInfo();
         }
 
+        private CreateSongWindow? _createSong;
+        private void CreateSongFromThis_Click(object sender, RoutedEventArgs e)
+        {
+            if (_createSong != null) { _createSong.Activate(); return; }
+            _createSong = new CreateSongWindow(_owner, OutputBox.Text) { Owner = this };
+            _createSong.Closed += (s, ev) => _createSong = null;
+            _createSong.Show();
+        }
+
         private void ReplicateSignup_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/signin");
 
         private void ReplicateToken_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/account/api-tokens");
@@ -101,9 +110,29 @@ namespace BeatSyncStudioPro
             catch { }
         }
 
+        private bool HfSelected => OnlineProviderPicker.SelectedIndex == 1;
+
+        private void LoadProviderKey()
+        {
+            OnlineKeyBox.Password = HfSelected ? _compute.GetHfKey() : _compute.GetOnlineKey();
+            OnlineKeyStatus.Text = OnlineKeyBox.Password.Length > 0 ? "Key saved ✓" : "";
+        }
+
+        private void OnlineProviderPicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_computeLoading || !IsLoaded) return;
+            _compute.OnlineProvider = HfSelected ? "huggingface" : "replicate";
+            _compute.Save();
+            LoadProviderKey();
+            RefreshComputeInfo();
+        }
+
+        private void HfToken_Click(object sender, RoutedEventArgs e) => OpenUrl("https://huggingface.co/settings/tokens");
+
         private void OnlineSaveKey_Click(object sender, RoutedEventArgs e)
         {
-            _compute.SetOnlineKey(OnlineKeyBox.Password);
+            if (HfSelected) _compute.SetHfKey(OnlineKeyBox.Password);
+            else _compute.SetOnlineKey(OnlineKeyBox.Password);
             _compute.Save();
             OnlineKeyStatus.Text = OnlineKeyBox.Password.Length > 0 ? "Key saved ✓" : "Key cleared";
             RefreshComputeInfo();

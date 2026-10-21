@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.11 — Create Song + Free Online Tier
+### Added
+- **🎤 Create Song** (View menu / command palette / "Create Song from this…" in the AI Lab): the personal-Suno panel — title, style, lyrics, and **Style Influence, Voice Influence and Weirdness sliders**, a **Voice picker** (generated voice or 👑 Rad-Dad — my voice), song length, and the big **Generate Song** button. Routing follows your Compute choice: **☁️ Online via Replicate runs ACE-Step** (lyrics + style in, finished song into your library); the **local engine** on your stronger PC plugs into the same button when it's set up, and your Rad-Dad voice conversion is the stage that runs there once your voice model is trained.
+- **Online provider choice**: Replicate (paid, fast) or **Hugging Face (free tier)** — pick it in the AI Lab's Compute panel; the Stem Splitter's ☁️ Online route uses whichever you chose. Local CPU/GPU remains the always-free, always-works option.
+
 ## Version 3.10 — The Built-in Sound Pack
 ### Added
 - **🎁 Sound Pack** (View menu / command palette): a starter library of **87 sounds built right into the app** — 38 drums & percussion (five kicks, four 808s, five snares, claps, hats, crashes, toms, shakers, congas…), guitar plucks, chord stabs and muted hits, three strummed guitar loops, bass subs/plucks/growls, piano chords and pads, four drum loops, and FX (riser, impact, vinyl crackle). Every sound was synthesized for BeatSync and is **free to use in your music — no credit, no catches**. The whole pack lives in **one 17 MB compressed file** the app reads directly; sounds only take real space when you add them to your library, and from there they work everywhere — kits, patterns, timeline — and save inside your projects.

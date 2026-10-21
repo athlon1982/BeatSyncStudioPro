@@ -22,8 +22,29 @@ namespace BeatSyncStudioPro
         /// <summary>Which graphics adapter (DirectML device id) when Mode is GPU.</summary>
         public int GpuIndex { get; set; } = 0;
 
-        /// <summary>Cloud compute provider when Mode is Online ("replicate").</summary>
+        /// <summary>Cloud compute provider when Mode is Online: "replicate" (paid, fast) or "huggingface" (free tier).</summary>
         public string OnlineProvider { get; set; } = "replicate";
+
+        /// <summary>Hugging Face token (free tier), DPAPI-encrypted.</summary>
+        public string HfKeyEncrypted { get; set; } = "";
+
+        public string GetHfKey()
+        {
+            if (string.IsNullOrEmpty(HfKeyEncrypted)) return "";
+            try
+            {
+                var bytes = ProtectedData.Unprotect(Convert.FromBase64String(HfKeyEncrypted), null, DataProtectionScope.CurrentUser);
+                return Encoding.UTF8.GetString(bytes);
+            }
+            catch { return ""; }
+        }
+
+        public void SetHfKey(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key)) { HfKeyEncrypted = ""; return; }
+            var bytes = ProtectedData.Protect(Encoding.UTF8.GetBytes(key.Trim()), null, DataProtectionScope.CurrentUser);
+            HfKeyEncrypted = Convert.ToBase64String(bytes);
+        }
 
         /// <summary>The online provider's API key, DPAPI-encrypted (never stored in plain text).</summary>
         public string OnlineKeyEncrypted { get; set; } = "";
@@ -118,9 +139,9 @@ namespace BeatSyncStudioPro
                 "CPU" => $"CPU only (detected: {gpuPart})",
                 "GPU" => gpus.Count == 0 ? "GPU requested, but no GPU was detected — CPU will be used"
                     : $"GPU #{GpuIndex} of: {gpuPart}",
-                "Online" => GetOnlineKey().Length > 0
-                    ? "☁️ Online via Replicate (key saved)"
-                    : "☁️ Online via Replicate (no key saved yet — add it below)",
+                "Online" => OnlineProvider == "huggingface"
+                    ? (GetHfKey().Length > 0 ? "☁️ Online via Hugging Face free tier (token saved)" : "☁️ Online via Hugging Face free tier (no token saved yet — add it below)")
+                    : (GetOnlineKey().Length > 0 ? "☁️ Online via Replicate (key saved)" : "☁️ Online via Replicate (no key saved yet — add it below)"),
                 _ => UseGpu ? $"Auto → GPU ({gpuPart})" : $"Auto → CPU ({gpuPart})"
             };
         }

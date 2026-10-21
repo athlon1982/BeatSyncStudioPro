@@ -1124,6 +1124,7 @@ namespace BeatSyncStudioPro
                 new("My Songs…", "View", "", () => BtnMySongs_Click(this, ev)),
                 new("Freesound Sounds…", "Create", "", () => BtnFreesound_Click(this, ev)),
                 new("Sound Pack…", "Create", "", () => BtnSoundPack_Click(this, ev)),
+                new("Create Song…", "Create", "", () => BtnCreateSong_Click(this, ev)),
                 new("Render Queue…", "File", "", () => BtnRenderQueue_Click(this, ev)),
                 new("Batch Convert…", "File", "", () => BtnBatchConvert_Click(this, ev)),
                 new("Start Screen…", "File", "", () => MenuStartScreen_Click(this, ev)),
@@ -2463,6 +2464,15 @@ namespace BeatSyncStudioPro
             _soundPackWindow = new SoundPackWindow(this) { Owner = this };
             _soundPackWindow.Closed += (s, ev) => _soundPackWindow = null;
             _soundPackWindow.Show();
+        }
+
+        private CreateSongWindow? _createSongWindow;
+        private void BtnCreateSong_Click(object sender, RoutedEventArgs e)
+        {
+            if (_createSongWindow != null) { _createSongWindow.Activate(); return; }
+            _createSongWindow = new CreateSongWindow(this) { Owner = this };
+            _createSongWindow.Closed += (s, ev) => _createSongWindow = null;
+            _createSongWindow.Show();
         }
 
         private void MenuAbout_Click(object sender, RoutedEventArgs e)
