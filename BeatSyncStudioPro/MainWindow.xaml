@@ -6,7 +6,110 @@
         mc:Ignorable="d"
         Title="BeatSync Studio Pro" Icon="/Assets/app.ico" Height="800" Width="1400" WindowState="Maximized" MinWidth="900" MinHeight="600"
         PreviewKeyDown="Window_PreviewKeyDown"
-        Background="#14171E" Foreground="#FFFFFF" SnapsToDevicePixels="True" WindowStartupLocation="CenterScreen">
+        Foreground="#FFFFFF" SnapsToDevicePixels="True" WindowStartupLocation="CenterScreen">
+    <Window.Background>
+        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#0B0E14" Offset="0"/>
+            <GradientStop Color="#131926" Offset="0.55"/>
+            <GradientStop Color="#0D1420" Offset="1"/>
+        </LinearGradientBrush>
+    </Window.Background>
+
+    <Window.Resources>
+        <!-- Rounded pro buttons: any background color, soft hover/press -->
+        <Style TargetType="{x:Type Button}">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="#2A3446"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="7"
+                                Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.86"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.7"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Dark menu items (the stock light popups were the last un-pro corner) -->
+        <Style TargetType="{x:Type MenuItem}">
+            <Setter Property="Foreground" Value="#E8ECF3"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type MenuItem}">
+                        <Border x:Name="Border" Background="{TemplateBinding Background}" BorderThickness="0"
+                                Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True" CornerRadius="5">
+                            <Grid VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="18"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="14"/>
+                                </Grid.ColumnDefinitions>
+                                <Path x:Name="GlyphPath" Grid.Column="0" Data="M 1,6 L 5,10 L 12,1" Stroke="#1DB954"
+                                      StrokeThickness="2" Visibility="Collapsed" VerticalAlignment="Center"/>
+                                <ContentPresenter Grid.Column="1" ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Text="{TemplateBinding InputGestureText}" Foreground="#7C8698"
+                                           Margin="16,0,0,0" VerticalAlignment="Center"/>
+                                <Path x:Name="Arrow" Grid.Column="3" Data="M 1,1 L 6,4.5 L 1,8 Z" Fill="#7C8698"
+                                      Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                <Popup x:Name="PART_Popup" AllowsTransparency="True" Focusable="False"
+                                       IsOpen="{TemplateBinding IsSubmenuOpen}" Placement="Bottom" PopupAnimation="Fade">
+                                    <Border Background="#1B212E" BorderBrush="#2A3446" BorderThickness="1" CornerRadius="8" Padding="4" MinWidth="220">
+                                        <Border.Effect>
+                                            <DropShadowEffect Color="Black" Opacity="0.5" BlurRadius="14" ShadowDepth="3"/>
+                                        </Border.Effect>
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                    </Border>
+                                </Popup>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Role" Value="SubmenuHeader">
+                                <Setter TargetName="Arrow" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="PART_Popup" Property="Placement" Value="Right"/>
+                            </Trigger>
+                            <Trigger Property="Role" Value="TopLevelHeader">
+                                <Setter TargetName="PART_Popup" Property="Placement" Value="Bottom"/>
+                            </Trigger>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#2A3446"/>
+                            </Trigger>
+                            <Trigger Property="IsSubmenuOpen" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#2A3446"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="GlyphPath" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#59637A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="300"/>
@@ -14,11 +117,26 @@
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
+        <!-- Brand bar -->
+        <Border Grid.Row="0" Grid.ColumnSpan="2" Background="#0A0D13" BorderBrush="#2A3446" BorderThickness="0,0,0,1" Padding="14,7">
+            <Grid>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Source="/Assets/app-icon.png" Width="34" Height="34"/>
+                    <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="19" FontWeight="Bold"><Run Text="BEATSYNC" Foreground="#FFFFFF"/><Run Text=" STUDIO PRO" Foreground="#1DB954"/></TextBlock>
+                    <Border Background="#1B212E" BorderBrush="#2A3446" BorderThickness="1" CornerRadius="9" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="v3.0" FontSize="11" Foreground="#A0A5B5" FontWeight="Bold"/>
+                    </Border>
+                </StackPanel>
+                <TextBlock Text="Created by Michael DeCato" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="#8A93A5" FontSize="12"/>
+            </Grid>
+        </Border>
+
         <!-- Main menu bar -->
-        <Menu Grid.Row="0" Grid.ColumnSpan="2" Background="#1E222B" Foreground="White" Padding="6,2" BorderBrush="#333" BorderThickness="0,0,0,1">
+        <Menu Grid.Row="1" Grid.ColumnSpan="2" Background="#11151D" Foreground="White" Padding="6,2" BorderBrush="#2A3446" BorderThickness="0,0,0,1">
             <MenuItem Header="_File" Padding="10,4">
                 <MenuItem Header="🏠 Start Screen..." Click="MenuStartScreen_Click"/>
                 <MenuItem Header="📂 Open Project..." Click="BtnOpenProject_Click" InputGestureText="Ctrl+O"/>
@@ -66,7 +184,7 @@
         </Menu>
 
         <!-- ASSET LIBRARY SIDEBAR -->
-        <Border Grid.Row="1" Grid.Column="0" Background="#1E222B" Margin="10" CornerRadius="10" Padding="15" BorderBrush="#333" BorderThickness="1">
+        <Border Grid.Row="2" Grid.Column="0" Background="#1B212E" Margin="10" CornerRadius="10" Padding="15" BorderBrush="#2A3446" BorderThickness="1">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -75,13 +193,16 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Text="🎬 Asset Library" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12" Foreground="#E2E8F0"/>
+                <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                    <TextBlock Text="🎬 Asset Library" FontSize="16" FontWeight="SemiBold" Foreground="#E2E8F0"/>
+                    <Border Background="#1DB954" Height="2" Width="46" HorizontalAlignment="Left" CornerRadius="1" Margin="0,5,0,0"/>
+                </StackPanel>
 
                 <!-- Quick Import Buttons (the full import menu lives in the top menu bar) -->
                 <StackPanel Grid.Row="2" Orientation="Vertical" Margin="0,0,0,8">
-                    <Button Content="🎬 Quick Video" Click="BtnImportVideo_Click" Padding="10,8" Margin="0,0,0,6" Background="#7B1FA2" Foreground="White" BorderThickness="0" Cursor="Hand" FontWeight="SemiBold" Height="36"/>
-                    <Button Content="🖼️ Quick Images" Click="BtnImportImages_Click" Padding="10,8" Margin="0,0,0,6" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" FontWeight="SemiBold" Height="36"/>
-                    <Button Content="🎵 Quick Audio" Click="BtnImportAudioOrZip_Click" Padding="10,8" Background="#1DB954" Foreground="White" BorderThickness="0" Cursor="Hand" FontWeight="SemiBold" Height="36"/>
+                    <Button Content="🎬 Quick Video" Click="BtnImportVideo_Click" Padding="10,8" Margin="0,0,0,6" Background="#7B1FA2" Foreground="White" Height="36"/>
+                    <Button Content="🖼️ Quick Images" Click="BtnImportImages_Click" Padding="10,8" Margin="0,0,0,6" Background="#2A3446" Foreground="White" Height="36"/>
+                    <Button Content="🎵 Quick Audio" Click="BtnImportAudioOrZip_Click" Padding="10,8" Background="#1DB954" Foreground="White" Height="36"/>
                 </StackPanel>
 
                 <ScrollViewer Grid.Row="3" Margin="0,10,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -91,7 +212,7 @@
         </Border>
 
         <!-- MAIN SEQUENCER WORKSPACE -->
-        <Grid Grid.Row="1" Grid.Column="1" Margin="5,10,10,10">
+        <Grid Grid.Row="2" Grid.Column="1" Margin="5,10,10,10">
             <Grid.RowDefinitions>
                 <RowDefinition Height="3*" MinHeight="140"/>
                 <RowDefinition Height="Auto"/>
@@ -100,40 +221,43 @@
             </Grid.RowDefinitions>
 
             <!-- Video preview -->
-            <Border Grid.Row="0" Background="#0E1116" CornerRadius="10" Margin="10,5" BorderBrush="#333" BorderThickness="1">
+            <Border Grid.Row="0" Background="#07090D" CornerRadius="10" Margin="10,5" BorderBrush="#2A3446" BorderThickness="1">
                 <Grid>
                     <MediaElement x:Name="MasterVideoPlayer" LoadedBehavior="Manual" UnloadedBehavior="Stop" Stretch="Uniform"/>
-                    <TextBlock Text="📹 No Video Loaded" Foreground="#666" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="18" FontWeight="Bold" x:Name="NoVideoLabel"/>
+                    <TextBlock Text="📹 No Video Loaded" Foreground="#59637A" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="18" FontWeight="Bold" x:Name="NoVideoLabel"/>
                 </Grid>
             </Border>
 
             <!-- Timeline header with professional controls -->
-            <Border Grid.Row="1" Background="#1E222B" Margin="10,5" CornerRadius="6" Padding="15" BorderBrush="#333" BorderThickness="1">
+            <Border Grid.Row="1" Background="#1B212E" Margin="10,5" CornerRadius="8" Padding="15" BorderBrush="#2A3446" BorderThickness="1">
                 <Grid>
-                    <TextBlock Text="⏱️ Multitrack Timeline Editor" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="#E2E8F0"/>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="⏱️ Multitrack Timeline Editor" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="#E2E8F0"/>
+                        <Border Background="#1DB954" Height="2" Width="40" CornerRadius="1" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="🎬 Add Video" Click="BtnAddVideoToTimeline_Click" Padding="10,6" Margin="0,0,8,0" Background="#7B1FA2" Foreground="White" BorderThickness="0" FontWeight="SemiBold" Height="36"/>
-                        <Button Content="➕ Add Audio Track" Click="BtnAddTrack_Click" Padding="10,6" Margin="0,0,8,0" Background="#1DB954" Foreground="White" BorderThickness="0" FontWeight="SemiBold" Height="36"/>
-                        <Button Content="➖ Remove Audio Track" Click="BtnRemoveTrack_Click" Padding="10,6" Margin="0,0,8,0" Background="#A12424" Foreground="White" BorderThickness="0" FontWeight="SemiBold" Height="36"/>
-                        <Button Content="🗑️ Remove Video Track" Click="BtnRemoveVideo_Click" Padding="10,6" Background="#7B1FA2" Foreground="White" BorderThickness="0" FontWeight="SemiBold" Height="36"/>
+                        <Button Content="🎬 Add Video" Click="BtnAddVideoToTimeline_Click" Padding="10,6" Margin="0,0,8,0" Background="#7B1FA2" Foreground="White" Height="36"/>
+                        <Button Content="➕ Add Audio Track" Click="BtnAddTrack_Click" Padding="10,6" Margin="0,0,8,0" Background="#1DB954" Foreground="White" Height="36"/>
+                        <Button Content="➖ Remove Audio Track" Click="BtnRemoveTrack_Click" Padding="10,6" Margin="0,0,8,0" Background="#A12424" Foreground="White" Height="36"/>
+                        <Button Content="🗑️ Remove Video Track" Click="BtnRemoveVideo_Click" Padding="10,6" Background="#7B1FA2" Foreground="White" Height="36"/>
                     </StackPanel>
                 </Grid>
             </Border>
 
             <!-- Timeline area with ruler and tracks -->
-            <Grid Grid.Row="2" Margin="10,5" Background="#0E1116">
+            <Grid Grid.Row="2" Margin="10,5" Background="#0B0E13">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="40"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
                 <!-- Time ruler (corner stays fixed; the ticks scroll with the timeline) -->
-                <Grid Grid.Row="0" Background="#232731">
+                <Grid Grid.Row="0" Background="#1F2735">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="140"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Background="#1E222B">
+                    <Border Grid.Column="0" Background="#1B212E">
                         <TextBlock Text="Timeline" Foreground="#A0A5B5" FontWeight="Bold" FontSize="10" Margin="15,12,0,0"/>
                     </Border>
                     <Canvas Grid.Column="1" ClipToBounds="True">
@@ -148,41 +272,41 @@
                 <!-- Tracks area -->
                 <Grid Grid.Row="1">
                     <!-- Track labels sidebar -->
-                    <StackPanel x:Name="HeadersSidebar" Width="140" HorizontalAlignment="Left" Background="#14171E"/>
+                    <StackPanel x:Name="HeadersSidebar" Width="140" HorizontalAlignment="Left" Background="#12161F"/>
 
                     <!-- Scrollable timeline: clips and waveforms share one host so they scroll together -->
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Margin="140,0,0,0" x:Name="TimelineScrollViewer" ScrollChanged="TimelineScrollViewer_ScrollChanged">
                         <Grid x:Name="TimelineHost" Width="2500" Height="450">
-                            <Canvas x:Name="TimelineCanvas" Width="2500" Height="450" Background="#14171E" MouseLeftButtonUp="TimelineCanvas_MouseLeftButtonUp" AllowDrop="True" DragOver="TimelineCanvas_DragOver" Drop="TimelineCanvas_Drop"/>
+                            <Canvas x:Name="TimelineCanvas" Width="2500" Height="450" Background="#10141C" MouseLeftButtonUp="TimelineCanvas_MouseLeftButtonUp" AllowDrop="True" DragOver="TimelineCanvas_DragOver" Drop="TimelineCanvas_Drop"/>
                             <Canvas x:Name="WaveformOverlayCanvas" Width="2500" Height="450" IsHitTestVisible="False" Background="Transparent"/>
                         </Grid>
                     </ScrollViewer>
                 </Grid>
             </Grid>
 
-            <!-- Professional mixer footer -->
-            <Border Grid.Row="3" Background="#1E222B" CornerRadius="6" Padding="15" Margin="10,5" BorderBrush="#333" BorderThickness="1">
+            <!-- Transport / mixer footer -->
+            <Border Grid.Row="3" Background="#1B212E" CornerRadius="8" Padding="15" Margin="10,5" BorderBrush="#2A3446" BorderThickness="1">
                 <Grid>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                        <Button Content="▶ Play" Click="BtnPlay_Click" Width="100" Height="40" Margin="0,0,8,0" Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
-                        <Button Content="⏸ Pause" Click="BtnPause_Click" Width="100" Height="40" Margin="0,0,8,0" Background="#1568DB" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
-                        <Button Content="⏹ Stop" Click="BtnStop_Click" Width="100" Height="40" Background="#A12424" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
-                        <Button x:Name="SetABtn" Content="Set A" Click="BtnSetA_Click" Width="80" Height="40" Margin="16,0,0,0" Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
-                        <Button x:Name="SetBBtn" Content="Set B" Click="BtnSetB_Click" Width="80" Height="40" Margin="8,0,0,0" Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
-                        <Button x:Name="LoopToggleBtn" Content="🔁 Loop" Click="BtnLoopToggle_Click" Width="100" Height="40" Margin="8,0,0,0" Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
-                        <Button Content="🎚️ Mixer" Click="BtnMixer_Click" Width="100" Height="40" Margin="8,0,0,0" Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
-                        <Button Content="💾 Export" Click="BtnExportAudio_Click" Width="100" Height="40" Margin="8,0,0,0" Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
-                        <Button Content="📺 Output" Click="BtnOutput_Click" Width="100" Height="40" Margin="8,0,0,0" Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
-                        <Button Content="🎧 DJ" Click="BtnDj_Click" Width="100" Height="40" Margin="8,0,0,0" Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
-                        <Separator Width="1" Background="#333" Margin="5,0"/>
-                        <Button x:Name="BtnMasterMute" Content="🔊" Click="BtnMute_Click" Width="50" Height="40" Background="#2A303C" Foreground="#A0A5B5" BorderThickness="0" Cursor="Hand"/>
+                        <Button Content="▶ Play" Click="BtnPlay_Click" Width="104" Height="44" Margin="0,0,8,0" Background="#1DB954" Foreground="White" FontSize="14"/>
+                        <Button Content="⏸ Pause" Click="BtnPause_Click" Width="100" Height="44" Margin="0,0,8,0" Background="#1568DB" Foreground="White"/>
+                        <Button Content="⏹ Stop" Click="BtnStop_Click" Width="100" Height="44" Background="#A12424" Foreground="White"/>
+                        <Button x:Name="SetABtn" Content="Set A" Click="BtnSetA_Click" Width="80" Height="44" Margin="16,0,0,0" Background="#2A3446" Foreground="White"/>
+                        <Button x:Name="SetBBtn" Content="Set B" Click="BtnSetB_Click" Width="80" Height="44" Margin="8,0,0,0" Background="#2A3446" Foreground="White"/>
+                        <Button x:Name="LoopToggleBtn" Content="🔁 Loop" Click="BtnLoopToggle_Click" Width="100" Height="44" Margin="8,0,0,0" Background="#2A3446" Foreground="White"/>
+                        <Button Content="🎚️ Mixer" Click="BtnMixer_Click" Width="100" Height="44" Margin="8,0,0,0" Background="#2A3446" Foreground="White"/>
+                        <Button Content="💾 Export" Click="BtnExportAudio_Click" Width="100" Height="44" Margin="8,0,0,0" Background="#2A3446" Foreground="White"/>
+                        <Button Content="📺 Output" Click="BtnOutput_Click" Width="100" Height="44" Margin="8,0,0,0" Background="#2A3446" Foreground="White"/>
+                        <Button Content="🎧 DJ" Click="BtnDj_Click" Width="100" Height="44" Margin="8,0,0,0" Background="#2A3446" Foreground="White"/>
+                        <Separator Width="1" Background="#2A3446" Margin="5,0"/>
+                        <Button x:Name="BtnMasterMute" Content="🔊" Click="BtnMute_Click" Width="50" Height="44" Background="#2A3446" Foreground="#A0A5B5"/>
                         <TextBlock Text="Master" Foreground="#A0A5B5" VerticalAlignment="Center" Margin="10,0,0,0" FontSize="11" FontWeight="SemiBold"/>
                         <Slider x:Name="MasterVolumeSlider" Minimum="0" Maximum="1" Value="0.8" Width="120" VerticalAlignment="Center" ValueChanged="VolumeSlider_ValueChanged"/>
                         <TextBlock x:Name="VolumePercent" Text="80%" Foreground="#A0A5B5" VerticalAlignment="Center" Width="40" FontSize="11" TextAlignment="Right"/>
-                        <TextBlock x:Name="TimeDisplay" Text="0:00 / 0:00" Foreground="White" VerticalAlignment="Center" Margin="18,0,0,0" FontSize="14" FontWeight="Bold" FontFamily="Consolas"/>
+                        <TextBlock x:Name="TimeDisplay" Text="0:00 / 0:00" Foreground="#69F0AE" VerticalAlignment="Center" Margin="18,0,0,0" FontSize="15" FontWeight="Bold" FontFamily="Consolas"/>
                     </StackPanel>
 
-                    <TextBlock Text="Created by Michael DeCato" Foreground="#666666" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                    <TextBlock Text="Created by Michael DeCato" Foreground="#59637A" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Right"/>
                 </Grid>
             </Border>
         </Grid>
