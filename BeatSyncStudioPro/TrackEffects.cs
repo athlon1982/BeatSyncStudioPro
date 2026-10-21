@@ -27,6 +27,17 @@ namespace BeatSyncStudioPro
         public double ReverbMix { get; set; } = 0.3;
     }
 
+    /// <summary>Shared helper for running a provider through a TrackFxSettings chain (EQ → delay → reverb).</summary>
+    public static class ClipFxChain
+    {
+        public static bool HasAny(TrackFxSettings fx) =>
+            fx.DelayOn || fx.ReverbOn ||
+            (fx.EqOn && (Math.Abs(fx.LowDb) > 0.01 || Math.Abs(fx.MidDb) > 0.01 || Math.Abs(fx.HighDb) > 0.01));
+
+        public static ISampleProvider Apply(ISampleProvider source, TrackFxSettings fx) =>
+            new ReverbSampleProvider(new DelaySampleProvider(new EqSampleProvider(source, fx), fx), fx);
+    }
+
     /// <summary>
     /// Stereo balance/pan for stereo sources. NAudio's PanningSampleProvider
     /// only accepts mono input and throws on stereo — this is the stereo-safe

@@ -1411,7 +1411,8 @@ namespace BeatSyncStudioPro
                     ChainIndex = chain,
                     Reverse = block.Reverse,
                     Normalize = block.Normalize,
-                    NudgeMs = block.NudgeMs
+                    NudgeMs = block.NudgeMs,
+                    Fx = block.ClipFx
                 };
                 if (fadeByBlock.TryGetValue(block, out var fades))
                 {
@@ -1601,6 +1602,8 @@ namespace BeatSyncStudioPro
                     }
                 }
 
+                if (ClipFxChain.HasAny(block.ClipFx)) provider = ClipFxChain.Apply(provider, block.ClipFx);
+
                 var volumeSampleProvider = new VolumeSampleProvider(provider) { Volume = (float)(block.Volume * MasterVolume) };
 
                 // Route through the clip's track chain (track volume + pan live there)
@@ -1623,6 +1626,14 @@ namespace BeatSyncStudioPro
                 block.NudgeMs = dlg.ValueMs;
                 RefreshAfterBlockEdit();
             }
+        }
+
+        /// <summary>Per-clip FX editor — the same window as track FX, aimed at one clip's settings.</summary>
+        public void OpenClipFxDialog(FixedBlock block)
+        {
+            var dlg = new TrackFxWindow(block.ClipFx, $"Clip: {block.Filename}") { Owner = this };
+            dlg.ShowDialog();
+            RefreshAfterBlockEdit();
         }
 
         public void RemoveBlock(FixedBlock block)
@@ -1845,7 +1856,8 @@ namespace BeatSyncStudioPro
                         b.LengthSeconds,
                         b.Reverse,
                         b.Normalize,
-                        b.NudgeMs
+                        b.NudgeMs,
+                        ClipFx = b.ClipFx
                     }).ToList()
                 };
 
@@ -2038,6 +2050,11 @@ namespace BeatSyncStudioPro
                             bool reverse = b.TryGetProperty("Reverse", out var rv) && rv.GetBoolean();
                             bool normalize = b.TryGetProperty("Normalize", out var nm) && nm.GetBoolean();
                             int nudgeMs = b.TryGetProperty("NudgeMs", out var ng) ? ng.GetInt32() : 0;
+                            TrackFxSettings? clipFx = null;
+                            if (b.TryGetProperty("ClipFx", out var cfx))
+                            {
+                                try { clipFx = JsonSerializer.Deserialize<TrackFxSettings>(cfx.GetRawText()); } catch { }
+                            }
 
                             if (isVideo)
                             {
@@ -2069,6 +2086,7 @@ namespace BeatSyncStudioPro
                                 block.Reverse = reverse;
                                 block.Normalize = normalize;
                                 block.NudgeMs = nudgeMs;
+                                if (clipFx != null) block.ClipFx = clipFx;
                                 if (length > 0)
                                 {
                                     block.LengthSeconds = length;

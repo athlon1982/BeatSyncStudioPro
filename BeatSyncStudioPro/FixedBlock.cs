@@ -45,6 +45,9 @@ namespace BeatSyncStudioPro
         /// <summary>Play this clip's audio backwards.</summary>
         public bool Reverse { get; set; }
 
+        /// <summary>Per-clip FX (EQ/delay/reverb) applied before the track chain. Edited via the shared FX window.</summary>
+        public TrackFxSettings ClipFx { get; set; } = new TrackFxSettings();
+
         /// <summary>Normalize this clip's audio to about -0.5 dB peak.</summary>
         public bool Normalize { get; set; }
 
@@ -403,6 +406,10 @@ namespace BeatSyncStudioPro
                 detectItem.Click += (s, e) => _owner.DetectBeatsFromClip(this);
                 menu.Items.Add(detectItem);
 
+                var clipFxItem = new MenuItem { Header = "🎛️ Clip FX…" };
+                clipFxItem.Click += (s, e) => _owner.OpenClipFxDialog(this);
+                menu.Items.Add(clipFxItem);
+
                 menu.Opened += (s, e) =>
                 {
                     reverseItem.IsChecked = Reverse;
@@ -420,6 +427,7 @@ namespace BeatSyncStudioPro
                     Reverse = false;
                     Normalize = false;
                     NudgeMs = 0;
+                    ClipFx = new TrackFxSettings();
                     _owner.RefreshAfterBlockEdit();
                 };
                 menu.Items.Add(resetItem);

@@ -25,6 +25,7 @@ namespace BeatSyncStudioPro
         public int NudgeMs;
         public double FadeInSeconds;
         public double FadeOutSeconds;
+        public TrackFxSettings Fx = new TrackFxSettings();
 
         /// <summary>When the clip's audio actually starts in the export (nudge applied, never negative).</summary>
         public double DelaySeconds => Math.Max(0, StartSeconds + NudgeMs / 1000.0);
@@ -357,6 +358,8 @@ namespace BeatSyncStudioPro
                     double total = audibleLen > 0 ? audibleLen : clip.LengthSeconds;
                     if (total > 0) provider = new AutoFadeSampleProvider(provider, clip.FadeInSeconds, clip.FadeOutSeconds, total);
                 }
+
+                if (ClipFxChain.HasAny(clip.Fx)) provider = ClipFxChain.Apply(provider, clip.Fx);
 
                 return new VolumeSampleProvider(provider) { Volume = (float)clip.Volume };
             }
