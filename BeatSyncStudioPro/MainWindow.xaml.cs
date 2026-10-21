@@ -1056,8 +1056,20 @@ namespace BeatSyncStudioPro
             };
             if (dialog.ShowDialog() != true) return;
 
-            var options = new ExportOptionsWindow { Owner = this };
+            var options = new ExportOptionsWindow(
+                System.IO.Path.GetFileNameWithoutExtension(dialog.FileName), ProjectBpm) { Owner = this };
             if (options.ShowDialog() != true) return;
+
+            // Filename pattern ($project, $date, $bpm, …) renames the chosen file
+            string finalPath = dialog.FileName;
+            string expanded = ExportOptionsWindow.ExpandPattern(options.FilenamePattern,
+                System.IO.Path.GetFileNameWithoutExtension(dialog.FileName), ProjectBpm, options.Preset);
+            if (!string.IsNullOrWhiteSpace(expanded) && expanded != System.IO.Path.GetFileNameWithoutExtension(dialog.FileName))
+            {
+                finalPath = System.IO.Path.Combine(
+                    System.IO.Path.GetDirectoryName(dialog.FileName) ?? "",
+                    expanded + System.IO.Path.GetExtension(dialog.FileName));
+            }
 
             var job = BuildExportJob();
             job.MasteringPreset = options.Preset;
@@ -1067,14 +1079,14 @@ namespace BeatSyncStudioPro
             progressWindow.Show();
             try
             {
-                await Task.Run(() => ExportRenderer.Render(job, dialog.FileName, progressWindow.Progress, progressWindow.Token));
+                await Task.Run(() => ExportRenderer.Render(job, finalPath, progressWindow.Progress, progressWindow.Token));
                 progressWindow.Close();
-                MessageBox.Show($"Your mix is exported:\n{dialog.FileName}", "💾 Export complete");
+                MessageBox.Show($"Your mix is exported:\n{finalPath}", "💾 Export complete");
             }
             catch (OperationCanceledException)
             {
                 progressWindow.Close();
-                try { if (System.IO.File.Exists(dialog.FileName)) System.IO.File.Delete(dialog.FileName); } catch { }
+                try { if (System.IO.File.Exists(finalPath)) System.IO.File.Delete(finalPath); } catch { }
                 MessageBox.Show("Export cancelled — no file was saved.", "Export");
             }
             catch (Exception ex)
