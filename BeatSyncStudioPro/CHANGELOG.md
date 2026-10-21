@@ -3,6 +3,12 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.7 — A Visual for Every Mood
+### Added
+- **Eleven deck visuals** (the Visual picker on each deck): **Spectrum**, **Rainbow Spectrum** (LED blocks), **Spectrum + Peaks** (falling white peak caps), **Mirrored Spectrum**, **Radial Spectrum** (bars radiating from a circle), **VU Bars** (green / yellow / red zones), **Waterfall** (history scrolling down), **Wave Fill**, **Waveform**, **Level + Bass** (two big meters), and **Falling Dots** — plus Off. Every spectrum mode uses the auto-gain from 3.6, so they all dance at any volume.
+### Changed
+- **My Songs is now per-user, the way it should be**: the panel no longer preloads anyone's songs. Each user signs into **their own** Suno / SoundCloud account in the player (the sites handle the login; the app never sees a password, and the session stays signed in on that PC). The songs on the page being viewed appear in a **"Songs on this page"** list — click one and it plays, with its **cover photo and lyrics** shown underneath when the page has them. The hand-built quick list stays, saved locally per user.
+
 ## Version 3.6 — Decks That Fit, Spectrum That Works
 ### Fixed
 - **The DJ window fits your screen now**: it clamps itself to the screen's work area when it opens (scaled displays were clipping it on the right and bottom), the platters render a little smaller, and the track lists are tighter — everything is reachable without hunting for the scrollbar.

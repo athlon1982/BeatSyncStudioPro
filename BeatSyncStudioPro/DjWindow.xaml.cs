@@ -224,6 +224,10 @@ namespace BeatSyncStudioPro
             private Border _visualBorder = null!;
             private Image _visualImage = null!;
             private float _specPeak = 0.2f;
+            private readonly float[] _peakCaps = new float[48];
+            private readonly float[] _dotPos = new float[48];
+            private readonly float[] _dotVel = new float[48];
+            private readonly List<float[]> _waterHistory = new List<float[]>();
             private readonly List<string> _queuePaths = new List<string>();
             private int _queueIndex = -1;
             private ListBox _queueList = null!;
@@ -286,16 +290,24 @@ namespace BeatSyncStudioPro
                 // Live visual for THIS deck's own sound: spectrum / waveform / off
                 var visRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
                 visRow.Children.Add(new TextBlock { Text = "Visual", Foreground = MutedText, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Width = 42 });
-                _visualPicker = new ComboBox { Width = 130, VerticalAlignment = VerticalAlignment.Center };
+                _visualPicker = new ComboBox { Width = 150, VerticalAlignment = VerticalAlignment.Center };
                 _visualPicker.Items.Add(new ComboBoxItem { Content = "📊 Spectrum" });
                 _visualPicker.Items.Add(new ComboBoxItem { Content = "🌈 Rainbow Spectrum" });
+                _visualPicker.Items.Add(new ComboBoxItem { Content = "📈 Spectrum + Peaks" });
+                _visualPicker.Items.Add(new ComboBoxItem { Content = "💜 Mirrored Spectrum" });
+                _visualPicker.Items.Add(new ComboBoxItem { Content = "⭕ Radial Spectrum" });
+                _visualPicker.Items.Add(new ComboBoxItem { Content = "🎚️ VU Bars" });
+                _visualPicker.Items.Add(new ComboBoxItem { Content = "🌋 Waterfall" });
+                _visualPicker.Items.Add(new ComboBoxItem { Content = "🌊 Wave Fill" });
                 _visualPicker.Items.Add(new ComboBoxItem { Content = "〰️ Waveform" });
+                _visualPicker.Items.Add(new ComboBoxItem { Content = "💡 Level + Bass" });
+                _visualPicker.Items.Add(new ComboBoxItem { Content = "✨ Falling Dots" });
                 _visualPicker.Items.Add(new ComboBoxItem { Content = "Off" });
                 _visualPicker.SelectedIndex = 0;
                 _visualPicker.SelectionChanged += (s, e) =>
                 {
                     if (_visualBorder != null)
-                        _visualBorder.Visibility = _visualPicker.SelectedIndex == 3 ? Visibility.Collapsed : Visibility.Visible;
+                        _visualBorder.Visibility = _visualPicker.SelectedIndex == _visualPicker.Items.Count - 1 ? Visibility.Collapsed : Visibility.Visible;
                 };
                 visRow.Children.Add(_visualPicker);
                 visRow.Children.Add(new TextBlock { Text = "(this deck's own sound)", Foreground = MutedText, FontSize = 9, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
@@ -723,6 +735,208 @@ namespace BeatSyncStudioPro
                 LoadBytes(bytes, name);
             }
 
+            /// <summary>Auto-gained spectrum bands (0..1) — raw FFT values run small.</summary>
+            private double[] ScaledBands()
+            {
+                var bands = _tap.GetSpectrum(48);
+                var scaled = new double[48];
+                float frameMax = 0;
+                for (int i = 0; i < 48; i++) frameMax = Math.Max(frameMax, bands[i]);
+                _specPeak = Math.Max(Math.Max(frameMax, _specPeak * 0.994f), 0.12f);
+                for (int i = 0; i < 48; i++)
+                    scaled[i] = Math.Clamp(Math.Sqrt(bands[i] / _specPeak) * 0.95, 0, 1);
+                return scaled;
+            }
+
+            private static void DrawMeter(DrawingContext dc, double y, float value, Brush fill, int W)
+            {
+                dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(0x24, 0x29, 0x36)), null, new Rect(0, y, W, 16));
+                double w = Math.Clamp(value, 0f, 1f) * W;
+                if (w > 1) dc.DrawRectangle(fill, null, new Rect(0, y, w, 16));
+            }
+
+            private void DrawDeckVisual(DrawingContext dc, int mode, int W, int H)
+            {
+                // Wave-based modes draw from the scope trace (flat line when idle)
+                if (mode == 7 || mode == 8)
+                {
+                    var wave = _tap.GetWaveform(220);
+                    if (mode == 8)
+                    {
+                        var pen = new Pen(_accent, 1.2);
+                        Point prev = new Point(0, H / 2.0 - wave[0] * (H / 2.0 - 2));
+                        for (int p = 1; p < wave.Length; p++)
+                        {
+                            var pt = new Point(p * 2, H / 2.0 - wave[p] * (H / 2.0 - 2));
+                            dc.DrawLine(pen, prev, pt);
+                            prev = pt;
+                        }
+                    }
+                    else
+                    {
+                        var geo = new StreamGeometry();
+                        using (var ctx = geo.Open())
+                        {
+                            ctx.BeginFigure(new Point(0, H), true, true);
+                            for (int p = 0; p < wave.Length; p++)
+                                ctx.LineTo(new Point(p * 2, H / 2.0 - wave[p] * (H / 2.0 - 2)), true, false);
+                            ctx.LineTo(new Point(W, H), true, false);
+                        }
+                        geo.Freeze();
+                        var fill = new SolidColorBrush(_accent.Color) { Opacity = 0.45 };
+                        dc.DrawGeometry(fill, new Pen(_accent, 1.2), geo);
+                    }
+                    return;
+                }
+
+                if (!_deck.IsLoaded)
+                {
+                    if (mode == 9)
+                    {
+                        DrawMeter(dc, 6, 0, (Brush)_accent, W);
+                        DrawMeter(dc, 30, 0, new SolidColorBrush(Color.FromRgb(0xFF, 0xC8, 0x3D)), W);
+                    }
+                    else
+                    {
+                        var dim = new SolidColorBrush(_accent.Color) { Opacity = 0.45 };
+                        dc.DrawRectangle(dim, null, new Rect(0, H - 4, W, 2));
+                    }
+                    return;
+                }
+
+                if (mode == 9)
+                {
+                    DrawMeter(dc, 6, _tap.Level, (Brush)_accent, W);
+                    DrawMeter(dc, 30, _tap.BassLevel, new SolidColorBrush(Color.FromRgb(0xFF, 0xC8, 0x3D)), W);
+                    return;
+                }
+
+                var v = ScaledBands();
+                double bw = W / 48.0;
+
+                switch (mode)
+                {
+                    case 0: // Spectrum bars in the deck color
+                        for (int i = 0; i < 48; i++)
+                        {
+                            double h = Math.Max(1, v[i] * (H - 4));
+                            dc.DrawRectangle((Brush)_accent, null, new Rect(i * bw + 1, H - h, bw - 2, h));
+                        }
+                        break;
+
+                    case 1: // Rainbow LED blocks — hue sweeps red→orange across the bands
+                    {
+                        const int segH = 4, segGap = 2, rows = 8;
+                        for (int i = 0; i < 48; i++)
+                        {
+                            int lit = (int)Math.Round(v[i] * rows);
+                            double hue = (360.0 - (i / 47.0) * 325.0 + 360.0) % 360.0;
+                            var brush = new SolidColorBrush(HslToRgb(hue, 1.0, 0.55));
+                            for (int r = 0; r < lit; r++)
+                            {
+                                double y = H - 2 - (r + 1) * segH - r * segGap;
+                                dc.DrawRectangle(brush, null, new Rect(i * bw + 1, y, bw - 2, segH));
+                            }
+                        }
+                        break;
+                    }
+
+                    case 2: // Spectrum + falling white peak caps
+                        for (int i = 0; i < 48; i++)
+                        {
+                            double h = Math.Max(1, v[i] * (H - 6));
+                            dc.DrawRectangle((Brush)_accent, null, new Rect(i * bw + 1, H - h, bw - 2, h));
+                            _peakCaps[i] = Math.Max((float)v[i], _peakCaps[i] - 0.008f);
+                            double capY = H - 2 - _peakCaps[i] * (H - 6);
+                            dc.DrawRectangle(Brushes.White, null, new Rect(i * bw + 1, capY, bw - 2, 2));
+                        }
+                        break;
+
+                    case 3: // Mirrored spectrum — bars grow both ways from the center line
+                        for (int i = 0; i < 48; i++)
+                        {
+                            double half = v[i] * (H / 2.0 - 2);
+                            dc.DrawRectangle((Brush)_accent, null, new Rect(i * bw + 1, H / 2.0 - half, bw - 2, half * 2));
+                        }
+                        break;
+
+                    case 4: // Radial spectrum — bars radiating from a center circle
+                    {
+                        var center = new Point(W / 2.0, H / 2.0);
+                        var pen = new Pen(_accent, 2.5);
+                        dc.DrawEllipse(null, new Pen(_accent, 1), center, 8, 8);
+                        for (int i = 0; i < 48; i++)
+                        {
+                            double a = i / 48.0 * Math.PI * 2 - Math.PI / 2;
+                            double r0 = 10, r1 = 10 + v[i] * 15;
+                            dc.DrawLine(pen,
+                                new Point(center.X + Math.Cos(a) * r0, center.Y + Math.Sin(a) * r0),
+                                new Point(center.X + Math.Cos(a) * r1, center.Y + Math.Sin(a) * r1));
+                        }
+                        break;
+                    }
+
+                    case 5: // VU bars — wide LED bars, green/yellow/red zones
+                    {
+                        const int segH = 4, segGap = 2, rows = 8;
+                        double vw = W / 24.0;
+                        for (int i = 0; i < 24; i++)
+                        {
+                            double val = (v[i * 2] + v[i * 2 + 1]) / 2;
+                            int lit = (int)Math.Round(val * rows);
+                            for (int r = 0; r < lit; r++)
+                            {
+                                double frac = (double)r / rows;
+                                var brush = new SolidColorBrush(frac < 0.55 ? Color.FromRgb(0x1D, 0xB9, 0x54)
+                                    : frac < 0.8 ? Color.FromRgb(0xFF, 0xC8, 0x3D)
+                                    : Color.FromRgb(0xFF, 0x52, 0x52));
+                                double y = H - 2 - (r + 1) * segH - r * segGap;
+                                dc.DrawRectangle(brush, null, new Rect(i * vw + 1, y, vw - 2, segH));
+                            }
+                        }
+                        break;
+                    }
+
+                    case 6: // Waterfall — newest frame on top, history scrolls down and fades
+                    {
+                        var frame = new float[48];
+                        for (int i = 0; i < 48; i++) frame[i] = (float)v[i];
+                        _waterHistory.Insert(0, frame);
+                        while (_waterHistory.Count > 12) _waterHistory.RemoveAt(_waterHistory.Count - 1);
+                        double cellH = H / 12.0;
+                        for (int r = 0; r < _waterHistory.Count; r++)
+                        {
+                            var row = _waterHistory[r];
+                            for (int i = 0; i < 48; i++)
+                            {
+                                if (row[i] < 0.04) continue;
+                                var brush = new SolidColorBrush(_accent.Color) { Opacity = Math.Clamp(row[i], 0f, 1f) * (1 - r / 16.0) };
+                                dc.DrawRectangle(brush, null, new Rect(i * bw + 0.5, r * cellH + 0.5, bw - 1, cellH - 1));
+                            }
+                        }
+                        break;
+                    }
+
+                    case 10: // Falling dots — dim bars with bright dots that drop with gravity
+                        for (int i = 0; i < 48; i++)
+                        {
+                            double h = Math.Max(1, v[i] * (H - 6));
+                            var dimBar = new SolidColorBrush(_accent.Color) { Opacity = 0.35 };
+                            dc.DrawRectangle(dimBar, null, new Rect(i * bw + 1, H - h, bw - 2, h));
+                            if (v[i] >= _dotPos[i]) { _dotPos[i] = (float)v[i]; _dotVel[i] = 0; }
+                            else
+                            {
+                                _dotVel[i] += 0.012f;
+                                _dotPos[i] -= _dotVel[i];
+                                if (_dotPos[i] < (float)v[i]) _dotPos[i] = (float)v[i];
+                            }
+                            double dy = H - 3 - _dotPos[i] * (H - 6);
+                            dc.DrawEllipse(Brushes.White, null, new Point(i * bw + bw / 2, dy), 2.2, 2.2);
+                        }
+                        break;
+                }
+            }
+
             private static Color HslToRgb(double h, double s, double l)
             {
                 double c = (1 - Math.Abs(2 * l - 1)) * s;
@@ -1006,62 +1220,10 @@ namespace BeatSyncStudioPro
                 if (_visualBorder != null && _visualBorder.Visibility == Visibility.Visible && _visualPicker != null)
                 {
                     const int W = 440, H = 54;
-                    int mode = _visualPicker.SelectedIndex;
                     var visual = new DrawingVisual();
                     using (var dc = visual.RenderOpen())
                     {
-                        if (mode == 2)
-                        {
-                            var wave = _tap.GetWaveform(220);
-                            var pen = new Pen(_accent, 1.2);
-                            Point prev = new Point(0, H / 2.0 - wave[0] * (H / 2.0 - 2));
-                            for (int p = 1; p < wave.Length; p++)
-                            {
-                                var pt = new Point(p * 2, H / 2.0 - wave[p] * (H / 2.0 - 2));
-                                dc.DrawLine(pen, prev, pt);
-                                prev = pt;
-                            }
-                        }
-                        else if (!_deck.IsLoaded)
-                        {
-                            // Idle: a resting baseline instead of an empty black box
-                            var dim = new SolidColorBrush(_accent.Color) { Opacity = 0.45 };
-                            dc.DrawRectangle(dim, null, new Rect(0, H - 4, W, 2));
-                        }
-                        else
-                        {
-                            // Spectrum with auto-gain: raw FFT values run small,
-                            // so normalize to a slowly-decaying recent peak —
-                            // otherwise the bars sit at 1-2px and look broken.
-                            var bands = _tap.GetSpectrum(48);
-                            float frameMax = 0;
-                            for (int i = 0; i < 48; i++) frameMax = Math.Max(frameMax, bands[i]);
-                            _specPeak = Math.Max(Math.Max(frameMax, _specPeak * 0.994f), 0.12f);
-                            double bw = W / 48.0;
-                            for (int i = 0; i < 48; i++)
-                            {
-                                double v = Math.Clamp(Math.Sqrt(bands[i] / _specPeak) * 0.95, 0, 1);
-                                if (mode == 0)
-                                {
-                                    double h = Math.Max(1, v * (H - 4));
-                                    dc.DrawRectangle((Brush)_accent, null, new Rect(i * bw + 1, H - h, bw - 2, h));
-                                }
-                                else
-                                {
-                                    // Rainbow LED blocks (Michael's pick): stacked
-                                    // segments, hue sweeping red→orange across the bands
-                                    const int segH = 4, segGap = 2, rows = 8;
-                                    int lit = (int)Math.Round(v * rows);
-                                    double hue = (360.0 - (i / 47.0) * 325.0 + 360.0) % 360.0;
-                                    var brush = new SolidColorBrush(HslToRgb(hue, 1.0, 0.55));
-                                    for (int r = 0; r < lit; r++)
-                                    {
-                                        double y = H - 2 - (r + 1) * segH - r * segGap;
-                                        dc.DrawRectangle(brush, null, new Rect(i * bw + 1, y, bw - 2, segH));
-                                    }
-                                }
-                            }
-                        }
+                        DrawDeckVisual(dc, _visualPicker.SelectedIndex, W, H);
                     }
                     var bmp = new RenderTargetBitmap(W, H, 96, 96, PixelFormats.Pbgra32);
                     bmp.Render(visual);

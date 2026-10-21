@@ -3,16 +3,19 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         Title="My Songs — BeatSync Studio Pro" Icon="/Assets/app.ico"
-        Width="980" Height="640" MinWidth="760" MinHeight="480"
+        Width="1060" Height="700" MinWidth="820" MinHeight="520"
         Background="#1E222B" Foreground="#FFFFFF" WindowStartupLocation="CenterOwner">
     <Grid Margin="14">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="270"/>
+            <ColumnDefinition Width="280"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
         <Grid Grid.Column="0" Margin="0,0,12,0">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="128"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
@@ -20,12 +23,20 @@
             </Grid.RowDefinitions>
             <StackPanel Grid.Row="0">
                 <TextBlock Text="🎵 My Songs" FontSize="16" FontWeight="Bold"/>
-                <TextBlock Text="Your published songs, one click away. Pick one to play it here."
-                           Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,8"/>
+                <TextBlock Text="Sign in to Suno or SoundCloud in the player — the songs on the page you're viewing show up in the list below. Click one to play it, with its cover and lyrics when the page has them. Nothing is preloaded; every user sees their own account."
+                           Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,6"/>
             </StackPanel>
-            <ListBox x:Name="SongsList" Grid.Row="1" Background="#14171E" Foreground="White" BorderBrush="#333"
+            <Grid Grid.Row="1" Margin="0,2,0,4">
+                <TextBlock Text="🔎 SONGS ON THIS PAGE" Foreground="#A0A5B5" FontSize="10" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Button Content="🔄 Refresh" Click="RefreshFound_Click" HorizontalAlignment="Right" Padding="8,2"
+                        Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" FontSize="10"/>
+            </Grid>
+            <ListBox x:Name="FoundList" Grid.Row="2" Background="#14171E" Foreground="White" BorderBrush="#333"
+                     SelectionChanged="FoundList_SelectionChanged"/>
+            <TextBlock Grid.Row="3" Text="⭐ YOUR QUICK LIST" Foreground="#A0A5B5" FontSize="10" FontWeight="Bold" Margin="0,10,0,4"/>
+            <ListBox x:Name="SongsList" Grid.Row="4" Background="#14171E" Foreground="White" BorderBrush="#333"
                      SelectionChanged="SongsList_SelectionChanged"/>
-            <StackPanel Grid.Row="2" Margin="0,10,0,0">
+            <StackPanel Grid.Row="5" Margin="0,10,0,0">
                 <TextBlock Text="Add a song (Suno or SoundCloud link)" Foreground="#A0A5B5" FontSize="11"/>
                 <TextBox x:Name="TitleBox" Margin="0,4,0,0" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="6,4"
                          ToolTip="Title"/>
@@ -36,13 +47,14 @@
                     <Button Content="🗑 Remove" Click="Remove_Click" Padding="12,5" Margin="8,0,0,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
                 </StackPanel>
             </StackPanel>
-            <TextBlock Grid.Row="3" Margin="0,10,0,0" Foreground="#666666" FontSize="10" TextWrapping="Wrap"
-                       Text="Streaming pages play here for listening. To edit a song's audio in the timeline or the DJ decks, import the audio file itself — the app never logs into Suno or downloads from it."/>
+            <TextBlock Grid.Row="6" Margin="0,10,0,0" Foreground="#666666" FontSize="10" TextWrapping="Wrap"
+                       Text="You sign in on Suno / SoundCloud's own pages inside this window — the app never sees your password, and you stay signed in on this PC. Covers and lyrics are read from the song's page when it has them. To edit a song's audio in the timeline or the DJ decks, import the audio file itself."/>
         </Grid>
 
         <Grid Grid.Column="1">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
             <Border Grid.Row="0" BorderBrush="#2A3446" BorderThickness="1" CornerRadius="6" Background="#14171E">
@@ -50,14 +62,34 @@
                     <wv2:WebView2 x:Name="Player"/>
                     <TextBlock x:Name="FallbackText" Visibility="Collapsed" TextWrapping="Wrap" Margin="20"
                                Foreground="#A0A5B5" FontSize="13"
-                               Text="The in-app player couldn't start on this PC — use “Open in Browser” below to play the song instead."/>
+                               Text="The in-app player couldn't start on this PC — use “Open in Browser” below to open the sites instead."/>
                 </Grid>
             </Border>
             <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
-                <TextBlock x:Name="NowText" Text="Pick a song on the left" VerticalAlignment="Center" Foreground="#A0A5B5" FontSize="12"/>
-                <Button Content="🌐 Open in Browser" Click="OpenBrowser_Click" Padding="12,5" Margin="14,0,0,0"
+                <Button Content="🎵 Suno" Click="NavSuno_Click" Padding="12,5"
+                        Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                <Button Content="📚 My Suno Library" Click="NavSunoLibrary_Click" Padding="12,5" Margin="8,0,0,0"
+                        Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                <Button Content="🔊 SoundCloud" Click="NavSoundCloud_Click" Padding="12,5" Margin="8,0,0,0"
+                        Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                <Button Content="🌐 Open in Browser" Click="OpenBrowser_Click" Padding="12,5" Margin="8,0,0,0"
                         Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
             </StackPanel>
+            <Border Grid.Row="2" BorderBrush="#2A3446" BorderThickness="1" CornerRadius="6" Background="#14171E" Margin="0,10,0,0" Padding="10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Image x:Name="CoverImage" Grid.Column="0" Width="118" Height="118" Stretch="UniformToFill" VerticalAlignment="Top"/>
+                    <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                        <TextBlock x:Name="DetailTitle" Text="Open one of your songs and its cover + lyrics land here" FontSize="14" FontWeight="Bold" TextWrapping="Wrap"/>
+                        <TextBox x:Name="DetailLyrics" Height="92" Margin="0,6,0,0" IsReadOnly="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#0E1116" Foreground="#D5DBDB" BorderBrush="#333" Padding="6"
+                                 Text="Lyrics appear here when the song's page includes them."/>
+                    </StackPanel>
+                </Grid>
+            </Border>
         </Grid>
     </Grid>
 </Window>
