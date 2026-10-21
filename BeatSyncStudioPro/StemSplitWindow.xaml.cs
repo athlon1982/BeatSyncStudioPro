@@ -155,11 +155,14 @@ namespace BeatSyncStudioPro
         private async Task SplitOnlineAsync(FixedBlock? clip, ComputeSettings compute)
         {
             bool hf = compute.OnlineProvider == "huggingface";
-            string key = hf ? compute.GetHfKey() : compute.GetOnlineKey();
+            bool fal = compute.OnlineProvider == "fal";
+            string key = hf ? compute.GetHfKey() : fal ? compute.GetFalKey() : compute.GetOnlineKey();
             if (key.Length == 0)
             {
                 StatusText.Text = hf
                     ? "☁️ Online compute needs your Hugging Face token first — open the AI Lab, set Compute to ☁️ Online, pick Hugging Face, and save your token there."
+                    : fal
+                    ? "☁️ Online compute needs your fal.ai API key first — open the AI Lab, set Compute to ☁️ Online, pick fal.ai, and save your key there."
                     : "☁️ Online compute needs your Replicate API key first — open the AI Lab, set Compute to ☁️ Online, and save your key there.";
                 return;
             }
@@ -186,6 +189,8 @@ namespace BeatSyncStudioPro
             BusyBar.IsIndeterminate = true;
             var stems = hf
                 ? await OnlineStems.RunHfDemucsAsync(bytes, ext, key, msg => StatusText.Text = msg, _cts.Token)
+                : fal
+                ? await FalOnline.RunDemucsAsync(bytes, ext, key, msg => StatusText.Text = msg, _cts.Token)
                 : await OnlineStems.RunDemucsAsync(bytes, ext, key, msg => StatusText.Text = msg, _cts.Token);
             Directory.CreateDirectory(outFolder);
             foreach (var kv in stems)
@@ -194,7 +199,7 @@ namespace BeatSyncStudioPro
                 await File.WriteAllBytesAsync(file, kv.Value.Data, _cts.Token);
                 ResultList.Items.Add(file);
             }
-            StatusText.Text = $"✅ Done (☁️ {(hf ? "Hugging Face" : "Replicate")}) — stems are in:\n{outFolder}\nImport them from the library (Import Audio) to drop them on tracks.";
+            StatusText.Text = $"✅ Done (☁️ {(hf ? "Hugging Face" : fal ? "fal.ai" : "Replicate")}) — stems are in:\n{outFolder}\nImport them from the library (Import Audio) to drop them on tracks.";
         }
 
         private async Task DownloadModelAsync(CancellationToken token)

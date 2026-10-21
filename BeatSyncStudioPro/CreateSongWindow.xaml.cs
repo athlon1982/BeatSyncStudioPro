@@ -137,11 +137,17 @@ namespace BeatSyncStudioPro
             }
             if (compute.OnlineProvider == "huggingface")
             {
-                StatusText.Text = "☁️ Song generation isn't wired to the Hugging Face free tier yet (their free song models come and go). Switch the online provider to Replicate in the AI Lab, or use your local engine once it's set up.";
+                StatusText.Text = "☁️ Song generation isn't wired to the Hugging Face free tier yet (their free song models come and go). Switch the online provider to Replicate or fal.ai in the AI Lab, or use your local engine once it's set up.";
+                return;
+            }
+            bool fal = compute.OnlineProvider == "fal";
+            if (fal && compute.GetFalKey().Length == 0)
+            {
+                StatusText.Text = "☁️ Add your fal.ai API key first — AI Lab → 🔑 Keys & Compute tab (fal.ai is paid per run; there's a signup button right there).";
                 return;
             }
             string key = compute.GetOnlineKey();
-            if (key.Length == 0)
+            if (!fal && key.Length == 0)
             {
                 StatusText.Text = "☁️ Add your Replicate API key first — AI Lab → 🔑 Keys & Compute tab (there's a 'Sign up for Replicate' button right there).";
                 return;
@@ -153,10 +159,14 @@ namespace BeatSyncStudioPro
             try
             {
                 double guidance = 1.0 + (WeirdSlider.Value / 100.0) * 9.0; // weirdness -> guidance 1..10
-                var (data, ext) = await OnlineSongs.GenerateAceStepAsync(
-                    key, title, StyleBox.Text.Trim(), LyricsBox.Text.Trim(),
-                    DurationSeconds, guidance,
-                    msg => StatusText.Text = msg, _cts.Token);
+                var (data, ext) = fal
+                    ? await FalOnline.GenerateAceStepAsync(
+                        compute.GetFalKey(), StyleBox.Text.Trim(), LyricsBox.Text.Trim(),
+                        DurationSeconds, msg => StatusText.Text = msg, _cts.Token)
+                    : await OnlineSongs.GenerateAceStepAsync(
+                        key, title, StyleBox.Text.Trim(), LyricsBox.Text.Trim(),
+                        DurationSeconds, guidance,
+                        msg => StatusText.Text = msg, _cts.Token);
                 string stored = _owner.AddToLibraryOnly(data, title + "." + ext);
                 StatusText.Text = $"✅ '{stored}' is in your library — drag it onto the timeline to mix it." +
                     (_backingBeatName != null ? $"\n🥁 Your backing beat '{_backingBeatName}' is in the library too — drop it on the track under the song." : "") +

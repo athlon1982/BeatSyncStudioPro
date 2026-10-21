@@ -57,7 +57,7 @@ namespace BeatSyncStudioPro
         {
             _computeLoading = true;
             ComputePicker.SelectedIndex = _compute.Mode switch { "CPU" => 1, "GPU" => 2, "Online" => 3, _ => 0 };
-            OnlineProviderPicker.SelectedIndex = _compute.OnlineProvider == "huggingface" ? 1 : 0;
+            OnlineProviderPicker.SelectedIndex = _compute.OnlineProvider switch { "huggingface" => 1, "fal" => 2, _ => 0 };
             LoadProviderKey();
             var gpus = ComputeSettings.GpuNames();
             GpuPicker.Items.Clear();
@@ -111,17 +111,20 @@ namespace BeatSyncStudioPro
         }
 
         private bool HfSelected => OnlineProviderPicker.SelectedIndex == 1;
+        private bool FalSelected => OnlineProviderPicker.SelectedIndex == 2;
 
         private void LoadProviderKey()
         {
-            OnlineKeyBox.Password = HfSelected ? _compute.GetHfKey() : _compute.GetOnlineKey();
+            OnlineKeyBox.Password = HfSelected ? _compute.GetHfKey()
+                : FalSelected ? _compute.GetFalKey()
+                : _compute.GetOnlineKey();
             OnlineKeyStatus.Text = OnlineKeyBox.Password.Length > 0 ? "Key saved ✓" : "";
         }
 
         private void OnlineProviderPicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_computeLoading || !IsLoaded) return;
-            _compute.OnlineProvider = HfSelected ? "huggingface" : "replicate";
+            _compute.OnlineProvider = HfSelected ? "huggingface" : FalSelected ? "fal" : "replicate";
             _compute.Save();
             LoadProviderKey();
             RefreshComputeInfo();
@@ -129,9 +132,14 @@ namespace BeatSyncStudioPro
 
         private void HfToken_Click(object sender, RoutedEventArgs e) => OpenUrl("https://huggingface.co/settings/tokens");
 
+        private void FalSignup_Click(object sender, RoutedEventArgs e) => OpenUrl("https://fal.ai/login");
+
+        private void FalKeys_Click(object sender, RoutedEventArgs e) => OpenUrl("https://fal.ai/dashboard/keys");
+
         private void OnlineSaveKey_Click(object sender, RoutedEventArgs e)
         {
             if (HfSelected) _compute.SetHfKey(OnlineKeyBox.Password);
+            else if (FalSelected) _compute.SetFalKey(OnlineKeyBox.Password);
             else _compute.SetOnlineKey(OnlineKeyBox.Password);
             _compute.Save();
             OnlineKeyStatus.Text = OnlineKeyBox.Password.Length > 0 ? "Key saved ✓" : "Key cleared";
@@ -268,7 +276,7 @@ namespace BeatSyncStudioPro
                 case "titles":
                     return $"Give me 10 original song title ideas for Rad-Dad, a Vermont country-rap (boom-rap) artist, about: {input}. Reply with a numbered list of titles only, no commentary.";
                 case "beat":
-                    return "You control a drum machine. Available styles: boomrap, trap, house, funk, rock, dembow, lofi, drill, dancehall, westcoast, techno, dnb. " +
+                    return "You control a drum machine. Available styles: boomrap, trap, house, funk, rock, dembow, lofi, drill, dancehall, westcoast, techno, dnb, phonk, dubstep, synthwave, afrobeat, country. " +
                            $"The user describes a beat: \"{input}\". Reply with ONLY a JSON object like {{\"style\":\"boomrap\",\"bpm\":95,\"density\":0.7}} — style exactly one of the listed keys, bpm 60-180, density 0.2-1.0. No other words.";
                 case "chat":
                     return input;
@@ -300,6 +308,11 @@ namespace BeatSyncStudioPro
             StatusText.Text = $"Asking {provider.DisplayName} — free and local models can take a minute…";
             try
             {
+                if (CompareBox.IsChecked == true)
+                {
+                    await RunCompareAsync(mode, input);
+                    return;
+                }
                 string reply = await provider.ChatAsync(model, BuildPrompt(mode, input), _cts.Token);
                 if (mode == "beat")
                 {
@@ -327,6 +340,69 @@ namespace BeatSyncStudioPro
                 _cts?.Dispose();
                 _cts = null;
             }
+        }
+
+        /// <summary>
+        /// Compare mode: the same prompt goes to every connected AI, one at a
+        /// time, and the answers open side by side in the compare window.
+        /// Providers with no key saved are skipped with a note.
+        /// </summary>
+        private async Task RunCompareAsync(string mode, string input)
+        {
+            string prompt = BuildPrompt(mode, input);
+            var results = new List<CompareWindow.Entry>();
+            string currentModel = (ModelPicker.Text ?? "").Trim();
+
+            foreach (var p in _providers)
+            {
+                if (IsKeyProvider(p.Id) && p.Id != "custom" && _settings.GetKey(p.Id).Length == 0)
+                {
+                    results.Add(new CompareWindow.Entry { Provider = p.DisplayName, Model = "", Seconds = 0, Text = "⏭️ Skipped — no API key saved for this one yet. Add it in the 🔑 Keys & Compute tab." });
+                    continue;
+                }
+                if (p.Id == "opencode" && OpenCodeProvider.FindCli() == null)
+                {
+                    results.Add(new CompareWindow.Entry { Provider = p.DisplayName, Model = "", Seconds = 0, Text = "⏭️ Skipped — the OpenCode app isn't installed on this PC." });
+                    continue;
+                }
+                string model = p.Id == Current.Id ? currentModel : "";
+                StatusText.Text = $"🔀 Comparing — asking {p.DisplayName}…";
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                try
+                {
+                    if (model.Length == 0)
+                    {
+                        using var mcts = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+                        var models = await p.GetModelsAsync(mcts.Token);
+                        model = p.Id == "opencode" && models.Contains("opencode/nemotron-3-ultra-free")
+                            ? "opencode/nemotron-3-ultra-free"
+                            : models.Count > 0 ? models[0] : "";
+                    }
+                    using var pects = CancellationTokenSource.CreateLinkedTokenSource(_cts!.Token);
+                    pects.CancelAfter(TimeSpan.FromSeconds(240));
+                    string reply = await p.ChatAsync(model, prompt, pects.Token);
+                    sw.Stop();
+                    results.Add(new CompareWindow.Entry { Provider = p.DisplayName, Model = model, Seconds = sw.Elapsed.TotalSeconds, Text = reply });
+                }
+                catch (OperationCanceledException) when (_cts!.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    sw.Stop();
+                    results.Add(new CompareWindow.Entry { Provider = p.DisplayName, Model = model, Seconds = sw.Elapsed.TotalSeconds, Text = "⚠️ " + ex.Message });
+                }
+            }
+
+            StatusText.Text = "🔀 Compare done — the results are side by side in the compare window; 'Use this one' brings the winner back here.";
+            var win = new CompareWindow(results, text =>
+            {
+                OutputBox.Text = text;
+                if (mode == "beat") TryMakeBeat(text);
+            })
+            { Owner = this };
+            win.Show();
         }
 
         private void TryMakeBeat(string reply)

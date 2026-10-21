@@ -74,12 +74,18 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
                         <Button x:Name="GenerateBtn" Content="✨ Generate" Click="Generate_Click" Height="36" Width="130"
                                 Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
                         <Button x:Name="CancelBtn" Grid.Column="1" Content="Cancel" Click="Cancel_Click" Height="36" Width="80" Margin="8,0,0,0"
                                 Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" IsEnabled="False"/>
                         <TextBlock x:Name="StatusText" Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0"
                                    Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                        <CheckBox x:Name="CompareBox" Grid.Row="1" Grid.ColumnSpan="3" Margin="0,8,0,0" Foreground="#E2E8F0"
+                                  Content="🔀 Compare all AIs — run this through every AI you've connected and compare the results side by side"/>
                     </Grid>
 
                     <StackPanel Grid.Row="4" Margin="0,12,0,0">
@@ -139,13 +145,14 @@
                         </StackPanel>
                         <Border x:Name="OnlinePanel" BorderBrush="#2A3446" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,6,0,0" Visibility="Collapsed">
                             <StackPanel>
-                                <TextBlock Text="Online compute runs on a cloud provider (Demucs for stems; ACE-Step for songs). Replicate is paid per run; Hugging Face has a free tier. Keys are stored encrypted on this PC and only ever sent to the provider you picked."
+                                <TextBlock Text="Online compute runs on a cloud provider (Demucs for stems; ACE-Step for songs). Replicate — paid per run. Hugging Face — FREE tier. fal.ai — paid per run. Keys are stored encrypted on this PC and only ever sent to the provider you picked."
                                            Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                     <TextBlock Text="Provider" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <ComboBox x:Name="OnlineProviderPicker" Width="250" SelectionChanged="OnlineProviderPicker_SelectionChanged">
+                                    <ComboBox x:Name="OnlineProviderPicker" Width="290" SelectionChanged="OnlineProviderPicker_SelectionChanged">
                                         <ComboBoxItem Content="Replicate — paid, fast, reliable"/>
-                                        <ComboBoxItem Content="Hugging Face — free tier, slower"/>
+                                        <ComboBoxItem Content="Hugging Face — FREE tier, slower"/>
+                                        <ComboBoxItem Content="fal.ai — paid, fast (songs + stems)"/>
                                     </ComboBox>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
@@ -154,6 +161,10 @@
                                     <Button Content="🔑 Replicate API token" Click="ReplicateToken_Click" Margin="8,0,0,0" Padding="12,4"
                                             Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
                                     <Button Content="🆓 Free Hugging Face token" Click="HfToken_Click" Margin="8,0,0,0" Padding="12,4"
+                                            Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                                    <Button Content="🆕 Sign up for fal.ai" Click="FalSignup_Click" Margin="8,0,0,0" Padding="12,4"
+                                            Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                                    <Button Content="🔑 fal.ai API keys" Click="FalKeys_Click" Margin="8,0,0,0" Padding="12,4"
                                             Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
                                 </StackPanel>
                                 <Grid Margin="0,6,0,0">

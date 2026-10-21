@@ -3,6 +3,13 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.13 — Compare AIs + fal.ai
+### Added
+- **🔀 Compare all AIs** (AI Lab → ✨ Create): check the box, hit Generate, and the **same prompt runs through every AI you've connected** — OpenCode, Gemini, OpenRouter, ChatGPT, Ollama, your custom endpoint — one at a time. The answers open **side by side in a compare window**, each labeled with the AI, the model, and how long it took; **✓ Use this one** sends the winner back to the Lab (for a beat answer, it builds the beat). AIs with no key saved yet are skipped with a note saying so.
+- **fal.ai online provider** (paid, labeled as such everywhere): a third ☁️ Online compute choice next to Replicate (paid) and Hugging Face (**free** tier) — signup and API-key buttons included, key stored encrypted. fal.ai runs **ACE-Step songs** in Create Song and **Demucs stems** in the Stem Splitter.
+### Changed
+- Online providers are labeled **paid / FREE** right in the picker, so it's always clear what a run costs before you make it.
+
 ## Version 3.12 — Downloads, Categories & a Stop That Stops
 ### Fixed
 - **Stop actually stops**: sounds triggered on the timeline used to ring out to their natural end after you hit Stop. Every voice is now tracked and cut with a fast fade the moment Stop is pressed.

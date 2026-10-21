@@ -22,8 +22,29 @@ namespace BeatSyncStudioPro
         /// <summary>Which graphics adapter (DirectML device id) when Mode is GPU.</summary>
         public int GpuIndex { get; set; } = 0;
 
-        /// <summary>Cloud compute provider when Mode is Online: "replicate" (paid, fast) or "huggingface" (free tier).</summary>
+        /// <summary>Cloud compute provider when Mode is Online: "replicate" (paid, fast), "huggingface" (free tier) or "fal" (paid, fast).</summary>
         public string OnlineProvider { get; set; } = "replicate";
+
+        /// <summary>fal.ai API key, DPAPI-encrypted.</summary>
+        public string FalKeyEncrypted { get; set; } = "";
+
+        public string GetFalKey()
+        {
+            if (string.IsNullOrEmpty(FalKeyEncrypted)) return "";
+            try
+            {
+                var bytes = ProtectedData.Unprotect(Convert.FromBase64String(FalKeyEncrypted), null, DataProtectionScope.CurrentUser);
+                return Encoding.UTF8.GetString(bytes);
+            }
+            catch { return ""; }
+        }
+
+        public void SetFalKey(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key)) { FalKeyEncrypted = ""; return; }
+            var bytes = ProtectedData.Protect(Encoding.UTF8.GetBytes(key.Trim()), null, DataProtectionScope.CurrentUser);
+            FalKeyEncrypted = Convert.ToBase64String(bytes);
+        }
 
         /// <summary>Hugging Face token (free tier), DPAPI-encrypted.</summary>
         public string HfKeyEncrypted { get; set; } = "";
@@ -141,6 +162,8 @@ namespace BeatSyncStudioPro
                     : $"GPU #{GpuIndex} of: {gpuPart}",
                 "Online" => OnlineProvider == "huggingface"
                     ? (GetHfKey().Length > 0 ? "☁️ Online via Hugging Face free tier (token saved)" : "☁️ Online via Hugging Face free tier (no token saved yet — add it below)")
+                    : OnlineProvider == "fal"
+                    ? (GetFalKey().Length > 0 ? "☁️ Online via fal.ai (paid, key saved)" : "☁️ Online via fal.ai (paid — no key saved yet, add it below)")
                     : (GetOnlineKey().Length > 0 ? "☁️ Online via Replicate (key saved)" : "☁️ Online via Replicate (no key saved yet — add it below)"),
                 _ => UseGpu ? $"Auto → GPU ({gpuPart})" : $"Auto → CPU ({gpuPart})"
             };
