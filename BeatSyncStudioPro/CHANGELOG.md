@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.10 — The Built-in Sound Pack
+### Added
+- **🎁 Sound Pack** (View menu / command palette): a starter library of **87 sounds built right into the app** — 38 drums & percussion (five kicks, four 808s, five snares, claps, hats, crashes, toms, shakers, congas…), guitar plucks, chord stabs and muted hits, three strummed guitar loops, bass subs/plucks/growls, piano chords and pads, four drum loops, and FX (riser, impact, vinyl crackle). Every sound was synthesized for BeatSync and is **free to use in your music — no credit, no catches**. The whole pack lives in **one 17 MB compressed file** the app reads directly; sounds only take real space when you add them to your library, and from there they work everywhere — kits, patterns, timeline — and save inside your projects.
+
 ## Version 3.9 — Sounds from the Internet
 ### Added
 - **🌐 Freesound Sounds** (View menu / command palette): search freesound.org's massive library of licensed samples from inside the app — drums, loops, textures, anything. **Preview** any result, then **⬇ Add to Library** and it's yours: it shows in the drum-kit channel pickers, patterns, and the asset list, and saves inside your project. Every result shows its **license and author** so giving credit is easy. Your free Freesound API key (freesound.org/apiv2/apply) is stored encrypted on this PC.
