@@ -3,6 +3,14 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.19 — Providers Hub + Faded-Button Fix + More Video Models
+### New
+- **🌐 Providers window** (Michael's ask): one directory for every AI service, opened from the **AI Lab header** (always visible, every tab) and from **Create Song**. Ten providers, each badged **🎵 Audio / 🎬 Video** and **FREE or PAID**: fal.ai, Replicate and Hugging Face have working key boxes (same encrypted store as the Keys tab) plus **🆕 Sign up** and **🔑 Get API key** links; OpenCode and Ollama are the no-key free routes; OpenRouter, Google Gemini, WaveSpeedAI, Kling AI and Luma are honest directory listings — grab the account now, in-app generation arrives as each client lands.
+- **Seven more video models** in the Video tab (endpoints confirmed against fal's docs/SDK): Veo 3 (video with sound), Kling 2.1 Master, Kling 1.6 Standard, Luma Ray 2, Wan Pro, PixVerse V4.5, Vidu Q1 — ten in all.
+
+### Fixed
+- **"The buttons are faded out in a lot of areas"** (Michael, with a screenshot of the Video tab): the AI Lab used the default light Windows templates for buttons and tab headers on a dark window, and disabled buttons washed to pale grey. The Lab now carries its own dark button template (hover glows violet, disabled dims evenly at 40% instead of washing out) and dark tab headers with a clear selected state. The video prompt box and model picker got proper dark styling too.
+
 ## Version 3.18 — Video Generator in the AI Lab
 ### New
 - **🎬 Video tab in the AI Lab**: describe a clip, pick a model, and an AI films it. Runs on **fal.ai** with the key from the Keys & Compute tab (paid per clip — stated plainly on the tab; there is no free hosted video tier that actually works yet, and the home engine will be the free route once it exists). Models, all confirmed against fal's own docs: **MiniMax Video-01** (strong all-rounder), **LTX-2 19B** (fast & cheaper), **LTX-2.3 22B** (newest LTX, higher quality).

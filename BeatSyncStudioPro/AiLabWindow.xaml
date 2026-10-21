@@ -4,17 +4,91 @@
         Title="AI Lab — BeatSync Studio Pro" Icon="/Assets/app.ico"
         Width="780" Height="720" MinWidth="640" MinHeight="560"
         Background="#1E222B" Foreground="#FFFFFF" WindowStartupLocation="CenterOwner">
+    <Window.Resources>
+        <!-- Dark controls for the whole Lab (v3.19): the default Windows
+             button/tab templates are light and looked washed-out/faded on
+             this dark window — Michael called it out ("buttons are faded
+             out in a lot of areas"). One template here fixes every button;
+             disabled buttons now dim evenly instead of washing to grey. -->
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#2A303C"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#3D4454"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4" Opacity="{TemplateBinding Opacity}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#7C5CFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.8"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TabItem">
+            <Setter Property="Background" Value="#1A1E26"/>
+            <Setter Property="Foreground" Value="#9AA0AE"/>
+            <Setter Property="Padding" Value="16,7"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6,6,0,0"
+                                BorderBrush="#2A303C" BorderThickness="1,1,1,0" Margin="2,0"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#2A303C"/>
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#232833"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0">
-            <TextBlock Text="🤖 AI Lab" FontSize="18" FontWeight="Bold"/>
-            <TextBlock Text="Connect an AI and generate lyrics, titles, and beats. Your styles stay yours — the AI drafts, you decide."
-                       Foreground="#A0A5B5" FontSize="12" Margin="0,4,0,10" TextWrapping="Wrap"/>
-        </StackPanel>
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="🤖 AI Lab" FontSize="18" FontWeight="Bold"/>
+                <TextBlock Text="Connect an AI and generate lyrics, titles, and beats. Your styles stay yours — the AI drafts, you decide."
+                           Foreground="#A0A5B5" FontSize="12" Margin="0,4,0,10" TextWrapping="Wrap"/>
+            </StackPanel>
+            <Button Grid.Column="1" Content="🌐 Providers…" Click="Providers_Click" VerticalAlignment="Top" Padding="14,7"
+                    ToolTip="Connect your paid APIs and find the free ones — every provider labeled FREE or PAID, with signup and key links"/>
+        </Grid>
 
         <TabControl Grid.Row="1" Background="#1E222B" BorderBrush="#2A3446">
             <TabItem Header="✨ Create" Foreground="White">
@@ -118,10 +192,18 @@
                                Foreground="#8A90A0" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"/>
                     <TextBlock Text="Video prompt" FontWeight="SemiBold" Margin="0,2,0,3"/>
                     <TextBox x:Name="VideoPromptBox" Height="62" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                             Background="#12151C" Foreground="White" CaretBrush="White" BorderBrush="#2A303C" Padding="6,4"
                              ToolTip="e.g. A red pickup truck driving a Vermont dirt road at golden hour, dust kicking up, cinematic drone shot following behind"/>
                     <TextBlock Text="Model" FontWeight="SemiBold" Margin="0,10,0,3"/>
-                    <ComboBox x:Name="VideoModelBox" SelectedIndex="0">
+                    <ComboBox x:Name="VideoModelBox" SelectedIndex="0" Background="#12151C" Foreground="White" BorderBrush="#2A303C">
                         <ComboBoxItem Content="MiniMax Video-01 — strong all-rounder (paid)" Tag="fal-ai/minimax/video-01"/>
+                        <ComboBoxItem Content="Veo 3 — Google's best, video WITH sound (paid)" Tag="fal-ai/veo3"/>
+                        <ComboBoxItem Content="Kling 2.1 Master — premium motion (paid)" Tag="fal-ai/kling-video/v2.1/master/text-to-video"/>
+                        <ComboBoxItem Content="Kling 1.6 Standard — solid &amp; cheaper (paid)" Tag="fal-ai/kling-video/v1.6/standard/text-to-video"/>
+                        <ComboBoxItem Content="Luma Ray 2 — Dream Machine (paid)" Tag="fal-ai/luma-dream-machine/ray-2"/>
+                        <ComboBoxItem Content="Wan Pro — Alibaba's pro video (paid)" Tag="fal-ai/wan-pro/text-to-video"/>
+                        <ComboBoxItem Content="PixVerse V4.5 (paid)" Tag="fal-ai/pixverse/v4.5/text-to-video"/>
+                        <ComboBoxItem Content="Vidu Q1 (paid)" Tag="fal-ai/vidu/q1/text-to-video"/>
                         <ComboBoxItem Content="LTX-2 19B — fast &amp; cheaper (paid)" Tag="fal-ai/ltx-2-19b/text-to-video"/>
                         <ComboBoxItem Content="LTX-2.3 22B — newest LTX, higher quality (paid)" Tag="fal-ai/ltx-2.3-22b/text-to-video"/>
                     </ComboBox>

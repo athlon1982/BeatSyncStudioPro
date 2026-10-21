@@ -122,6 +122,9 @@
                     Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
             <Button x:Name="CancelButton" Content="Cancel" Click="Cancel_Click" Padding="14,8" Margin="8,0,0,0" IsEnabled="False"
                     Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="🌐 Providers" Click="Providers_Click" Padding="14,8" Margin="8,0,0,0"
+                    Background="#2A303C" Foreground="White" BorderBrush="#3D4454" Cursor="Hand"
+                    ToolTip="Connect your paid APIs and find the free ones — every provider labeled FREE or PAID"/>
             <TextBlock x:Name="ComputeText" VerticalAlignment="Center" Margin="14,0,0,0" Foreground="#A0A5B5" FontSize="11"/>
         </StackPanel>
 

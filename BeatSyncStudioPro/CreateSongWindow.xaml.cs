@@ -44,6 +44,12 @@ namespace BeatSyncStudioPro
 
         private void Cancel_Click(object sender, RoutedEventArgs e) => _cts?.Cancel();
 
+        private void Providers_Click(object sender, RoutedEventArgs e)
+        {
+            new ProvidersWindow { Owner = this }.ShowDialog();
+            ComputeText.Text = "Compute: " + ComputeSettings.Load().Describe();
+        }
+
         /// <summary>Suno-style preset chips (genres + descriptors, from Suno's style list).</summary>
         private static readonly (string Label, string Prompt)[] StylePresets =
         {

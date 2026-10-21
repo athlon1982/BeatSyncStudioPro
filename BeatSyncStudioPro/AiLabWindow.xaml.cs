@@ -94,6 +94,11 @@ namespace BeatSyncStudioPro
         }
 
         private CreateSongWindow? _createSong;
+        private void Providers_Click(object sender, RoutedEventArgs e)
+        {
+            new ProvidersWindow { Owner = this }.ShowDialog();
+        }
+
         // ---------- 🎬 Video tab (fal.ai text-to-video) ----------
         private string? _lastVideoPath;
         private CancellationTokenSource? _videoCts;
