@@ -43,6 +43,8 @@ namespace BeatSyncStudioPro
         public List<double> TrackVolumeValues { get; } = new List<double>();
         public List<double> TrackPanValues { get; } = new List<double>();
         public List<TrackFxSettings> TrackFxValues { get; } = new List<TrackFxSettings>();
+
+        private OutputWindow? _outputWindow;
         private MixerWindow? _mixerWindow;
 
         // Pause state for the timeline transport
@@ -828,6 +830,20 @@ namespace BeatSyncStudioPro
             }
         }
 
+        private void BtnOutput_Click(object sender, RoutedEventArgs e)
+        {
+            if (_outputWindow == null)
+            {
+                _outputWindow = new OutputWindow(this) { Owner = this };
+                _outputWindow.Closed += (s, ev) => _outputWindow = null;
+                _outputWindow.Show();
+            }
+            else
+            {
+                _outputWindow.Activate();
+            }
+        }
+
         // =========================
         // EXPORT (offline mixdown)
         // =========================
@@ -1070,6 +1086,20 @@ namespace BeatSyncStudioPro
 
         /// <summary>Playback speed of the video itself (1.0 = normal). Its soundtrack follows along.</summary>
         public double VideoSpeed { get; private set; } = 1.0;
+
+        // ---- Hooks for the detachable Output window ----
+        /// <summary>True while the timeline is playing and not paused.</summary>
+        public bool OutputShouldPlay => VideoPath != null && isPlayingTimeline && !_isPaused;
+
+        /// <summary>The main video player's current position (null when unavailable).</summary>
+        public TimeSpan? VideoPosition
+        {
+            get
+            {
+                try { return MasterVideoPlayer?.Position; }
+                catch { return null; }
+            }
+        }
 
         private double _videoNaturalSeconds;
 

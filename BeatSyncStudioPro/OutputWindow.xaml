@@ -1,0 +1,38 @@
+<Window x:Class="BeatSyncStudioPro.OutputWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="BeatSync Output" Icon="/Assets/app.ico"
+        Width="960" Height="560" MinWidth="480" MinHeight="300"
+        Background="Black" Foreground="#FFFFFF" WindowStartupLocation="CenterScreen"
+        KeyDown="OutputWindow_KeyDown">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Control bar (hidden in fullscreen) -->
+        <Border x:Name="ControlBar" Grid.Row="0" Background="#14171E" Padding="10,6">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="📺 OUTPUT" FontWeight="Bold" FontSize="12" VerticalAlignment="Center" Margin="0,0,14,0"/>
+                <TextBlock Text="Source" Foreground="#A0A5B5" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <ComboBox x:Name="SourcePicker" Width="110" VerticalAlignment="Center" SelectionChanged="SourcePicker_SelectionChanged">
+                    <ComboBoxItem Content="🎬 Video" IsSelected="True"/>
+                    <ComboBoxItem Content="⬛ Black"/>
+                </ComboBox>
+                <TextBlock Text="Display" Foreground="#A0A5B5" FontSize="11" VerticalAlignment="Center" Margin="14,0,6,0"/>
+                <ComboBox x:Name="DisplayPicker" Width="190" VerticalAlignment="Center"/>
+                <Button Content="Send" Click="SendToDisplay_Click" Padding="10,3" Margin="6,0,0,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                <CheckBox x:Name="TopmostCheck" Content="Always on top" IsChecked="True" Foreground="White" VerticalAlignment="Center" Margin="14,0,0,0" Checked="Topmost_Changed" Unchecked="Topmost_Changed"/>
+                <Button Content="⛶ Fullscreen" Click="Fullscreen_Click" Padding="10,3" Margin="14,0,0,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Stage -->
+        <Grid Grid.Row="1" Background="Black" MouseLeftButtonDown="Stage_MouseLeftButtonDown">
+            <MediaElement x:Name="OutputPlayer" LoadedBehavior="Manual" UnloadedBehavior="Stop" Stretch="Uniform" Volume="0"/>
+            <TextBlock x:Name="IdleLabel" Text="BeatSync Studio Pro" Foreground="#2E3442" FontSize="28" FontWeight="Bold"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Grid>
+    </Grid>
+</Window>
