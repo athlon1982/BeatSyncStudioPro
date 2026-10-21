@@ -37,6 +37,7 @@ namespace BeatSyncStudioPro
         private Line? playhead;
         private CancellationTokenSource? playbackCancelToken;
         private string? draggingSoundName = null;
+        private Point dragStartPoint;
 
         private static readonly string[] VideoExtensions = new[] { ".mp4", ".avi", ".wmv", ".mkv", ".mov", ".flv", ".webm", ".mpg", ".mpeg", ".ogv", ".3gp", ".m4v" };
         private static readonly string[] ImageExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff" };
@@ -93,7 +94,6 @@ namespace BeatSyncStudioPro
             if (TimelineCanvas == null || WaveformOverlayCanvas == null) return;
 
             WaveformOverlayCanvas.Children.Clear();
-            double videoTrackY = AudioTrackCount * 50;
 
             foreach (var block in TimelineBlocks.Where(b => !b.IsVideo && b.RawBytes != null && b.RawBytes.Length > 0))
             {
@@ -116,7 +116,7 @@ namespace BeatSyncStudioPro
                     };
 
                     Canvas.SetLeft(waveImg, block.StartX + 2);
-                    Canvas.SetTop(waveImg, videoTrackY + 7);
+                    Canvas.SetTop(waveImg, block.TrackId * 50 + 7);
                     WaveformOverlayCanvas.Children.Add(waveImg);
                 }
                 catch { }
@@ -253,21 +253,7 @@ namespace BeatSyncStudioPro
                 string name = System.IO.Path.GetFileName(path);
                 VideoAssets[name] = path;
 
-                Button btn = new Button
-                {
-                    Content = $"🎬 {name}",
-                    HorizontalContentAlignment = HorizontalAlignment.Left,
-                    Background = Brushes.Transparent,
-                    Foreground = Brushes.White,
-                    BorderThickness = new Thickness(0),
-                    Margin = new Thickness(0, 3, 0, 3),
-                    Cursor = Cursors.Hand,
-                    Padding = new Thickness(4)
-                };
-
-                string assetName = name;
-                btn.PreviewMouseLeftButtonDown += (s, args) => draggingSoundName = assetName;
-                ListContainer.Children.Add(btn);
+                ListContainer.Children.Add(CreateAssetButton($"🎬 {name}", name));
             }
         }
 
@@ -286,21 +272,7 @@ namespace BeatSyncStudioPro
                 string name = System.IO.Path.GetFileName(path);
                 ImageAssets[name] = path;
 
-                Button btn = new Button
-                {
-                    Content = $"🖼️ {name}",
-                    HorizontalContentAlignment = HorizontalAlignment.Left,
-                    Background = Brushes.Transparent,
-                    Foreground = Brushes.White,
-                    BorderThickness = new Thickness(0),
-                    Margin = new Thickness(0, 3, 0, 3),
-                    Cursor = Cursors.Hand,
-                    Padding = new Thickness(4)
-                };
-
-                string assetName = name;
-                btn.PreviewMouseLeftButtonDown += (s, args) => draggingSoundName = assetName;
-                ListContainer.Children.Add(btn);
+                ListContainer.Children.Add(CreateAssetButton($"🖼️ {name}", name));
             }
         }
 
@@ -322,6 +294,7 @@ namespace BeatSyncStudioPro
                 {
                     try
                     {
+                        var addedNames = new List<string>();
                         using (var archive = ZipFile.OpenRead(path))
                         {
                             foreach (var entry in archive.Entries)
@@ -337,25 +310,30 @@ namespace BeatSyncStudioPro
                                             entry.Open().CopyTo(ms);
                                             ZipSounds[baseName] = ms.ToArray();
                                         }
-
-                                        string icon = (eext == ".mid" || eext == ".midi") ? "🎹" : "🎵";
-                                        Button btn = new Button
-                                        {
-                                            Content = $"{icon} {baseName}",
-                                            HorizontalContentAlignment = HorizontalAlignment.Left,
-                                            Background = Brushes.Transparent,
-                                            Foreground = Brushes.White,
-                                            BorderThickness = new Thickness(0),
-                                            Margin = new Thickness(0, 3, 0, 3),
-                                            Cursor = Cursors.Hand,
-                                            Padding = new Thickness(4)
-                                        };
-
-                                        string soundName = baseName;
-                                        btn.PreviewMouseLeftButtonDown += (s, args) => draggingSoundName = soundName;
-                                        ListContainer.Children.Add(btn);
+                                        addedNames.Add(baseName);
                                     }
                                 }
+                            }
+                        }
+
+                        if (addedNames.Count > 0)
+                        {
+                            // Group this ZIP's sounds under their own header so the
+                            // pack stays together as one sorted, easy-to-scan list.
+                            ListContainer.Children.Add(new TextBlock
+                            {
+                                Text = $"📦 {System.IO.Path.GetFileName(path)}",
+                                Foreground = (Brush)new BrushConverter().ConvertFromString("#A0A5B5")!,
+                                FontWeight = FontWeights.Bold,
+                                FontSize = 11,
+                                Margin = new Thickness(0, 10, 0, 2)
+                            });
+
+                            foreach (var soundName in addedNames.OrderBy(n => n))
+                            {
+                                var sext = System.IO.Path.GetExtension(soundName).ToLowerInvariant();
+                                string icon = (sext == ".mid" || sext == ".midi") ? "🎹" : "🎵";
+                                ListContainer.Children.Add(CreateAssetButton($"{icon} {soundName}", soundName, 14));
                             }
                         }
                     }
@@ -373,21 +351,7 @@ namespace BeatSyncStudioPro
                         ZipSounds[name] = bytes;
 
                         string icon = (ext == ".mid" || ext == ".midi") ? "🎹" : "🎵";
-                        Button btn = new Button
-                        {
-                            Content = $"{icon} {name}",
-                            HorizontalContentAlignment = HorizontalAlignment.Left,
-                            Background = Brushes.Transparent,
-                            Foreground = Brushes.White,
-                            BorderThickness = new Thickness(0),
-                            Margin = new Thickness(0, 3, 0, 3),
-                            Cursor = Cursors.Hand,
-                            Padding = new Thickness(4)
-                        };
-
-                        string soundName = name;
-                        btn.PreviewMouseLeftButtonDown += (s, args) => draggingSoundName = soundName;
-                        ListContainer.Children.Add(btn);
+                        ListContainer.Children.Add(CreateAssetButton($"{icon} {name}", name));
                     }
                     catch (Exception ex)
                     {
@@ -397,11 +361,79 @@ namespace BeatSyncStudioPro
             }
         }
 
+        /// <summary>
+        /// Builds one asset-library entry. Press-and-move starts a real drag —
+        /// drop the asset anywhere on the timeline — while a plain press still
+        /// arms the old click-then-click-to-place fallback.
+        /// </summary>
+        private Button CreateAssetButton(string displayText, string assetName, double indent = 0)
+        {
+            Button btn = new Button
+            {
+                Content = displayText,
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Background = Brushes.Transparent,
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                Margin = new Thickness(indent, 3, 0, 3),
+                Cursor = Cursors.Hand,
+                Padding = new Thickness(4)
+            };
+
+            btn.PreviewMouseLeftButtonDown += (s, args) =>
+            {
+                draggingSoundName = assetName;
+                dragStartPoint = args.GetPosition(null);
+            };
+
+            btn.MouseMove += (s, args) =>
+            {
+                if (args.LeftButton != MouseButtonState.Pressed) return;
+                if (draggingSoundName != assetName) return;
+
+                Point pos = args.GetPosition(null);
+                if (Math.Abs(pos.X - dragStartPoint.X) <= SystemParameters.MinimumHorizontalDragDistance &&
+                    Math.Abs(pos.Y - dragStartPoint.Y) <= SystemParameters.MinimumVerticalDragDistance)
+                    return;
+
+                var result = DragDrop.DoDragDrop(btn, new DataObject(DataFormats.StringFormat, assetName), DragDropEffects.Copy);
+                if (result == DragDropEffects.None)
+                {
+                    // Drag was cancelled — disarm so a later stray canvas click doesn't place it.
+                    draggingSoundName = null;
+                }
+            };
+
+            return btn;
+        }
+
         private void TimelineCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
             if (string.IsNullOrEmpty(draggingSoundName)) return;
 
-            Point clickPoint = e.GetPosition(TimelineCanvas);
+            PlaceAssetAt(draggingSoundName, e.GetPosition(TimelineCanvas));
+            draggingSoundName = null;
+        }
+
+        private void TimelineCanvas_DragOver(object sender, DragEventArgs e)
+        {
+            e.Effects = e.Data.GetDataPresent(DataFormats.StringFormat) ? DragDropEffects.Copy : DragDropEffects.None;
+            e.Handled = true;
+        }
+
+        private void TimelineCanvas_Drop(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.StringFormat))
+            {
+                string assetName = (string)e.Data.GetData(DataFormats.StringFormat);
+                PlaceAssetAt(assetName, e.GetPosition(TimelineCanvas));
+                draggingSoundName = null;
+            }
+        }
+
+        private void PlaceAssetAt(string assetName, Point clickPoint)
+        {
+            string draggingSoundName = assetName;
             int trackId = (int)(clickPoint.Y / 50);
 
             // VIDEO: Always goes to video track
@@ -592,12 +624,82 @@ namespace BeatSyncStudioPro
                     ? new WaveFileReader(new MemoryStream(block.RawBytes))
                     : new Mp3FileReader(new MemoryStream(block.RawBytes));
 
-                var resampled = new WdlResamplingSampleProvider(reader.ToSampleProvider(), 44100).ToStereo();
-                var volumeSampleProvider = new VolumeSampleProvider(resampled) { Volume = (float)(block.Volume * MasterVolume) };
+                ISampleProvider provider = new WdlResamplingSampleProvider(reader.ToSampleProvider(), 44100).ToStereo();
+
+                // Per-clip speed (pitch shifts with it, like a record)
+                if (Math.Abs(block.Speed - 1.0) > 0.001)
+                {
+                    provider = new SpeedSampleProvider(provider, block.Speed);
+                }
+
+                // Stop the sound at the clip's on-timeline end (trimmed/stretched length)
+                if (block.LengthSeconds > 0)
+                {
+                    provider = new OffsetSampleProvider(provider) { Take = TimeSpan.FromSeconds(block.LengthSeconds) };
+                }
+
+                var volumeSampleProvider = new VolumeSampleProvider(provider) { Volume = (float)(block.Volume * MasterVolume) };
 
                 mixerEngine.AddMixerInput(volumeSampleProvider);
             }
             catch { }
+        }
+
+        // =========================
+        // CLIP ACTIONS (called from FixedBlock)
+        // =========================
+
+        public void RemoveBlock(FixedBlock block)
+        {
+            if (TimelineCanvas != null && TimelineCanvas.Children.Contains(block.BlockVisual))
+            {
+                TimelineCanvas.Children.Remove(block.BlockVisual);
+            }
+            TimelineBlocks.Remove(block);
+            RenderStudioGridLanes();
+        }
+
+        public void RefreshAfterBlockEdit()
+        {
+            RenderStudioGridLanes();
+        }
+
+        /// <summary>
+        /// Pulls the soundtrack out of the loaded video and adds it to the
+        /// asset library as a WAV, ready to drag onto any audio track.
+        /// </summary>
+        public void ExtractAudioFromVideo(FixedBlock block)
+        {
+            if (VideoPath == null || !File.Exists(VideoPath))
+            {
+                MessageBox.Show("❌ No video file is loaded to extract audio from.", "Extract Audio", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                using var reader = new MediaFoundationReader(VideoPath);
+                using var ms = new MemoryStream();
+                using (var writer = new WaveFileWriter(ms, reader.WaveFormat))
+                {
+                    byte[] buffer = new byte[8192];
+                    int read;
+                    while ((read = reader.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        writer.Write(buffer, 0, read);
+                    }
+                }
+
+                string audioName = $"{System.IO.Path.GetFileNameWithoutExtension(VideoPath)} (audio).wav";
+                ZipSounds[audioName] = ms.ToArray();
+                ListContainer.Children.Add(CreateAssetButton($"🎵 {audioName}", audioName));
+
+                MessageBox.Show($"✅ Audio extracted to the library as '{audioName}'.\n\nDrag it onto a timeline track to use it.", "Audio Extracted", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"❌ Could not extract audio: {ex.Message}", "Extract Audio", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void BtnMute_Click(object sender, RoutedEventArgs e)
