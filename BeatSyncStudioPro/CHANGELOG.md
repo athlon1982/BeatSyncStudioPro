@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.9 — Sounds from the Internet
+### Added
+- **🌐 Freesound Sounds** (View menu / command palette): search freesound.org's massive library of licensed samples from inside the app — drums, loops, textures, anything. **Preview** any result, then **⬇ Add to Library** and it's yours: it shows in the drum-kit channel pickers, patterns, and the asset list, and saves inside your project. Every result shows its **license and author** so giving credit is easy. Your free Freesound API key (freesound.org/apiv2/apply) is stored encrypted on this PC.
+- **Replicate signup buttons** in the AI Lab's ☁️ Online compute panel: "Sign up for Replicate (free)" and "Get my API token" open the right pages in your browser, so setting up online compute takes a minute.
+
 ## Version 3.8 — Your Kits, Your Compute
 ### Added
 - **🎒 Kit from Files** (step sequencer): pick your own WAV/MP3 files and each one becomes a drum channel in a fresh pattern, ready to play. The files join your library, show in every channel picker, and **save inside the project file** — your kits travel with the song.

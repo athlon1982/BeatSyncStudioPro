@@ -78,8 +78,14 @@
             </StackPanel>
             <Border x:Name="OnlinePanel" BorderBrush="#2A3446" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,6,0,0" Visibility="Collapsed">
                 <StackPanel>
-                    <TextBlock Text="Online compute runs on Replicate's cloud (Demucs for stems today; song generation next). It needs your own Replicate API key (replicate.com → Account → API tokens) — splitting runs cost a few cents per song, billed by Replicate. The key is stored encrypted on this PC and only ever sent to Replicate."
+                    <TextBlock Text="Online compute runs on Replicate's cloud (Demucs for stems today; song generation next). It needs your own Replicate API key — splitting runs cost a few cents per song, billed by Replicate. The key is stored encrypted on this PC and only ever sent to Replicate."
                                Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="🆕 Sign up for Replicate (free)" Click="ReplicateSignup_Click" Padding="12,4"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        <Button Content="🔑 Get my API token" Click="ReplicateToken_Click" Margin="8,0,0,0" Padding="12,4"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                    </StackPanel>
                     <Grid Margin="0,6,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>

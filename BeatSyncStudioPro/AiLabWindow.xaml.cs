@@ -91,6 +91,16 @@ namespace BeatSyncStudioPro
             RefreshComputeInfo();
         }
 
+        private void ReplicateSignup_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/signin");
+
+        private void ReplicateToken_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/account/api-tokens");
+
+        private static void OpenUrl(string url)
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); }
+            catch { }
+        }
+
         private void OnlineSaveKey_Click(object sender, RoutedEventArgs e)
         {
             _compute.SetOnlineKey(OnlineKeyBox.Password);
