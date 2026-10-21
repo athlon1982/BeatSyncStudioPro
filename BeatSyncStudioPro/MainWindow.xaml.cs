@@ -1051,6 +1051,7 @@ namespace BeatSyncStudioPro
                 new("Batch Convert…", "File", "", () => BtnBatchConvert_Click(this, ev)),
                 new("Start Screen…", "File", "", () => MenuStartScreen_Click(this, ev)),
                 new("About BeatSync", "Help", "F1", () => MenuAbout_Click(this, ev)),
+                new("Changelog…", "Help", "", () => BtnChangelog_Click(this, ev)),
                 new("Exit", "File", "", () => MenuExit_Click(this, ev)),
             };
         }
@@ -2339,6 +2340,15 @@ namespace BeatSyncStudioPro
         private void MenuExit_Click(object sender, RoutedEventArgs e)
         {
             Close();
+        }
+
+        private ChangelogWindow? _changelogWindow;
+        private void BtnChangelog_Click(object sender, RoutedEventArgs e)
+        {
+            if (_changelogWindow != null) { _changelogWindow.Activate(); return; }
+            _changelogWindow = new ChangelogWindow { Owner = this };
+            _changelogWindow.Closed += (s, ev) => _changelogWindow = null;
+            _changelogWindow.Show();
         }
 
         private void MenuAbout_Click(object sender, RoutedEventArgs e)

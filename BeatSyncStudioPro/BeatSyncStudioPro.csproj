@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>3.0.0</Version>
+    <Version>3.1.0</Version>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
@@ -20,6 +20,11 @@
   <ItemGroup>
     <Resource Include="Assets\splash.png" />
     <Resource Include="Assets\app.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The changelog ships INSIDE the program and is read by the Changelog window -->
+    <EmbeddedResource Include="CHANGELOG.md" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,149 @@
+# BeatSync Studio Pro — Changelog
+
+Every update since the first working build: what was added, improved, and fixed.
+Created by Michael DeCato.
+
+## Version 3.1
+### Added
+- **Changelog viewer** (Help → Changelog) — this screen. The changelog now lives inside the program, so after any update you can read exactly what changed.
+
+## Version 3.0 — The Professional Look
+### Improved
+- **Brand-new main window design**: brand bar with the app icon, two-tone wordmark, version chip, and creator credit; deep navy gradient background.
+- **Rounded buttons everywhere** with hover and press feedback; **fully dark menus** (the stock light-gray popups are gone), larger transport controls, and a glowing green time readout.
+- Every feature works exactly as before — this update is the look, not the engine.
+
+## Version 2.19 — Drum Generator & Starter Loops
+### Added
+- **Drum Generator** (View menu): six styles — Boom-Bap, Trap, House, Funk, Rock, Dembow — with a density control and humanized hit strengths; generates fully editable patterns.
+- **Starter Loop Pack**: four ready 4-bar loops (boom-bap, trap, house, funk) added to your library with one click.
+### Improved
+- Patterns now support **per-step velocities** (hit strength), honored in sequencer playback and renders.
+
+## Version 2.18 — Video Export
+### Added
+- **Export Video is real**: renders your full timeline mix (mastering choices included) and combines it with the timeline video into an MP4 (H.264 video + AAC audio). The video's trim, speed, and timeline position are honored. First use asks to download ffmpeg once (free, about 30 MB — it is never bundled into the app).
+
+## Version 2.17 — Keep Pitch
+### Added
+- **Keep pitch at this speed** (per clip, right-click menu): slow a clip down or speed it up without the chipmunk / deep-voice pitch shift, using a WSOLA time-stretcher. Works in playback and exports.
+
+## Version 2.16 — Envelopes, Gate & Spectrogram
+### Added
+- **Volume envelope editor** per clip, with presets: Fade In, Fade Out, Duck Middle, Swell — draw your own points too.
+- **Noise gate** per clip: silences hiss and room noise below a threshold you set.
+- **Spectrogram view** per clip: see hiss, hum, and harshness as a heat map.
+
+## Version 2.15 — Piano Roll
+### Added
+- **Piano Roll** (View menu): click notes onto a 2-bar grid (C3–B4), note lengths of 1/2/4/8 steps, four instruments — Keys, Sub Bass, Pluck, Melodic 808. Live loop playback and Render to Timeline.
+
+## Version 2.14 — Step Sequencer
+### Added
+- **Patterns / Channel Rack** (View menu): 16-step sequencer with built-in synthesized drums (kick, snare, hi-hat, clap, 808) or any sound from your library. Multiple named patterns, saved in the project, with sample-accurate Render to Timeline.
+
+## Version 2.13 — Stem Splitter
+### Added
+- **Stem Splitter** (View menu): splits a clip or an audio file into drums, bass, other, and vocals WAV files using the HTDemucs AI model (one-time download of about 304 MB, asked first).
+
+## Version 2.12 — Transcript
+### Added
+- **Transcript pane** (View menu): speech-to-text for any clip (Whisper AI, one-time model download). Click a line to loop that exact moment; save as .txt or .srt subtitles. Note: it understands speech far better than sung vocals.
+
+## Version 2.11 — Per-Clip FX
+### Added
+- **Clip FX**: every clip gets its own EQ / delay / reverb chain (right-click a clip → Clip FX), separate from the track FX.
+
+## Version 2.10 — Render Queue & Batch Converter
+### Added
+- **Render Queue** (File menu): line up several exports and render them one after another.
+- **Batch Converter** (File menu): convert a batch of WAV/MP3 files, with optional loudness normalization to −14 LUFS.
+
+## Version 2.9 — Start Screen
+### Added
+- **Start Screen**: project templates (Beat Session, Song + Vocals, Video Soundtrack, DJ Prep) and a recent-projects list. Can be reopened anytime from the File menu.
+
+## Version 2.8 — Command Palette & Hotkeys
+### Added
+- **Command Palette** (Ctrl+K): every feature in the app, searchable from the keyboard.
+- **Hotkeys**: Ctrl+S save, Ctrl+O open, Ctrl+E export, Ctrl+M mixer, Ctrl+T add track, Space play/pause, A/B loop points, L loop toggle, F1 about, Esc stop.
+
+## Version 2.7 — Export Bundles & Filename Patterns
+### Added
+- **Export bundles**: Streaming, Loud, Vocal, Warm, and Clean presets that set mastering and loudness for you.
+- **Filename patterns** with tokens ($project, $date, $time, $bpm, $preset) and a live preview; your export settings are remembered between sessions.
+
+## Version 2.6 — Beat Grid
+### Added
+- **Automatic beat detection**: analyze any clip to find its BPM and first beat, draw the gold beat grid on the timeline, and snap clips and loop points to the beat.
+
+## Version 2.5 — Mastering on Export
+### Added
+- **Mastering presets** — Universal, Fire, Clarity, Tape — with an intensity slider, plus optional loudness normalization to −14 LUFS (streaming standard), measured with proper K-weighted metering.
+
+## Version 2.4 — A–B Loop & Monitor FX
+### Added
+- **A–B loop**: set loop points and loop any section of the timeline.
+- **Monitor FX** (View menu): an EQ + compressor + stereo-width strip on what you hear, with presets (Flat, Vocal Clarity, Bass Boost, Wide Stage). Monitor only — never baked into exports.
+
+## Version 2.3 — Per-Clip Tools
+### Added
+- **Reverse**, **Normalize**, and **Nudge** (fine timing shift, ±5 seconds) per clip, plus **automatic crossfades** where clips overlap on the same lane.
+
+## Version 2.2 — Output Visualizations
+### Added
+- **Visuals on the Output window**: spectrum bars, wave scope, and pulse rings driven live by the master audio, with an auto-cycle mode.
+
+## Version 2.1 — DJ Decks
+### Added
+- **DJ Decks** (View menu): two decks with tempo faders and SYNC, TAP tempo, four hot cues each, beat loops, per-deck FX, a crossfader with three curves, and mix recording to WAV.
+
+## Version 2.0 — Output Window
+### Added
+- **Output window** (View menu): a detachable stage screen — send the video (or black, or visuals) to a second display, fullscreen, always-on-top.
+
+## Version 1.9 — Full-Length Songs, Playhead & Menus
+### Added
+- **Clips now play their full natural length** — whole songs, not 60-second cuts.
+- **Bright green playhead** that scrolls the view as it plays, a **time display** (current / total), and a proper **menu bar** (File / Import / Tracks / View / Help).
+
+## Version 1.8 — Audio Export
+### Added
+- **Export your mix** to WAV or MP3 (192 kbps), with a progress window and cancel.
+### Fixed
+- Hotfix: a startup error on stereo material ("Source sample provider must be mono") — the pan control was replaced with a stereo-safe one.
+
+## Version 1.7 — Track FX
+### Added
+- **Per-track effects**: 3-band EQ, feedback delay, and reverb on every track (via the Mixer's FX button).
+
+## Version 1.6 — Mixer
+### Added
+- **Mixer window**: per-track volume faders and pan knobs, plus a master strip — adjustable live while playing.
+### Fixed
+- **Pause now actually pauses**: the play clock, the audio, and the video freeze together.
+
+## Version 1.5 — Open Project
+### Added
+- **Projects reopen properly**: Save and Open round-trip through the .bsp project file with all assets bundled inside. A ready-made demo project is included.
+
+## Version 1.4 — App Icon
+### Added
+- **Custom neon app icon** for the window, taskbar, and installer shortcuts.
+
+## Version 1.3 — Video Speed & Real Trims
+### Improved
+- **Video playback speed** (0.25×–3×) that video blocks fully respect.
+- **Edge drags are now true trims**: they skip into the sound and shorten the window, instead of just resizing the box.
+
+## Version 1.2 — Video Audio Lane
+### Improved
+- Separated video audio now lives on its **own dedicated lane** directly under the video, locked in place so track changes can't delete it.
+
+## Version 1.1 — Video Audio Separation
+### Added
+- **Separate audio & video**: pull a video's soundtrack out as an editable audio clip (or extract it to the library); the video itself goes properly mute.
+
+## Version 1.0 — First Working Build
+### Added
+- BeatSync Studio Pro compiles and runs: **asset library** (video, image, audio, MIDI, and ZIP import — ZIPs arrive as grouped packs), **drag-and-drop multitrack timeline** (up to 8 audio tracks + video + image clips), per-clip **volume and speed**, master volume, a **splash screen**, and Save/Open project groundwork.
