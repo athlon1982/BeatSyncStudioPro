@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.20 — Providers Split by Category + "Song" Tab
+### Changed
+- **Providers are now split by category** (Michael's direction — some models do music, some do video, and the two shouldn't be mixed in one list): the Providers window has **🎵 Music & Audio** and **🎬 Video** tabs, each listing only that category's providers — every one still badged **FREE or PAID**, with key boxes and signup/key links where they apply. Services that do both (**fal.ai, Replicate**) appear in **both** lists; one key covers everything they do. **Freesound** joined the Music list (free sounds; its key stays in the Freesound window).
+- The AI Lab's **"✨ Create" tab is renamed "🎤 Song"** so the Lab's categories line up with the Providers split: **Song | Video | Keys & Compute**.
+
 ## Version 3.19 — Providers Hub + Faded-Button Fix + More Video Models
 ### New
 - **🌐 Providers window** (Michael's ask): one directory for every AI service, opened from the **AI Lab header** (always visible, every tab) and from **Create Song**. Ten providers, each badged **🎵 Audio / 🎬 Video** and **FREE or PAID**: fal.ai, Replicate and Hugging Face have working key boxes (same encrypted store as the Keys tab) plus **🆕 Sign up** and **🔑 Get API key** links; OpenCode and Ollama are the no-key free routes; OpenRouter, Google Gemini, WaveSpeedAI, Kling AI and Luma are honest directory listings — grab the account now, in-app generation arrives as each client lands.

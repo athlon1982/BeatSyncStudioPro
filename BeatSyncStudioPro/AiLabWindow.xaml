@@ -91,7 +91,7 @@
         </Grid>
 
         <TabControl Grid.Row="1" Background="#1E222B" BorderBrush="#2A3446">
-            <TabItem Header="✨ Create" Foreground="White">
+            <TabItem Header="🎤 Song" Foreground="White">
                 <Grid Margin="10">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>

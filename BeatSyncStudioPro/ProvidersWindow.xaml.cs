@@ -7,58 +7,65 @@ using System.Windows.Media;
 namespace BeatSyncStudioPro
 {
     /// <summary>
-    /// The Providers directory (v3.19, Michael's ask): every AI service the
-    /// app can use — or will use — in one place, each labeled FREE or PAID,
-    /// with signup + API-key links. Providers with a KeyId have a working
-    /// key box wired to ComputeSettings (encrypted at rest, same store the
-    /// AI Lab's Keys tab uses); the rest are honest directory listings.
+    /// The Providers directory (v3.19; split BY CATEGORY in v3.20 at
+    /// Michael's direction — some services make music, some make video):
+    /// two tabs, 🎵 Music &amp; Audio and 🎬 Video, each listing that
+    /// category's providers. Dual-capable services (fal.ai, Replicate)
+    /// appear in BOTH lists — one key covers everything they do. Every
+    /// card is badged FREE or PAID. Providers with a KeyId have a working
+    /// key box wired to ComputeSettings (encrypted at rest, the same store
+    /// the AI Lab's Keys tab uses); the rest are honest directory listings.
     /// Opened from the AI Lab header and from Create Song.
     /// </summary>
     public partial class ProvidersWindow : Window
     {
-        private record Prov(string Name, string Kind, bool Free, string Blurb, string Note,
+        private record Prov(string Name, bool Music, bool Video, bool Free, string Blurb, string Note,
             string SignupUrl, string KeysUrl, string? KeyId);
 
         private static readonly Prov[] All =
         {
-            new("fal.ai", "🎵 Audio + 🎬 Video", false,
+            new("fal.ai", true, true, false,
                 "One key runs this app's cloud songs (ACE-Step), stem splitting AND all the video models.",
                 "Works in BeatSync today — paste the key and you're connected.",
                 "https://fal.ai/login", "https://fal.ai/dashboard/keys", "fal"),
-            new("Replicate", "🎵 Audio + 🎬 Video", false,
+            new("Replicate", true, true, false,
                 "A huge catalog of hosted models. In this app today: song generation and stem splitting.",
                 "Works in BeatSync today — paste the key and you're connected.",
                 "https://replicate.com", "https://replicate.com/account/api-tokens", "replicate"),
-            new("Hugging Face", "🎵 Audio", true,
+            new("Hugging Face", true, false, true,
                 "The home of open AI models, with a free tier. In this app: stem splitting at no cost.",
                 "Works in BeatSync today — a free account token is all it takes.",
                 "https://huggingface.co/join", "https://huggingface.co/settings/tokens", "hf"),
-            new("OpenCode", "🎵 Audio (lyrics & beats)", true,
+            new("Freesound", true, false, true,
+                "Millions of free sound effects and samples for your library, straight from the 🌐 Freesound window.",
+                "Free — its key lives in the Freesound window (View menu → 🌐 Freesound).",
+                "https://freesound.org", "https://freesound.org/apiv2/apply", null),
+            new("OpenCode", true, false, true,
                 "Free AI models built right into the AI Lab — lyrics, titles and beat patterns.",
                 "Already connected — nothing to set up, no key, no account.",
                 "https://opencode.ai", "", null),
-            new("Ollama", "🎵 Audio (local AI)", true,
+            new("Ollama", true, false, true,
                 "Runs AI models on your own PC, fully offline and free. Install it, then pick 'Local (Ollama)' in the AI Lab.",
                 "No key — it talks to the Ollama app on your machine.",
                 "https://ollama.com", "", null),
-            new("OpenRouter", "🎵 Audio (text AI)", true,
-                "One key for hundreds of text models, several of them free. Good future lyrics/chat engine.",
+            new("OpenRouter", true, false, true,
+                "One key for hundreds of text models, several of them free. A good future lyrics/chat engine.",
                 "Directory listing — sign up there; in-app generation arrives with its client.",
                 "https://openrouter.ai", "https://openrouter.ai/keys", null),
-            new("Google Gemini", "🎵 Audio (text AI)", true,
+            new("Google Gemini", true, false, true,
                 "Google's models with a free API tier through AI Studio.",
                 "Directory listing — sign up there; in-app generation arrives with its client.",
                 "https://aistudio.google.com", "https://aistudio.google.com/app/apikey", null),
-            new("WaveSpeedAI", "🎬 Video", false,
+            new("WaveSpeedAI", false, true, false,
                 "Kling, MiniMax and Wan video models under one key — an alternative route to the Video tab's models.",
                 "Directory listing — sign up there; in-app generation arrives with its client.",
                 "https://wavespeed.ai", "", null),
-            new("Kling AI", "🎬 Video", false,
+            new("Kling AI", false, true, false,
                 "The official Kling video service — the same models the Video tab reaches through fal.ai.",
                 "Directory listing — sign up there; in-app generation arrives with its client.",
                 "https://klingai.com", "", null),
-            new("Luma Dream Machine", "🎬 Video", false,
-                "Luma's own video API. Its Ray 2 model also runs through fal.ai above.",
+            new("Luma Dream Machine", false, true, false,
+                "Luma's own video API. Its Ray 2 model also runs through fal.ai (in both lists above).",
                 "Directory listing — sign up there; in-app generation arrives with its client.",
                 "https://lumalabs.ai", "", null),
         };
@@ -68,7 +75,11 @@ namespace BeatSyncStudioPro
         public ProvidersWindow()
         {
             InitializeComponent();
-            foreach (var p in All) Cards.Children.Add(BuildCard(p));
+            foreach (var p in All)
+            {
+                if (p.Music) MusicCards.Children.Add(BuildCard(p));
+                if (p.Video) VideoCards.Children.Add(BuildCard(p));
+            }
         }
 
         private string GetKey(string id) => id switch
@@ -120,7 +131,7 @@ namespace BeatSyncStudioPro
 
             var head = new StackPanel { Orientation = Orientation.Horizontal };
             head.Children.Add(new TextBlock { Text = p.Name, FontSize = 15, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center });
-            head.Children.Add(Badge(p.Kind, "#2A303C", "#C8CDD8"));
+            head.Children.Add(Badge(p.Music && p.Video ? "🎵🎬 Music + Video" : p.Music ? "🎵 Music" : "🎬 Video", "#2A303C", "#C8CDD8"));
             head.Children.Add(p.Free
                 ? Badge("FREE", "#14532D", "#7EE2A8")
                 : Badge("PAID", "#4A3205", "#FFC95C"));
@@ -201,7 +212,7 @@ namespace BeatSyncStudioPro
         private static void OpenUrl(string url)
         {
             try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
-            catch { /* browser unavailable — the URL is in the tooltip of the card buttons */ }
+            catch { /* browser unavailable — nothing else sensible to do */ }
         }
 
         private void Close_Click(object sender, RoutedEventArgs e) => Close();

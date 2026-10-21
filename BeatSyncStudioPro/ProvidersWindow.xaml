@@ -4,6 +4,37 @@
         Title="🌐 Providers — BeatSync Studio Pro" Icon="/Assets/app.ico"
         Width="660" Height="740" MinWidth="520" MinHeight="480"
         Background="#1E222B" Foreground="#FFFFFF" WindowStartupLocation="CenterOwner">
+    <Window.Resources>
+        <!-- Same dark tab styling as the AI Lab (v3.19) so these category
+             tabs don't fall back to the washed-out light Windows look. -->
+        <Style TargetType="TabItem">
+            <Setter Property="Background" Value="#1A1E26"/>
+            <Setter Property="Foreground" Value="#9AA0AE"/>
+            <Setter Property="Padding" Value="16,7"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6,6,0,0"
+                                BorderBrush="#2A303C" BorderThickness="1,1,1,0" Margin="2,0"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#2A303C"/>
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#232833"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -12,12 +43,21 @@
         </Grid.RowDefinitions>
         <StackPanel Grid.Row="0">
             <TextBlock Text="🌐 Providers" FontSize="18" FontWeight="Bold"/>
-            <TextBlock Text="Connect your own paid APIs, or jump on the free ones. Every provider is labeled FREE or PAID so you always know before you sign up. Providers with a key box work inside BeatSync today; the rest are a directory — grab an account now and their in-app generation arrives as each client is added."
+            <TextBlock Text="Providers are split by category — some services make music, some make video, a few do both (they appear in both lists, one key covers everything). Every card is labeled FREE or PAID so you know before you sign up. Cards with a key box work inside BeatSync today; the rest are a directory — grab the account now and their in-app generation arrives as each client is added."
                        Foreground="#A0A5B5" FontSize="12" Margin="0,4,0,10" TextWrapping="Wrap"/>
         </StackPanel>
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <StackPanel x:Name="Cards" Margin="0,0,6,0"/>
-        </ScrollViewer>
+        <TabControl Grid.Row="1" Background="#1E222B" BorderBrush="#2A3446">
+            <TabItem Header="🎵 Music &amp; Audio">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="MusicCards" Margin="2,8,6,2"/>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="🎬 Video">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="VideoCards" Margin="2,8,6,2"/>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
         <Button Grid.Row="2" Content="Close" Click="Close_Click" HorizontalAlignment="Right" Padding="18,7" Margin="0,10,0,0"
                 Background="#2A303C" Foreground="White" BorderBrush="#3D4454" Cursor="Hand"/>
     </Grid>
