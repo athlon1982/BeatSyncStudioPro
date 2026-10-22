@@ -1848,12 +1848,22 @@ namespace BeatSyncStudioPro
             private float[]? _pristine;
             private float[][]? _pristineStems;
             private bool _keyBusy;
+            // Key Lock (v3.57): while on, the playback buffer is pre-shifted
+            // by the exact opposite of the tempo fader's pitch change, so
+            // tempo moves speed without moving pitch (Serato-style master
+            // tempo). _keyAppliedTotal is the total shift (key sync + lock
+            // compensation) currently baked into the deck's buffer; every
+            // key render derives from _pristine, never from a shifted copy.
+            internal bool KeyLockOn;
+            private double _keyAppliedTotal;
+            private CancellationTokenSource? _keyRenderCts;
+            private readonly Button _keyLockBtn;
             private bool _quantize = true;
             private readonly Button _quantizeBtn;
             private int _loadGen;
             internal string PanelName => _name;
             internal int TempoSemitones => (int)Math.Round(12 * Math.Log2(Math.Max(0.5, _deck.Tempo)));
-            internal int EffectivePitchClass => DetectedKey == null ? -1 : KeyDetector.Mod12(DetectedKey.PitchClass + KeyShiftSemitones + TempoSemitones);
+            internal int EffectivePitchClass => DetectedKey == null ? -1 : KeyDetector.Mod12(DetectedKey.PitchClass + KeyShiftSemitones + (KeyLockOn ? 0 : TempoSemitones));
             internal string? EffectiveCamelot => DetectedKey == null ? null : KeyDetector.CamelotFor(EffectivePitchClass, DetectedKey.IsMinor);
             internal void SetKeyTextBrush(Brush b) { _keyText.Foreground = b; }
 
@@ -2337,6 +2347,11 @@ namespace BeatSyncStudioPro
                 wheelBtn.Margin = new Thickness(6, 0, 0, 0);
                 wheelBtn.Click += (s, e) => _window.ShowCamelotWheel(this);
                 keyRow.Children.Add(wheelBtn);
+                _keyLockBtn = MakeButton("\U0001F512 Key Lock", 88);
+                _keyLockBtn.Margin = new Thickness(6, 0, 0, 0);
+                _keyLockBtn.ToolTip = "Key Lock: tempo changes speed WITHOUT changing pitch (master tempo). Off = vinyl style, pitch follows tempo.";
+                _keyLockBtn.Click += async (s, e) => await ToggleKeyLockAsync();
+                keyRow.Children.Add(_keyLockBtn);
                 midL.Children.Add(keyRow);
 
                 // Hot cues
@@ -3325,7 +3340,10 @@ namespace BeatSyncStudioPro
                 KeyShiftSemitones = 0;
                 _pristine = null;
                 _pristineStems = null;
+                _keyAppliedTotal = 0;
+                _keyRenderCts?.Cancel();
                 _keySyncBtn.Background = PanelBtn;
+                _keyLockBtn.Background = KeyLockOn ? _accent : PanelBtn;
                 _keyText.Text = "detecting...";
                 _keyText.Foreground = MutedText;
                 string cacheKey = _stemKey;
@@ -3362,12 +3380,12 @@ namespace BeatSyncStudioPro
                 if (_keyBusy) return;
                 if (KeyShiftSemitones != 0)
                 {
-                    if (_pristine != null) _deck.SwapBuffers(_pristine, _pristineStems);
                     KeyShiftSemitones = 0;
-                    _pristine = null;
-                    _pristineStems = null;
                     _keySyncBtn.Background = PanelBtn;
-                    _window.SetStatus($"{_name}: key sync off - original key restored.");
+                    await ReRenderKeyBufferAsync();
+                    _window.SetStatus(KeyLockOn
+                        ? $"{_name}: key sync off — Key Lock is still holding the pitch at tempo."
+                        : $"{_name}: key sync off - original key restored.");
                     _window.RefreshKeyCompatibility();
                     return;
                 }
@@ -3377,37 +3395,28 @@ namespace BeatSyncStudioPro
                 int dd = KeyDetector.Mod12(otherPanel.EffectivePitchClass - DetectedKey.PitchClass);
                 int shift = dd > 6 ? dd - 12 : dd;
                 if (shift == 0) { _window.SetStatus($"{_name}: already in key with the other deck."); return; }
-                _keyBusy = true;
                 _keySyncBtn.IsEnabled = false;
-                int gen = _loadGen;
-                int deckGen = _deck.LoadGeneration;
                 try
                 {
                     _window.SetStatus($"{_name}: shifting key {shift:+0;-0} semitones - rendering...");
-                    var mix = _deck.SnapshotInterleaved();
-                    var stems = _deck.SnapshotStemsInterleaved();
-                    var shiftedMix = await Task.Run(() => PitchShifter.Shift(mix, shift));
-                    float[][]? shiftedStems = null;
-                    if (stems != null)
-                    {
-                        var ss = stems;
-                        shiftedStems = await Task.Run(() => ss.Select(b => PitchShifter.Shift(b, shift)).ToArray());
-                    }
-                    if (gen != _loadGen || deckGen != _deck.LoadGeneration)
-                    {
-                        _window.SetStatus($"{_name}: key shift discarded - the track changed.");
-                        return;
-                    }
-                    _pristine = mix;
-                    _pristineStems = stems;
-                    _deck.SwapBuffers(shiftedMix, shiftedStems);
                     KeyShiftSemitones = shift;
-                    _keySyncBtn.Background = _accent;
-                    _window.SetStatus($"{_name}: key synced {shift:+0;-0} semitones to match the other deck.");
+                    await ReRenderKeyBufferAsync();
+                    if (Math.Abs(_keyAppliedTotal - KeyTargetShift()) < 0.05)
+                    {
+                        _keySyncBtn.Background = _accent;
+                        _window.SetStatus($"{_name}: key synced {shift:+0;-0} semitones to match the other deck.");
+                    }
+                    else
+                    {
+                        // the render was discarded (track changed / another
+                        // render in flight) — don't leave a phantom shift
+                        KeyShiftSemitones = 0;
+                        UpdateKeyLabel();
+                        _window.SetStatus($"{_name}: key shift discarded - the track changed.");
+                    }
                     _window.RefreshKeyCompatibility();
                 }
-                catch (Exception ex) { _window.SetStatus($"{_name}: key shift failed: " + ex.Message); }
-                finally { _keyBusy = false; _keySyncBtn.IsEnabled = true; }
+                finally { _keySyncBtn.IsEnabled = true; }
             }
 
             private void RefreshQueueList()
@@ -3681,6 +3690,105 @@ namespace BeatSyncStudioPro
                 _deck.Tempo = 1 + percent / 100.0;
                 _tempoLabel.Text = $"{percent:+0.0;-0.0;0.0}%";
                 _window.RefreshKeyCompatibility();
+                if (KeyLockOn) DebounceKeyRender();
+            }
+
+            // The total pitch shift the deck's buffer SHOULD carry right
+            // now: the key-sync shift plus, with Key Lock on, the exact
+            // inverse of the tempo fader's own pitch change.
+            private double KeyTargetShift()
+                => KeyShiftSemitones + (KeyLockOn ? -12.0 * Math.Log2(Math.Max(0.5, _deck.Tempo)) : 0.0);
+
+            private void DebounceKeyRender()
+            {
+                var old = _keyRenderCts;
+                _keyRenderCts = new CancellationTokenSource();
+                old?.Cancel();
+                old?.Dispose();
+                var token = _keyRenderCts.Token;
+                _ = Task.Run(async () =>
+                {
+                    try { await Task.Delay(300, token); }
+                    catch { return; }
+                    if (token.IsCancellationRequested) return;
+                    await _window.Dispatcher.InvokeAsync(new Action(() => { _ = ReRenderKeyBufferAsync(); }));
+                });
+            }
+
+            private async Task ToggleKeyLockAsync()
+            {
+                if (_keyBusy) { _window.SetStatus($"{_name}: a key render is already running — give it a second."); return; }
+                KeyLockOn = !KeyLockOn;
+                _keyLockBtn.Background = KeyLockOn ? _accent : PanelBtn;
+                _window.SetStatus(KeyLockOn
+                    ? $"{_name}: Key Lock ON — tempo now changes speed only, the pitch stays put."
+                    : $"{_name}: Key Lock OFF — pitch follows the tempo again (vinyl style).");
+                _window.RefreshKeyCompatibility();
+                await ReRenderKeyBufferAsync();
+            }
+
+            /// <summary>
+            /// Rebuild the deck's playback buffer from the pristine original
+            /// at KeyTargetShift() and swap it in. The single render path
+            /// behind Key Sync AND Key Lock, so the two compose instead of
+            /// fighting over the buffer.
+            /// </summary>
+            private async Task ReRenderKeyBufferAsync()
+            {
+                if (_keyBusy) return;
+                double target = KeyTargetShift();
+                if (Math.Abs(target - _keyAppliedTotal) < 0.05) { UpdateKeyLabel(); return; }
+                if (!_deck.IsLoaded) { _keyAppliedTotal = target; return; }
+                if (_pristine == null)
+                {
+                    // Nothing baked in yet, so what the deck holds IS the
+                    // original — pin it as the render source.
+                    if (Math.Abs(_keyAppliedTotal) > 0.001) return;
+                    _pristine = _deck.SnapshotInterleaved();
+                    _pristineStems = _deck.SnapshotStemsInterleaved();
+                }
+                _keyBusy = true;
+                int gen = _loadGen;
+                int deckGen = _deck.LoadGeneration;
+                try
+                {
+                    float[] newMix;
+                    float[][]? newStems = null;
+                    if (Math.Abs(target) < 0.01)
+                    {
+                        newMix = _pristine;
+                        newStems = _pristineStems;
+                    }
+                    else
+                    {
+                        var srcMix = _pristine;
+                        var srcStems = _pristineStems;
+                        newMix = await Task.Run(() => PitchShifter.Shift(srcMix, target));
+                        if (srcStems != null)
+                        {
+                            var ss = srcStems;
+                            newStems = await Task.Run(() => ss.Select(b => PitchShifter.Shift(b, target)).ToArray());
+                        }
+                    }
+                    if (gen != _loadGen || deckGen != _deck.LoadGeneration) return;
+                    _deck.SwapBuffers(newMix, newStems);
+                    _keyAppliedTotal = target;
+                    if (Math.Abs(target) < 0.01 && KeyShiftSemitones == 0 && !KeyLockOn)
+                    {
+                        _pristine = null;
+                        _pristineStems = null;
+                    }
+                    UpdateKeyLabel();
+                    _window.RefreshKeyCompatibility();
+                }
+                catch (Exception ex) { _window.SetStatus($"{_name}: key render failed: " + ex.Message); }
+                finally
+                {
+                    _keyBusy = false;
+                    // the tempo moved again while this render ran — catch up
+                    if (KeyLockOn && Math.Abs(KeyTargetShift() - _keyAppliedTotal) >= 0.05)
+                        DebounceKeyRender();
+                }
             }
 
             private void ApplyBpmBox()

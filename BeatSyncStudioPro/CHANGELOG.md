@@ -3,6 +3,13 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.57 — DJ Key Lock
+- **New per-deck 🔒 Key Lock toggle** (in the Key row, next to Key Sync). With it ON, moving the tempo fader changes the deck's **speed only — the pitch stays locked** at the track's key, like Serato/Rekordbox master tempo. With it OFF, the deck stays vinyl-style and pitch rides the tempo like it always has.
+- The lock is live: nudge the tempo and the pitch compensation re-renders itself a beat later (a full-song render takes a second or two on the Dell, so the pitch glides back into lock right after you move the fader — same feel as the existing Key Sync). SYNC and the tempo slider both respect it.
+- **Key Lock and Key Sync compose:** sync a deck to the other deck's key AND lock it, and the tempo fader will hold that synced key. The key label and the Camelot compatibility coloring now show the key you're actually hearing — with the lock on, tempo no longer drags the displayed key around.
+- Toggling Key Lock OFF restores honest vinyl behavior instantly (original buffer, no shift); if Key Sync was also on, turning sync off while locked keeps the lock's compensation.
+- Note: the lock applies to the full mix (and to stems that were already split when you toggle it), same as Key Sync — stems split afterwards join at their natural pitch.
+
 ## Version 3.56 — MilkDrop Visuals (projectM)
 - **The Output window's Visuals get the real MilkDrop engine.** Pick **🌀 projectM (MilkDrop)** in the Scene picker and the stage runs actual MilkDrop presets — the swirling, beat-reactive visuals from the Winamp days — rendered live by libprojectM and fed from the master audio, so what you hear is what it dances to.
 - **Four starter presets ship with the app** (written for BeatSync, since the engine ships with none): **Green Pulse**, **Gold Tunnel**, **Purple Waves** and **Vermont Pines**. They rotate on their own every 30 seconds; the ⏮ / ⏭ buttons in the Output bar skip between them and the bar shows the current preset's name.
