@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.36 — 🛠️ DJ Reliability Fixes (GLM Audit, Part 3)
+- **FIXED — Recording can no longer kill the audio:** Writing the mix recording to disk now happens on a background writer thread. The audio path only queues a copy of each block — no disk I/O on the audio thread, and a disk failure (full drive, removed stick) quietly ends the recording instead of taking the whole output down mid-set.
+- **FIXED — Waveform passes no longer stall playback:** Computing deck peaks and channel splits (for waveforms and stem splitting) used to hold the deck's audio lock for a whole-song pass, glitching the playing deck. They now snapshot the audio and compute lock-free.
+
 ## Version 3.35 — 🛠️ DJ Reliability Fixes (GLM Audit, Part 2)
 - **FIXED — Companion request cap:** The phone remote now rejects request bodies over 64 KB (HTTP 413) before allocating anything — previously any device on the Wi-Fi could force a huge memory allocation just by declaring a giant Content-Length.
 - **FIXED — Button icons:** The CRUISE and MIC buttons, the Mic FX and Phone Companion buttons, and the MIC header now show their actual icons instead of literal "\U..." text — the labels were written as C# escapes, which XAML shows as raw text.

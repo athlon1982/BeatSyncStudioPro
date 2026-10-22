@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
@@ -165,14 +167,16 @@ namespace BeatSyncStudioPro
         /// <summary>The loaded track decoded to separate channels - the input StemSeparator.SplitAsync wants.</summary>
         public (float[] Left, float[] Right) GetChannelBuffers()
         {
-            lock (_lock)
-            {
-                int frames = _samples.Length / 2;
-                var l = new float[frames];
-                var r = new float[frames];
-                for (int f = 0; f < frames; f++) { l[f] = _samples[f * 2]; r[f] = _samples[f * 2 + 1]; }
-                return (l, r);
-            }
+            // grab the reference under the lock, then run the whole pass lock-free:
+            // _samples is only ever swapped wholesale (Load/SwapBuffers), never written
+            // in place, so the snapshot we hold stays valid while playback continues
+            float[] samples;
+            lock (_lock) { samples = _samples; }
+            int frames = samples.Length / 2;
+            var l = new float[frames];
+            var r = new float[frames];
+            for (int f = 0; f < frames; f++) { l[f] = samples[f * 2]; r[f] = samples[f * 2 + 1]; }
+            return (l, r);
         }
 
         /// <summary>Load the 4 stem WAVs the separator wrote ("name (stem).wav") as this deck's stem buffers.</summary>
@@ -247,22 +251,25 @@ namespace BeatSyncStudioPro
         public float[] ComputePeaks(int columns)
         {
             var peaks = new float[columns];
-            lock (_lock)
+            // grab the reference under the lock, then run the whole pass lock-free:
+            // _samples is only ever swapped wholesale (Load/SwapBuffers), never written
+            // in place, so the snapshot we hold stays valid while playback continues
+            float[] samples;
+            lock (_lock) { samples = _samples; }
+            if (samples.Length == 0 || columns <= 0) return peaks;
+            long totalFrames = samples.Length / 2;
+            int framesPerColumn = Math.Max(1, (int)(totalFrames / columns));
+            for (int c = 0; c < columns; c++)
             {
-                if (_samples.Length == 0 || columns <= 0) return peaks;
-                int framesPerColumn = Math.Max(1, (int)(TotalFrames / columns));
-                for (int c = 0; c < columns; c++)
+                long start = (long)c * framesPerColumn;
+                long end = Math.Min(totalFrames, start + framesPerColumn);
+                float max = 0;
+                for (long f = start; f < end; f += 4) // stride for speed on long songs
                 {
-                    long start = (long)c * framesPerColumn;
-                    long end = Math.Min(TotalFrames, start + framesPerColumn);
-                    float max = 0;
-                    for (long f = start; f < end; f += 4) // stride for speed on long songs
-                    {
-                        float v = Math.Abs(_samples[f * 2]) + Math.Abs(_samples[f * 2 + 1]);
-                        if (v > max) max = v;
-                    }
-                    peaks[c] = Math.Min(1f, max * 0.5f);
+                    float v = Math.Abs(samples[f * 2]) + Math.Abs(samples[f * 2 + 1]);
+                    if (v > max) max = v;
                 }
+                peaks[c] = Math.Min(1f, max * 0.5f);
             }
             return peaks;
         }
@@ -403,11 +410,19 @@ namespace BeatSyncStudioPro
         }
     }
 
-    /// <summary>Pass-through that writes everything passing through it to a WAV file while armed.</summary>
+    /// <summary>
+    /// Pass-through that writes everything passing through it to a WAV file while armed.
+    /// A dedicated background thread owns the disk I/O: Read only queues a copy of each
+    /// block, so no disk work and no disk failure can ever reach the audio callback.
+    /// </summary>
     public class RecordingSampleProvider : ISampleProvider
     {
         private readonly ISampleProvider _source;
-        private WaveFileWriter? _writer;
+        private readonly ConcurrentQueue<float[]> _pending = new ConcurrentQueue<float[]>();
+        private WaveFileWriter? _writer;   // owned by the writer thread once Start hands it over
+        private Thread? _writerThread;
+        private volatile bool _recording;
+        private volatile bool _stopRequested;
 
         public RecordingSampleProvider(ISampleProvider source)
         {
@@ -416,25 +431,66 @@ namespace BeatSyncStudioPro
         }
 
         public WaveFormat WaveFormat { get; }
-        public bool IsRecording => _writer != null;
+        public bool IsRecording => _recording;
 
         public void Start(string path)
         {
-            Stop();
+            Stop();                                   // start() while already recording = stop first
+            _pending.Clear();
             _writer = new WaveFileWriter(path, WaveFormat);
+            _stopRequested = false;
+            _recording = true;
+            _writerThread = new Thread(WriterLoop) { IsBackground = true };
+            _writerThread.Start();
         }
 
         public void Stop()
         {
-            _writer?.Dispose();
+            if (!_recording) return;
+            _stopRequested = true;                    // the writer thread drains the queue, then exits
+            try { _writerThread?.Join(2000); } catch { }   // bounded wait - never hang on a stuck writer
+            try { _writer?.Dispose(); } catch { }     // safe: the writer thread is done with it
             _writer = null;
+            _recording = false;
         }
 
         public int Read(float[] buffer, int offset, int count)
         {
             int read = _source.Read(buffer, offset, count);
-            _writer?.WriteSamples(buffer, offset, read);
+            if (_recording && read > 0)
+            {
+                try
+                {
+                    var block = new float[read];      // copy the just-read samples and queue them...
+                    Array.Copy(buffer, offset, block, 0, read);
+                    _pending.Enqueue(block);          // ...no disk I/O and nothing throws here
+                }
+                catch { }
+            }
             return read;
+        }
+
+        private void WriterLoop()
+        {
+            // keep going until a stop is requested AND everything queued is on disk
+            while (!_stopRequested || !_pending.IsEmpty)
+            {
+                if (_pending.TryDequeue(out var block))
+                {
+                    try { _writer?.WriteSamples(block, 0, block.Length); }
+                    catch
+                    {
+                        // disk full, drive removed, ...: end recording quietly instead of
+                        // letting the failure propagate out of the audio callback
+                        try { _writer?.Dispose(); } catch { }
+                        _writer = null;
+                        _stopRequested = true;
+                        _recording = false;
+                        return;
+                    }
+                }
+                else Thread.Sleep(5);
+            }
         }
     }
 }
