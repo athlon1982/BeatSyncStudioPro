@@ -105,7 +105,7 @@ namespace BeatSyncStudioPro
             _recorder = new RecordingSampleProvider(finalMix);
             _owner.AttachDjMixer(_recorder);
             djMaster.AddMixerInput(_sampler.Output);
-            SamplerVolumeSlider.ValueChanged += (s, e) => _sampler.Output.Volume = (float)SamplerVolumeSlider.Value;
+            SamplerVolumeKnob.ValueChanged += (s, e) => _sampler.Output.Volume = (float)SamplerVolumeKnob.Value;
             BuildSamplerPads();
             for (int i = 0; i < MicChannel.DeviceCount; i++) MicDevicePicker.Items.Add(MicChannel.DeviceName(i));
             if (MicDevicePicker.Items.Count > 0) MicDevicePicker.SelectedIndex = 0;
@@ -118,7 +118,7 @@ namespace BeatSyncStudioPro
 
             XfadeSlider.ValueChanged += (s, e) => UpdateCrossfader();
             CurvePicker.SelectionChanged += (s, e) => UpdateCrossfader();
-            DjMasterSlider.ValueChanged += (s, e) => _musicLevel = (float)DjMasterSlider.Value;
+            DjMasterKnob.ValueChanged += (s, e) => _musicLevel = (float)DjMasterKnob.Value;
             UpdateCrossfader();
 
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
@@ -365,7 +365,7 @@ namespace BeatSyncStudioPro
                 var content = new StackPanel();
                 content.Children.Add(title);
                 content.Children.Add(sub);
-                var btn = new Button { Content = content, Height = 54, Margin = new Thickness(3), Background = PadBaseBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+                var btn = new Button { Content = content, Height = 54, Style = (Style)TryFindResource("HwButton"), Margin = new Thickness(3), Background = PadBaseBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
                 btn.Click += (s, e) => TriggerPad(pad);
                 btn.MouseRightButtonUp += (s, e) => { AssignPad(pad); e.Handled = true; };
                 _padButtons[i] = btn;
@@ -495,7 +495,7 @@ namespace BeatSyncStudioPro
             float cur = _masterGain.Volume;
             float factor = target < cur ? 0.5f : 0.12f;
             _masterGain.Volume = cur + (target - cur) * factor;
-            if (_micGain != null) _micGain.Volume = _micOn ? (float)MicLevelSlider.Value : 0f;
+            if (_micGain != null) _micGain.Volume = _micOn ? (float)MicLevelKnob.Value : 0f;
             if (MicMeterFill != null && MicMeterGrid != null)
                 MicMeterFill.Width = _micOn ? Math.Clamp(_mic.Level, 0f, 1f) * MicMeterGrid.ActualWidth : 0;
         }
@@ -527,7 +527,7 @@ namespace BeatSyncStudioPro
                         case "cueA": _panelA.RemoteCue(); break;
                         case "cueB": _panelB.RemoteCue(); break;
                         case "xfader": if (root.TryGetProperty("value", out var xv)) XfadeSlider.Value = Math.Clamp(xv.GetDouble(), 0, 1000); break;
-                        case "master": if (root.TryGetProperty("value", out var mv)) DjMasterSlider.Value = Math.Clamp(mv.GetDouble(), 0, 125) / 100.0; break;
+                        case "master": if (root.TryGetProperty("value", out var mv)) DjMasterKnob.Value = Math.Clamp(mv.GetDouble(), 0, 125) / 100.0; break;
                         case "cruise": if (_cruiseOn) TurnCruiseOff("\U0001F6A2 Cruise off (phone)."); else StartCruise(); break;
                         case "mic": MicButton_Click(this, new RoutedEventArgs()); break;
                         case "pad": if (root.TryGetProperty("index", out var pi)) TriggerPad(pi.GetInt32()); break;
@@ -544,7 +544,7 @@ namespace BeatSyncStudioPro
             string Deck(DeckPanel p) => FormattableString.Invariant(
                 $"{{\"title\":\"{Esc(p.CurrentTitle)}\",\"playing\":{(p.IsPlayingDeck ? "true" : "false")},\"pos\":{p.DeckPositionSeconds:0.0},\"dur\":{p.DeckTotalSeconds:0.0},\"key\":\"{Esc(p.KeyDisplayText)}\"}}");
             return FormattableString.Invariant(
-                $"{{\"a\":{Deck(_panelA)},\"b\":{Deck(_panelB)},\"xfader\":{XfadeSlider.Value:0},\"master\":{DjMasterSlider.Value * 100:0},\"cruise\":{(_cruiseOn ? "true" : "false")},\"mic\":{(_micOn ? "true" : "false")}}}");
+                $"{{\"a\":{Deck(_panelA)},\"b\":{Deck(_panelB)},\"xfader\":{XfadeSlider.Value:0},\"master\":{DjMasterKnob.Value * 100:0},\"cruise\":{(_cruiseOn ? "true" : "false")},\"mic\":{(_micOn ? "true" : "false")}}}");
         }
 
         private void RecordButton_Click(object sender, RoutedEventArgs e)
@@ -729,7 +729,18 @@ namespace BeatSyncStudioPro
                 _channelGain = channelGain;
                 _tap = tap;
 
-                var root = new StackPanel();
+                var root = new StackPanel
+                {
+                    Background = new LinearGradientBrush
+                    {
+                        StartPoint = new Point(0, 0), EndPoint = new Point(0, 1),
+                        GradientStops = new GradientStopCollection
+                        {
+                            new GradientStop(Color.FromRgb(0x17, 0x1B, 0x26), 0),
+                            new GradientStop(Color.FromRgb(0x0D, 0x10, 0x17), 1)
+                        }
+                    }
+                };
 
                 _title = new TextBlock { Text = $"{name} — empty", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = accent, Margin = new Thickness(0, 0, 0, 6) };
                 root.Children.Add(_title);
@@ -837,7 +848,7 @@ namespace BeatSyncStudioPro
                 };
                 styleRow.Children.Add(_colorPicker);
                 root.Children.Add(styleRow);
-                _visualBorder = new Border { Height = 54, Margin = new Thickness(0, 4, 0, 0), Background = new SolidColorBrush(Color.FromRgb(0x14, 0x17, 0x1E)), CornerRadius = new CornerRadius(4) };
+                _visualBorder = new Border { Height = 64, Margin = new Thickness(0, 4, 0, 0), Background = new SolidColorBrush(Color.FromRgb(0x0B, 0x0D, 0x13)), CornerRadius = new CornerRadius(8) };
                 _visualImage = new Image { Stretch = Stretch.Fill };
                 _visualBorder.Child = _visualImage;
                 root.Children.Add(_visualBorder);
@@ -922,6 +933,7 @@ namespace BeatSyncStudioPro
                 bendDown.MouseLeave += (s, e) => _deck.Bend = 1.0;
                 tempoRow.Children.Add(bendDown);
                 _tempoSlider = new Slider { Minimum = -8, Maximum = 8, Value = 0, Width = 170, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 4, 0) };
+                _tempoSlider.Style = _window.TryFindResource("HwSliderH") as Style;
                 _tempoSlider.ValueChanged += (s, e) => SetTempo(_tempoSlider.Value);
                 tempoRow.Children.Add(_tempoSlider);
                 var bendUp = MakeButton("+", 34);
@@ -1023,7 +1035,7 @@ namespace BeatSyncStudioPro
                 // Gain
                 var gainRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
                 gainRow.Children.Add(new TextBlock { Text = "Gain", Foreground = MutedText, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Width = 48 });
-                var gain = new Slider { Minimum = 0, Maximum = 1.25, Value = 1.0, Width = 200, VerticalAlignment = VerticalAlignment.Center };
+                var gain = new KnobControl { Minimum = 0, Maximum = 1.25, Value = 1.0, Width = 56, Height = 56, Accent = _accent, VerticalAlignment = VerticalAlignment.Center };
                 gain.ValueChanged += (s, e) => _channelGain.Volume = (float)gain.Value;
                 gainRow.Children.Add(gain);
                 root.Children.Add(gainRow);
@@ -1084,7 +1096,24 @@ namespace BeatSyncStudioPro
                 };
                 root.Children.Add(_autoNextBox);
 
+                ApplyHardwareStyles(root);
                 host.Child = root;
+            }
+
+            /// <summary>v3.33 board skin: every button in the panel wears the
+            /// hardware style; code-set backgrounds (stem chips, hot cues,
+            /// play state) still drive the fill through the template.</summary>
+            private void ApplyHardwareStyles(DependencyObject node)
+            {
+                var style = _window.TryFindResource("HwButton") as Style;
+                void Walk(DependencyObject n)
+                {
+                    if (n is Button b && b.Style == null && style != null) b.Style = style;
+                    if (n is Panel p) { foreach (var c in p.Children) { if (c is DependencyObject dep) Walk(dep); } }
+                    else if (n is Border bd) { if (bd.Child != null) Walk(bd.Child); }
+                    else if (n is ContentControl cc) { if (cc.Content is DependencyObject cd) Walk(cd); }
+                }
+                Walk(node);
             }
 
             /// <summary>
@@ -1138,13 +1167,13 @@ namespace BeatSyncStudioPro
                     HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
                     Fill = grad
                 });
-                foreach (double d in new[] { 150.0, 128.0, 106.0 })
+                foreach (double d in new[] { 162.0, 144.0, 126.0, 108.0, 90.0 })
                 {
                     vinyl.Children.Add(new Ellipse
                     {
                         Width = d, Height = d,
                         HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
-                        Stroke = new SolidColorBrush(Color.FromArgb(26, 255, 255, 255)), StrokeThickness = 5
+                        Stroke = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)), StrokeThickness = 3
                     });
                 }
                 vinyl.Children.Add(new Ellipse

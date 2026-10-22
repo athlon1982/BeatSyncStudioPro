@@ -3,6 +3,13 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.33 — 🎛️ The Hardware Board Reskin
+### New look, same machine
+- **The DJ window now looks like a real board** — the splash art come to life: dark brushed-metal panels, machined **rotary knobs** with lit tick rings (master, mic level, sampler volume, per-deck gain — drag up/down or scroll to turn), **fader caps** on the crossfader and tempo sliders, a proper **toggle switch** for mic ducking, and backlit hardware buttons with metal edging everywhere.
+- **The platter got richer vinyl**: more groove rings and a finer cut, same glowing rim and waveform ring. The deck visual display is a taller, board-style screen — and yes, **every visual style is still there** (all 11 + Off, same picker, same colors).
+### The guarantee
+- **Nothing was cut.** This version changes paint, not features: scratching works exactly as before (same platter, same slip mode), and every control — stems, key sync, cruise, sampler, mic, companion, queues, loops, jumps — is wired exactly where it always was. The knobs and switches are the same settings wearing better clothes.
+
 ## Version 3.32 — 📱 Phone Companion (Wi-Fi + Tailscale, Password Gate)
 ### New
 - **Control the DJ decks from your phone** (final feature of the DJ mega-queue): the **📱 Phone Companion** button in the mixer opens the companion panel — start the built-in server and open the shown address on your phone for a full remote: both decks (play/pause, CUE, live title/key/time), crossfader, master, Cruise, the mic, and all 8 sampler pads.
