@@ -65,6 +65,8 @@
                 <CheckBox x:Name="MicDuckBox" Content="Duck music while talking" IsChecked="True" Foreground="#A0A5B5" FontSize="11" Margin="0,6,0,0"/>
                 <Button x:Name="MicFxButton" Content="\U0001F39B\uFE0F Mic FX (EQ / Reverb)" Click="MicFxButton_Click" Height="28" Margin="0,6,0,0"
                         Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                <Button x:Name="CompanionButton" Content="\U0001F4F1 Phone Companion" Click="CompanionButton_Click" Height="28" Margin="0,6,0,0"
+                        Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
                 <TextBlock x:Name="DjStatus" Text="Load a song on each deck and mix." Foreground="#A0A5B5" FontSize="11"
                            TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,10,0,0"/>
                 <TextBlock Text="Tip: SYNC matches Deck B to A (or A to B). Loops and hot cues need the BPM — type it or TAP it." Foreground="#666666" FontSize="10"

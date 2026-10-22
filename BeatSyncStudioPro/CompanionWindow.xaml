@@ -1,0 +1,45 @@
+<Window x:Class="BeatSyncStudioPro.CompanionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Phone Companion — BeatSync Studio Pro" Icon="/Assets/app.ico"
+        Width="430" Height="560" WindowStartupLocation="CenterOwner"
+        Foreground="#FFFFFF" ResizeMode="NoResize">
+    <Window.Background>
+        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#0B0E14" Offset="0"/>
+            <GradientStop Color="#131926" Offset="0.55"/>
+            <GradientStop Color="#0D1420" Offset="1"/>
+        </LinearGradientBrush>
+    </Window.Background>
+    <StackPanel Margin="16">
+        <TextBlock Text="📱 PHONE COMPANION" FontSize="16" FontWeight="Bold"/>
+        <TextBlock Text="Control the DJ decks from your phone. Keep this DJ window open — the companion server lives in it." Foreground="#A0A5B5" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0"/>
+
+        <TextBlock x:Name="ServerStatusText" FontSize="13" FontWeight="Bold" Margin="0,14,0,0"/>
+        <Button x:Name="ServerToggleButton" Content="Start companion server" Click="ServerToggleButton_Click" Height="34" Margin="0,6,0,0"
+                Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+        <TextBlock Text="First time: Windows may ask to allow BeatSync through the firewall — click Allow (private networks)." Foreground="#666666" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0"/>
+
+        <TextBlock Text="Open one of these on your phone:" FontWeight="Bold" FontSize="13" Margin="0,16,0,4"/>
+        <TextBlock x:Name="AddressesText" FontSize="12.5" Foreground="#E8C766" TextWrapping="Wrap" FontFamily="Consolas"/>
+
+        <TextBlock Text="🔒 Password gate" FontWeight="Bold" FontSize="13" Margin="0,18,0,4"/>
+        <TextBlock x:Name="PasswordStatusText" Foreground="#A0A5B5" FontSize="12" TextWrapping="Wrap"/>
+        <Grid Margin="0,6,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="86"/>
+                <ColumnDefinition Width="86"/>
+            </Grid.ColumnDefinitions>
+            <PasswordBox x:Name="PasswordInput" Grid.Column="0" Background="#0D1420" Foreground="White" BorderBrush="#2A3446" Padding="6,5"/>
+            <Button x:Name="SetPasswordButton" Grid.Column="1" Content="Set" Click="SetPasswordButton_Click" Margin="6,0,0,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <Button x:Name="ClearPasswordButton" Grid.Column="2" Content="Clear" Click="ClearPasswordButton_Click" Margin="6,0,0,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+        </Grid>
+        <TextBlock Text="The password is set here in the DJ app and checked on every connection — Wi-Fi, Tailscale, all of them. No password, no control. It's stored as a salted hash, never in plain text. Setting or clearing it signs every phone out." Foreground="#666666" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0"/>
+
+        <TextBlock Text="Bluetooth" FontWeight="Bold" FontSize="13" Margin="0,18,0,4"/>
+        <TextBlock Text="Phase 2: phone browsers only allow Bluetooth from secure (HTTPS) pages, and this page is plain HTTP on your own networks — so Bluetooth can't ride it yet. The unblock is a Tailscale HTTPS address for this same page; the Wi-Fi and Tailscale doors above are live today." Foreground="#A0A5B5" FontSize="11.5" TextWrapping="Wrap"/>
+
+        <TextBlock x:Name="SessionsText" Foreground="#A0A5B5" FontSize="11.5" Margin="0,16,0,0"/>
+    </StackPanel>
+</Window>

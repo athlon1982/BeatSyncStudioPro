@@ -44,6 +44,14 @@ namespace BeatSyncStudioPro
         private VolumeSampleProvider _micGain = null!;
         private bool _micOn;
         private float _musicLevel = 0.9f;
+        // Phone companion (v3.32)
+        private readonly CompanionServer _companion = new CompanionServer();
+        private readonly System.Collections.Concurrent.ConcurrentQueue<string> _companionQueue = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        private volatile string _companionStateJson = "{}";
+        private CompanionWindow? _companionWindow;
+        internal CompanionServer Companion => _companion;
+        internal void StartCompanionServer() => _companion.Start(CompanionServer.LoadSettings().Port);
+        internal void StopCompanionServer() => _companion.Stop();
         // Sampler (v3.27)
         private readonly SamplerEngine _sampler = new SamplerEngine();
         private readonly Button[] _padButtons = new Button[SamplerEngine.PadCount];
@@ -114,7 +122,9 @@ namespace BeatSyncStudioPro
             UpdateCrossfader();
 
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
-            _timer.Tick += (s, e) => { _panelA.Refresh(); _panelB.Refresh(); CruiseTick(); SamplerFlashTick(); MicTick(); };
+            _companion.CommandReceived += json => _companionQueue.Enqueue(json);
+            _companion.StateJsonProvider = () => _companionStateJson;
+            _timer.Tick += (s, e) => { _panelA.Refresh(); _panelB.Refresh(); CruiseTick(); SamplerFlashTick(); MicTick(); DrainCompanion(); };
             _timer.Start();
 
             // Never open larger than the screen's work area (scaled displays
@@ -129,7 +139,7 @@ namespace BeatSyncStudioPro
                 Left = wa.Left + Math.Max(0, (wa.Width - ActualWidth) / 2);
                 Top = wa.Top + Math.Max(0, (wa.Height - ActualHeight) / 2);
             };
-            Closed += (s, e) => { _timer.Stop(); _recorder.Stop(); _mic.Dispose(); };
+            Closed += (s, e) => { _timer.Stop(); _recorder.Stop(); _mic.Dispose(); _companion.Stop(); };
         }
 
         private (VolumeSampleProvider Xfade, VolumeSampleProvider Channel, AudioTapSampleProvider Tap) BuildDeckChain(
@@ -488,6 +498,53 @@ namespace BeatSyncStudioPro
             if (_micGain != null) _micGain.Volume = _micOn ? (float)MicLevelSlider.Value : 0f;
             if (MicMeterFill != null && MicMeterGrid != null)
                 MicMeterFill.Width = _micOn ? Math.Clamp(_mic.Level, 0f, 1f) * MicMeterGrid.ActualWidth : 0;
+        }
+
+        private void CompanionButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_companionWindow == null)
+            {
+                _companionWindow = new CompanionWindow(this) { Owner = this };
+                _companionWindow.Closed += (s2, e2) => _companionWindow = null;
+                _companionWindow.Show();
+            }
+            else _companionWindow.Activate();
+        }
+
+        private void DrainCompanion()
+        {
+            while (_companionQueue.TryDequeue(out var json))
+            {
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(json);
+                    var root = doc.RootElement;
+                    if (!root.TryGetProperty("cmd", out var cmdEl)) continue;
+                    switch (cmdEl.GetString())
+                    {
+                        case "playA": _panelA.RemotePlayPause(); break;
+                        case "playB": _panelB.RemotePlayPause(); break;
+                        case "cueA": _panelA.RemoteCue(); break;
+                        case "cueB": _panelB.RemoteCue(); break;
+                        case "xfader": if (root.TryGetProperty("value", out var xv)) XfadeSlider.Value = Math.Clamp(xv.GetDouble(), 0, 1000); break;
+                        case "master": if (root.TryGetProperty("value", out var mv)) DjMasterSlider.Value = Math.Clamp(mv.GetDouble(), 0, 125) / 100.0; break;
+                        case "cruise": if (_cruiseOn) TurnCruiseOff("\U0001F6A2 Cruise off (phone)."); else StartCruise(); break;
+                        case "mic": MicButton_Click(this, new RoutedEventArgs()); break;
+                        case "pad": if (root.TryGetProperty("index", out var pi)) TriggerPad(pi.GetInt32()); break;
+                    }
+                }
+                catch { }
+            }
+            _companionStateJson = BuildCompanionState();
+        }
+
+        private string BuildCompanionState()
+        {
+            static string Esc(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            string Deck(DeckPanel p) => FormattableString.Invariant(
+                $"{{\"title\":\"{Esc(p.CurrentTitle)}\",\"playing\":{(p.IsPlayingDeck ? "true" : "false")},\"pos\":{p.DeckPositionSeconds:0.0},\"dur\":{p.DeckTotalSeconds:0.0},\"key\":\"{Esc(p.KeyDisplayText)}\"}}");
+            return FormattableString.Invariant(
+                $"{{\"a\":{Deck(_panelA)},\"b\":{Deck(_panelB)},\"xfader\":{XfadeSlider.Value:0},\"master\":{DjMasterSlider.Value * 100:0},\"cruise\":{(_cruiseOn ? "true" : "false")},\"mic\":{(_micOn ? "true" : "false")}}}");
         }
 
         private void RecordButton_Click(object sender, RoutedEventArgs e)
@@ -1904,6 +1961,12 @@ namespace BeatSyncStudioPro
             }
 
             internal void StopForCruise() { _deck.IsPlaying = false; }
+
+            internal void RemotePlayPause() => PlayPause();
+            internal void RemoteCue() => Cue();
+            internal double DeckPositionSeconds => _deck.PositionSeconds;
+            internal double DeckTotalSeconds => _deck.TotalSeconds;
+            internal string KeyDisplayText => DetectedKey == null ? "" : $"{KeyDetector.KeyNameFor(EffectivePitchClass, DetectedKey.IsMinor)} - {EffectiveCamelot}";
 
             internal void SyncForCruise()
             {

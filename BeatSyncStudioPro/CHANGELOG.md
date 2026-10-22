@@ -3,6 +3,13 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.32 — 📱 Phone Companion (Wi-Fi + Tailscale, Password Gate)
+### New
+- **Control the DJ decks from your phone** (final feature of the DJ mega-queue): the **📱 Phone Companion** button in the mixer opens the companion panel — start the built-in server and open the shown address on your phone for a full remote: both decks (play/pause, CUE, live title/key/time), crossfader, master, Cruise, the mic, and all 8 sampler pads.
+- **Two doors in, same server**: your home **Wi-Fi** address at home, and your **Tailscale** address from anywhere in the world — the panel lists both, ready to type. (No app to install on the phone; it's a web remote.)
+- **🔒 Password gate, exactly as specified**: set a password in the companion panel and *every* connection must pass it — no password, no control. Stored as a salted PBKDF2 hash (never plain text), five wrong tries locks an address out for 30 seconds, and changing the password signs every phone out.
+- **Bluetooth is phase 2, honestly**: phone browsers only allow Bluetooth from secure (HTTPS) pages, and this remote is plain HTTP on your own networks — so the panel says so instead of faking it. The unblock is a Tailscale HTTPS address for this same page.
+
 ## Version 3.31 — 🎤 Live Mic Channel
 ### New
 - **A real mic channel in the DJ mixer** (feature 7 of the DJ mega-queue): pick your input device, hit **🎤 MIC: LIVE**, and you're on the mix — voice runs through its own EQ (rumble cut + presence lift) and a touch of reverb, tuned for talk-over, and lands in **Record Mix** recordings too.
