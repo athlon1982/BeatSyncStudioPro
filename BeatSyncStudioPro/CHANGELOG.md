@@ -3,6 +3,9 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.61 — Audit Fix 2: Sound-Library Archive Locking
+- **Bug fix (audit #2 of 6):** the sound-library archive (`sound-library.zip`) was opened from several places at once with no synchronization — the screen, imports, mashup saves, and the background "stems are ready" callback could all hit it simultaneously, causing "file in use" errors and risking a torn archive (the likely cause of the unreadable-archive incident on Oct 22). Every archive read/write now goes through a single lock, so those operations line up instead of colliding. No visible behavior change — just no more collisions.
+
 ## Version 3.60 — Audit Fix 1: OGG / FLAC / M4A Now Actually Play
 - **Bug fix (2026-10-22 full-code audit, #1 of 6):** OGG, FLAC, M4A and WMA files imported fine but silently never played on the timeline side — nine decode spots treated every non-WAV file as an MP3 and the failure was swallowed. Playback, waveforms, clip durations, beat detection, stem splitting, transcripts, batch convert and exports all went through the broken path (the DJ decks and sampler already handled these formats correctly).
 - All nine spots now share one **AudioReaderFactory**: WAV/MP3 read from memory as before; everything else decodes through Media Foundation, exactly like the decks do. If you have OGG/FLAC clips sitting silent in a project, they should just work now.

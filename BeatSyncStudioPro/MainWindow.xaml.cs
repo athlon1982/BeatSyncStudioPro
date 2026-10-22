@@ -3350,7 +3350,21 @@ namespace BeatSyncStudioPro
 
         private static bool _archiveReady;
 
+        // Audit Bug 2 (v3.61): EVERY open of sound-library.zip goes through
+        // this one lock. The archive is touched from the UI thread, imports,
+        // mashup saves and a background stem-completion callback — two
+        // unsynchronized opens meant "file in use" errors and could tear
+        // the zip (the likely cause of the unreadable-archive incident on
+        // 2026-10-22). Monitor locks are reentrant, so methods may freely
+        // call each other while holding it.
+        private static readonly object ArchiveLock = new object();
+
         public static void EnsureSoundLibraryArchive()
+        {
+            lock (ArchiveLock) { EnsureSoundLibraryArchiveLocked(); }
+        }
+
+        private static void EnsureSoundLibraryArchiveLocked()
         {
             if (_archiveReady) return;
             _archiveReady = true;
@@ -3392,6 +3406,11 @@ namespace BeatSyncStudioPro
         /// <summary>(entryName, category, fileName) for every audio entry in the archive.</summary>
         public static List<(string EntryName, string Category, string FileName)> LibraryArchiveEntries()
         {
+            lock (ArchiveLock) { return LibraryArchiveEntriesLocked(); }
+        }
+
+        private static List<(string EntryName, string Category, string FileName)> LibraryArchiveEntriesLocked()
+        {
             var list = new List<(string, string, string)>();
             try
             {
@@ -3414,6 +3433,11 @@ namespace BeatSyncStudioPro
         }
 
         public static byte[]? ReadLibraryArchiveEntry(string entryName)
+        {
+            lock (ArchiveLock) { return ReadLibraryArchiveEntryLocked(entryName); }
+        }
+
+        private static byte[]? ReadLibraryArchiveEntryLocked(string entryName)
         {
             try
             {
@@ -3438,13 +3462,16 @@ namespace BeatSyncStudioPro
 
         private static void WriteLibraryArchiveEntry(string category, string fileName, byte[] bytes)
         {
-            EnsureSoundLibraryArchive();
-            using var zip = ZipFile.Open(SoundLibraryArchivePath, ZipArchiveMode.Update);
-            string entryName = category + "/" + fileName;
-            zip.GetEntry(entryName)?.Delete();
-            var entry = zip.CreateEntry(entryName, CompressionLevel.Optimal);
-            using var es = entry.Open();
-            es.Write(bytes, 0, bytes.Length);
+            lock (ArchiveLock)
+            {
+                EnsureSoundLibraryArchive();
+                using var zip = ZipFile.Open(SoundLibraryArchivePath, ZipArchiveMode.Update);
+                string entryName = category + "/" + fileName;
+                zip.GetEntry(entryName)?.Delete();
+                var entry = zip.CreateEntry(entryName, CompressionLevel.Optimal);
+                using var es = entry.Open();
+                es.Write(bytes, 0, bytes.Length);
+            }
         }
 
         /// <summary>Rename one archive entry in place (same category folder, new file name).</summary>
@@ -3467,9 +3494,12 @@ namespace BeatSyncStudioPro
         {
             try
             {
-                if (!File.Exists(SoundLibraryArchivePath)) return;
-                using var zip = ZipFile.Open(SoundLibraryArchivePath, ZipArchiveMode.Update);
-                zip.GetEntry(entryName)?.Delete();
+                lock (ArchiveLock)
+                {
+                    if (!File.Exists(SoundLibraryArchivePath)) return;
+                    using var zip = ZipFile.Open(SoundLibraryArchivePath, ZipArchiveMode.Update);
+                    zip.GetEntry(entryName)?.Delete();
+                }
             }
             catch { }
         }
@@ -3478,10 +3508,13 @@ namespace BeatSyncStudioPro
         {
             try
             {
-                if (!File.Exists(SoundLibraryArchivePath)) return;
-                using var zip = ZipFile.Open(SoundLibraryArchivePath, ZipArchiveMode.Update);
-                var hits = zip.Entries.Where(en => en.Name == fileName).ToList();
-                foreach (var h in hits) h.Delete();
+                lock (ArchiveLock)
+                {
+                    if (!File.Exists(SoundLibraryArchivePath)) return;
+                    using var zip = ZipFile.Open(SoundLibraryArchivePath, ZipArchiveMode.Update);
+                    var hits = zip.Entries.Where(en => en.Name == fileName).ToList();
+                    foreach (var h in hits) h.Delete();
+                }
             }
             catch { }
         }
@@ -3490,16 +3523,19 @@ namespace BeatSyncStudioPro
         {
             try
             {
-                if (!File.Exists(SoundLibraryArchivePath)) return;
-                using var zip = ZipFile.Open(SoundLibraryArchivePath, ZipArchiveMode.Update);
-                var hit = zip.Entries.FirstOrDefault(en => en.Name == oldName);
-                if (hit == null) return;
-                string full = hit.FullName.Replace('\\', '/');
-                string cat = full.Contains('/') ? full.Substring(0, full.IndexOf('/')) : "Other";
-                hit.Delete();
-                var entry = zip.CreateEntry(cat + "/" + newName, CompressionLevel.Optimal);
-                using var es = entry.Open();
-                es.Write(bytes, 0, bytes.Length);
+                lock (ArchiveLock)
+                {
+                    if (!File.Exists(SoundLibraryArchivePath)) return;
+                    using var zip = ZipFile.Open(SoundLibraryArchivePath, ZipArchiveMode.Update);
+                    var hit = zip.Entries.FirstOrDefault(en => en.Name == oldName);
+                    if (hit == null) return;
+                    string full = hit.FullName.Replace('\\', '/');
+                    string cat = full.Contains('/') ? full.Substring(0, full.IndexOf('/')) : "Other";
+                    hit.Delete();
+                    var entry = zip.CreateEntry(cat + "/" + newName, CompressionLevel.Optimal);
+                    using var es = entry.Open();
+                    es.Write(bytes, 0, bytes.Length);
+                }
             }
             catch { }
         }
@@ -3557,13 +3593,16 @@ namespace BeatSyncStudioPro
             var archived = new Dictionary<string, List<long>>(StringComparer.OrdinalIgnoreCase);
             try
             {
-                if (File.Exists(SoundLibraryArchivePath))
+                lock (ArchiveLock)
                 {
-                    using var zip = ZipFile.OpenRead(SoundLibraryArchivePath);
-                    foreach (var en in zip.Entries)
+                    if (File.Exists(SoundLibraryArchivePath))
                     {
-                        if (!archived.TryGetValue(en.Name, out var l)) { l = new List<long>(); archived[en.Name] = l; }
-                        l.Add(en.Length);
+                        using var zip = ZipFile.OpenRead(SoundLibraryArchivePath);
+                        foreach (var en in zip.Entries)
+                        {
+                            if (!archived.TryGetValue(en.Name, out var l)) { l = new List<long>(); archived[en.Name] = l; }
+                            l.Add(en.Length);
+                        }
                     }
                 }
             }
