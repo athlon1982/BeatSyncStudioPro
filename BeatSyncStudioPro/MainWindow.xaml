@@ -166,7 +166,7 @@
                     <Image Source="/Assets/app-icon.png" Width="34" Height="34"/>
                     <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="19" FontWeight="Bold" Effect="{StaticResource GlowText}"><Run Text="BEATSYNC" Foreground="#FFFFFF"/><Run Text=" STUDIO PRO" Foreground="#1DB954"/></TextBlock>
                     <Border Background="#1B212E" BorderBrush="#C9A227" BorderThickness="1" CornerRadius="9" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="v3.57" FontSize="11" Foreground="#E8C766" FontWeight="Bold"/>
+                        <TextBlock Text="v3.58" FontSize="11" Foreground="#E8C766" FontWeight="Bold"/>
                     </Border>
                 </StackPanel>
             </Grid>
@@ -218,6 +218,7 @@
                 <MenuItem Header="🤖 AI Lab..." Click="BtnAiLab_Click"/>
                 <MenuItem Header="🎵 My Songs..." Click="BtnMySongs_Click"/>
                 <MenuItem Header="🌐 Freesound Sounds..." Click="BtnFreesound_Click"/>
+                <MenuItem Header="🏛️ Internet Archive Music..." Click="BtnArchive_Click"/>
                 <MenuItem Header="🎁 Sound Pack..." Click="BtnSoundPack_Click"/>
                 <MenuItem Header="🎤 Create Song..." Click="BtnCreateSong_Click"/>
             </MenuItem>

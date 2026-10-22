@@ -3,6 +3,13 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.58 — Internet Archive Music Source
+- **New 🏛️ Internet Archive window** (Create menu, next to Freesound): search the Internet Archive's enormous free audio library from inside the app — and unlike Freesound it needs **no account and no API key, it just works**.
+- **Scope picker:** All audio, 🎤 Live Music (the Live Music Archive's concert recordings), 💿 Netlabels (free online record labels), or 🌐 Community Audio.
+- Archive items are albums and shows, so the window pulls the **individual MP3 tracks** out of the top matches (up to 48), each row showing the track, its length, its **license**, and its creator so credit is one copy-paste away.
+- **▶ Preview streams the track** straight from archive.org; **⬇ Add to Library** downloads it through the usual Downloads tracker and files it into a library category automatically, ready for the timeline, the decks, and the sampler.
+- Also listed in the 🔑 Providers window alongside Freesound.
+
 ## Version 3.57 — DJ Key Lock
 - **New per-deck 🔒 Key Lock toggle** (in the Key row, next to Key Sync). With it ON, moving the tempo fader changes the deck's **speed only — the pitch stays locked** at the track's key, like Serato/Rekordbox master tempo. With it OFF, the deck stays vinyl-style and pitch rides the tempo like it always has.
 - The lock is live: nudge the tempo and the pitch compensation re-renders itself a beat later (a full-song render takes a second or two on the Dell, so the pitch glides back into lock right after you move the fader — same feel as the existing Key Sync). SYNC and the tempo slider both respect it.

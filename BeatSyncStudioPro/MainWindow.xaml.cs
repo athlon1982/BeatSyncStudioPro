@@ -1305,6 +1305,7 @@ namespace BeatSyncStudioPro
                 new("AI Lab…", "Create", "", () => BtnAiLab_Click(this, ev)),
                 new("My Songs…", "View", "", () => BtnMySongs_Click(this, ev)),
                 new("Freesound Sounds…", "Create", "", () => BtnFreesound_Click(this, ev)),
+                new("Internet Archive Music…", "Create", "", () => BtnArchive_Click(this, ev)),
                 new("Sound Pack…", "Create", "", () => BtnSoundPack_Click(this, ev)),
                 new("Downloads…", "View", "", () => BtnDownloads_Click(this, ev)),
                 new("Create Song…", "Create", "", () => BtnCreateSong_Click(this, ev)),
@@ -2668,6 +2669,15 @@ namespace BeatSyncStudioPro
             _freesoundWindow = new FreesoundWindow(this) { Owner = this };
             _freesoundWindow.Closed += (s, ev) => _freesoundWindow = null;
             _freesoundWindow.Show();
+        }
+
+        private ArchiveWindow? _archiveWindow;
+        private void BtnArchive_Click(object sender, RoutedEventArgs e)
+        {
+            if (_archiveWindow != null) { _archiveWindow.Activate(); return; }
+            _archiveWindow = new ArchiveWindow(this) { Owner = this };
+            _archiveWindow.Closed += (s, ev) => _archiveWindow = null;
+            _archiveWindow.Show();
         }
 
         private SoundPackWindow? _soundPackWindow;
