@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.59 — One Search Window: Sounds & Music Together
+- **Freesound and the Internet Archive now live in ONE window** — 🔎 Search Sounds & Music — so all audio hunting happens in the same spot (Michael's ask).
+- **Categorized tabs make it obvious what lives where:** 🔊 **Sounds & Samples** (Freesound: drum hits, loops, effects, ambience) · 🎵 **Music & Recordings** (Internet Archive: full songs, live concerts, albums, old radio) · 🔑 **Freesound Key**. A plain-language line at the top of the window and inside each tab spells out which is which.
+- Both old menu entries (🌐 Freesound Sounds…, 🏛️ Internet Archive Music…) and the command palette now open this window on the matching tab. The two separate search windows are retired; nothing else about search, preview, licenses, or Add to Library changed.
+
 ## Version 3.58 — Internet Archive Music Source
 - **New 🏛️ Internet Archive window** (Create menu, next to Freesound): search the Internet Archive's enormous free audio library from inside the app — and unlike Freesound it needs **no account and no API key, it just works**.
 - **Scope picker:** All audio, 🎤 Live Music (the Live Music Archive's concert recordings), 💿 Netlabels (free online record labels), or 🌐 Community Audio.

@@ -2662,23 +2662,26 @@ namespace BeatSyncStudioPro
             _mySongsWindow.Show();
         }
 
-        private FreesoundWindow? _freesoundWindow;
-        private void BtnFreesound_Click(object sender, RoutedEventArgs e)
+        // v3.59: Freesound + Internet Archive live in ONE categorized
+        // window (🔊 sounds vs 🎵 music); both menu entries open it on
+        // their tab.
+        private SearchHubWindow? _searchHub;
+        private void OpenSearchHub(int tab)
         {
-            if (_freesoundWindow != null) { _freesoundWindow.Activate(); return; }
-            _freesoundWindow = new FreesoundWindow(this) { Owner = this };
-            _freesoundWindow.Closed += (s, ev) => _freesoundWindow = null;
-            _freesoundWindow.Show();
+            if (_searchHub != null)
+            {
+                _searchHub.Activate();
+                if (tab is 0 or 1) _searchHub.SelectTab(tab);
+                return;
+            }
+            _searchHub = new SearchHubWindow(this, tab) { Owner = this };
+            _searchHub.Closed += (s, ev) => _searchHub = null;
+            _searchHub.Show();
         }
 
-        private ArchiveWindow? _archiveWindow;
-        private void BtnArchive_Click(object sender, RoutedEventArgs e)
-        {
-            if (_archiveWindow != null) { _archiveWindow.Activate(); return; }
-            _archiveWindow = new ArchiveWindow(this) { Owner = this };
-            _archiveWindow.Closed += (s, ev) => _archiveWindow = null;
-            _archiveWindow.Show();
-        }
+        private void BtnFreesound_Click(object sender, RoutedEventArgs e) => OpenSearchHub(0);
+
+        private void BtnArchive_Click(object sender, RoutedEventArgs e) => OpenSearchHub(1);
 
         private SoundPackWindow? _soundPackWindow;
         private void BtnSoundPack_Click(object sender, RoutedEventArgs e)
