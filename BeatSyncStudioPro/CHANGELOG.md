@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.69 — The Mic Section Is Back (Mixer Column Scrolls)
+- **Bug fix:** the center mixer column had quietly outgrown its fixed space as new buttons were added over the last several updates (Mashup, Save Mashup, Stop Both Decks, the stems picker). Everything at the bottom of the column — the whole 🎤 MIC block: mic picker, MIC on/off, level meter and knob, "Duck music while talking", Mic FX and the Companion button — was being clipped off the bottom of the board. Nothing was deleted; it was pushed off-screen.
+- **The column scrolls now:** the mixer column has its own scrollbar, so the mic and ducking controls are always reachable — and no future button added to this column can ever push anything off the board again. Scroll with the mouse wheel anywhere over the mixer (wheels over knobs still turn the knobs, as before).
+
 ## Version 3.68 — Per-Deck Auto-Gain
 - **No more volume surprises between songs:** each deck now measures a track's loudness the moment it loads and trims the deck so every song plays at the same level (RMS matched to a standard target, peak-capped so a trim-up can never clip). Quiet songs come up, loud songs come down — before the crossfader, so mixes sit together properly.
 - **Per-deck toggle:** the "Auto-Gain: ON/OFF" button sits next to each deck's Gain knob, with the live trim shown beside it (e.g. "auto -3.5 dB"). Your Gain knob still works exactly as before, trimming on top of the auto level. Turn it off and tracks play at their recorded level.

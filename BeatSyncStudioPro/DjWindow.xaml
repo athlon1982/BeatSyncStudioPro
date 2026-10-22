@@ -204,6 +204,12 @@
 
             <!-- Center mixer -->
             <Border Grid.Column="1" Background="{StaticResource HwPanelBg}" CornerRadius="12" Padding="10" Margin="10,0" BorderBrush="#2A3446" BorderThickness="1">
+                <!-- v3.69: this column outgrew its fixed space as buttons were added
+                     (Mashup, Save Mashup, Stop Both, stems picker), and the bottom
+                     controls, the whole MIC / duck block, were clipped off-screen.
+                     It scrolls now, so nothing in this column can ever be pushed
+                     off the board again. -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,4,0">
                 <StackPanel>
                     <TextBlock Text="🎧 MIXER" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                     <TextBlock Text="Master" Foreground="#A0A5B5" FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,2"/>
@@ -376,6 +382,7 @@
                     <TextBlock Text="Tip: SYNC matches Deck B to A (or A to B). Loops and hot cues need the BPM — type it or TAP it. Hover any control to see what it does." Foreground="#666666" FontSize="10"
                                TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                 </StackPanel>
+                </ScrollViewer>
             </Border>
         </Grid>
 
