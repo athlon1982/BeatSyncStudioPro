@@ -331,9 +331,7 @@ namespace BeatSyncStudioPro
                     IWaveProvider reader;
                     if (clip.RawBytes != null)
                     {
-                        reader = clip.SoundType.ToLower() == "wav"
-                            ? new WaveFileReader(new MemoryStream(clip.RawBytes))
-                            : (IWaveProvider)new Mp3FileReader(new MemoryStream(clip.RawBytes));
+                        reader = AudioReaderFactory.Open(clip.RawBytes, clip.SoundType);
                     }
                     else if (clip.FilePath != null)
                     {

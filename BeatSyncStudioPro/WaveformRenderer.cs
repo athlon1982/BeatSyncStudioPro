@@ -61,10 +61,7 @@ namespace BeatSyncStudioPro
         {
             try
             {
-                using var ms = new MemoryStream(audioBytes);
-                using WaveStream reader = soundType.ToLowerInvariant() == "wav"
-                    ? new WaveFileReader(ms)
-                    : new Mp3FileReader(ms);
+                using WaveStream reader = AudioReaderFactory.Open(audioBytes, soundType);
 
                 ISampleProvider samples = reader.ToSampleProvider();
                 int channels = reader.WaveFormat.Channels;

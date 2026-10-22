@@ -7,6 +7,72 @@ using NAudio.Wave.SampleProviders;
 
 namespace BeatSyncStudioPro
 {
+    /// <summary>
+    /// The ONE way to open audio bytes for decoding (audit Bug 1, v3.60).
+    /// WAV and MP3 read straight from memory; everything else (OGG, FLAC,
+    /// M4A, WMA…) goes through Media Foundation via a temp file — the same
+    /// route the DJ decks and sampler use — because the old habit of
+    /// handing every non-WAV file to the MP3 reader made those formats
+    /// import fine and then silently never play. The temp file is deleted
+    /// when the returned reader is disposed.
+    /// </summary>
+    public static class AudioReaderFactory
+    {
+        public static WaveStream Open(byte[] bytes, string soundType)
+        {
+            string t = (soundType ?? "").Trim().ToLowerInvariant();
+            if (t == "wav") return new WaveFileReader(new MemoryStream(bytes));
+            if (t == "mp3") return new Mp3FileReader(new MemoryStream(bytes));
+            if (t == "ogg")
+            {
+                // Media Foundation has NO Vorbis decoder unless the optional
+                // "Web Media Extensions" Store package is installed (it isn't
+                // on the dev PC — MF fails with 0xC00D36C4), so OGG goes
+                // through the pure-managed NVorbis decoder. If the file is
+                // really Opus-in-OGG, NVorbis throws and MF gets its chance.
+                try { return new NAudio.Vorbis.VorbisWaveReader(new MemoryStream(bytes)); }
+                catch { }
+            }
+            string ext = t.Length > 0 && t.All(char.IsLetterOrDigit) ? t : "audio";
+            string temp = Path.Combine(Path.GetTempPath(), "beatsync-open-" + Guid.NewGuid().ToString("N") + "." + ext);
+            File.WriteAllBytes(temp, bytes);
+            try { return new TempFileWaveStream(temp); }
+            catch
+            {
+                try { File.Delete(temp); } catch { }
+                // Last resort, matching the old behavior for odd files.
+                return new Mp3FileReader(new MemoryStream(bytes));
+            }
+        }
+
+        private sealed class TempFileWaveStream : WaveStream
+        {
+            private readonly MediaFoundationReader _inner;
+            private readonly string _path;
+
+            public TempFileWaveStream(string path)
+            {
+                _path = path;
+                _inner = new MediaFoundationReader(path);
+            }
+
+            public override WaveFormat WaveFormat => _inner.WaveFormat;
+            public override long Length => _inner.Length;
+            public override long Position { get => _inner.Position; set => _inner.Position = value; }
+            public override int Read(byte[] buffer, int offset, int count) => _inner.Read(buffer, offset, count);
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    try { _inner.Dispose(); } catch { }
+                    try { File.Delete(_path); } catch { }
+                }
+                base.Dispose(disposing);
+            }
+        }
+    }
+
     /// <summary>Plays a float array (interleaved stereo, 44100 Hz) as a sample provider.</summary>
     public class ArraySampleProvider : ISampleProvider
     {
@@ -88,9 +154,7 @@ namespace BeatSyncStudioPro
         public static ISampleProvider BuildSegment(byte[] bytes, string soundType, double speed,
             double sourceStartSeconds, double lengthSeconds, double extraSkipSeconds, bool reverse, bool normalize)
         {
-            IWaveProvider reader = soundType.ToLower() == "wav"
-                ? new WaveFileReader(new MemoryStream(bytes))
-                : (IWaveProvider)new Mp3FileReader(new MemoryStream(bytes));
+            IWaveProvider reader = AudioReaderFactory.Open(bytes, soundType);
             ISampleProvider provider = new WdlResamplingSampleProvider(reader.ToSampleProvider(), 44100).ToStereo();
 
             var all = new List<float>();
@@ -185,9 +249,7 @@ namespace BeatSyncStudioPro
         public static ISampleProvider BuildSegmentStretched(byte[] bytes, string soundType, double speed,
             double sourceStartSeconds, double lengthSeconds, double extraSkipSeconds, bool reverse, bool normalize)
         {
-            IWaveProvider reader = soundType.ToLower() == "wav"
-                ? new WaveFileReader(new MemoryStream(bytes))
-                : (IWaveProvider)new Mp3FileReader(new MemoryStream(bytes));
+            IWaveProvider reader = AudioReaderFactory.Open(bytes, soundType);
             ISampleProvider provider = new WdlResamplingSampleProvider(reader.ToSampleProvider(), 44100).ToStereo();
 
             var all = new List<float>();

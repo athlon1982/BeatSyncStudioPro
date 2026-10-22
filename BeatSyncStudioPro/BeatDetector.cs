@@ -83,9 +83,7 @@ namespace BeatSyncStudioPro
 
         private static float[] DecodeMono(byte[] bytes, string soundType)
         {
-            IWaveProvider reader = soundType.ToLower() == "wav"
-                ? new WaveFileReader(new MemoryStream(bytes))
-                : (IWaveProvider)new Mp3FileReader(new MemoryStream(bytes));
+            IWaveProvider reader = AudioReaderFactory.Open(bytes, soundType);
             ISampleProvider provider = new WdlResamplingSampleProvider(reader.ToSampleProvider(), 44100);
             var all = new List<float>();
             var buffer = new float[44100 * 2];

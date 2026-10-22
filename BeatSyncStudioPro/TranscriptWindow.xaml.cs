@@ -146,9 +146,7 @@ namespace BeatSyncStudioPro
         private static string PrepareAudio(FixedBlock block)
         {
             string path = Path.Combine(Path.GetTempPath(), "beatsync-transcribe-" + Guid.NewGuid().ToString("N") + ".wav");
-            IWaveProvider reader = block.SoundType.ToLower() == "wav"
-                ? new WaveFileReader(new MemoryStream(block.RawBytes))
-                : (IWaveProvider)new Mp3FileReader(new MemoryStream(block.RawBytes));
+            IWaveProvider reader = AudioReaderFactory.Open(block.RawBytes, block.SoundType);
             ISampleProvider p = reader.ToSampleProvider();
             if (p.WaveFormat.Channels > 1) p = new StereoToMonoSampleProvider(p);
             if (p.WaveFormat.SampleRate != 16000) p = new WdlResamplingSampleProvider(p, 16000);

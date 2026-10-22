@@ -580,10 +580,7 @@ namespace BeatSyncStudioPro
         {
             try
             {
-                using var ms = new MemoryStream(bytes);
-                using WaveStream reader = soundType == "wav"
-                    ? new WaveFileReader(ms)
-                    : new Mp3FileReader(ms);
+                using WaveStream reader = AudioReaderFactory.Open(bytes, soundType);
                 return reader.TotalTime.TotalSeconds;
             }
             catch

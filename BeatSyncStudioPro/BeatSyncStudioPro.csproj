@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>3.59.0</Version>
+    <Version>3.60.0</Version>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.3.0" />
+    <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime.DirectML" Version="1.24.4" />

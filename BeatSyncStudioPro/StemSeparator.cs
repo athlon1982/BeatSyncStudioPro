@@ -59,9 +59,7 @@ namespace BeatSyncStudioPro
 
         public static (float[] Left, float[] Right) DecodeBytes(byte[] bytes, string soundType)
         {
-            IWaveProvider reader = soundType.ToLower() == "wav"
-                ? new WaveFileReader(new MemoryStream(bytes))
-                : (IWaveProvider)new Mp3FileReader(new MemoryStream(bytes));
+            IWaveProvider reader = AudioReaderFactory.Open(bytes, soundType);
             return ReadAll(reader.ToSampleProvider());
         }
 

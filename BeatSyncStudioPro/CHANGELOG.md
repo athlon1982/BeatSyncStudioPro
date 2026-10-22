@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.60 — Audit Fix 1: OGG / FLAC / M4A Now Actually Play
+- **Bug fix (2026-10-22 full-code audit, #1 of 6):** OGG, FLAC, M4A and WMA files imported fine but silently never played on the timeline side — nine decode spots treated every non-WAV file as an MP3 and the failure was swallowed. Playback, waveforms, clip durations, beat detection, stem splitting, transcripts, batch convert and exports all went through the broken path (the DJ decks and sampler already handled these formats correctly).
+- All nine spots now share one **AudioReaderFactory**: WAV/MP3 read from memory as before; everything else decodes through Media Foundation, exactly like the decks do. If you have OGG/FLAC clips sitting silent in a project, they should just work now.
+- MIDI files remain the one unsupported format (they need a synthesizer, not a decoder) — noted in the audit report.
+
 ## Version 3.59 — One Search Window: Sounds & Music Together
 - **Freesound and the Internet Archive now live in ONE window** — 🔎 Search Sounds & Music — so all audio hunting happens in the same spot (Michael's ask).
 - **Categorized tabs make it obvious what lives where:** 🔊 **Sounds & Samples** (Freesound: drum hits, loops, effects, ambience) · 🎵 **Music & Recordings** (Internet Archive: full songs, live concerts, albums, old radio) · 🔑 **Freesound Key**. A plain-language line at the top of the window and inside each tab spells out which is which.

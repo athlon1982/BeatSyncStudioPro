@@ -117,7 +117,9 @@ namespace BeatSyncStudioPro
                 // Decode -> 44.1k stereo -> 16-bit WAV
                 using (var reader = input.EndsWith(".wav", StringComparison.OrdinalIgnoreCase)
                     ? (WaveStream)new WaveFileReader(input)
-                    : new Mp3FileReader(input))
+                    : input.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase)
+                    ? new Mp3FileReader(input)
+                    : new MediaFoundationReader(input))
                 {
                     ISampleProvider p = reader.ToSampleProvider();
                     if (p.WaveFormat.Channels == 1) p = p.ToStereo();

@@ -1941,9 +1941,7 @@ namespace BeatSyncStudioPro
                 }
                 else
                 {
-                    IWaveProvider reader = (block.SoundType.ToLower() == "wav")
-                        ? new WaveFileReader(new MemoryStream(block.RawBytes))
-                        : new Mp3FileReader(new MemoryStream(block.RawBytes));
+                    IWaveProvider reader = AudioReaderFactory.Open(block.RawBytes, block.SoundType);
 
                     provider = new WdlResamplingSampleProvider(reader.ToSampleProvider(), 44100).ToStereo();
 
