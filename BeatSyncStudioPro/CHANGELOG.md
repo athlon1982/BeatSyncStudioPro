@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.49 — Menu Readability Fixes
+- **FIX — AI Lab dropdown text was black-on-dark:** the selected value in every closed dropdown (Provider, Model, Make, video model, Keys & Compute pickers) rendered in the stock black because the dropdown's inner button broke the text-color chain. The selection text now inherits the app's white properly.
+- **FIX — timeline clip menu could open half-clipped:** the clip right-click menu is now anchored to the clip and opens underneath it, fully inside the window, and its volume/speed slider rows are a bit narrower so the whole menu fits comfortably.
+
 ## Version 3.48 — Stems Get Their Own Sub-Categories Everywhere
 - **FIX — dropdowns were white-on-white too:** every ComboBox in the app (AI Lab model pickers, DJ board, everywhere) now uses one proper dark dropdown style — dark box, white text, dark popup list with a green selected row.
 - **FIX — timeline clip right-click menu was white-on-white:** the clip menu popup is now properly dark with light text throughout (items and the volume/speed slider labels), and the library's right-click menu got the same treatment.

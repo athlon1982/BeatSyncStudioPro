@@ -292,7 +292,13 @@ namespace BeatSyncStudioPro
             visual.MouseLeftButtonDown += Visual_MouseLeftButtonDown;
             visual.MouseMove += Visual_MouseMove;
             visual.MouseLeftButtonUp += Visual_MouseLeftButtonUp;
-            visual.ContextMenu = BuildContextMenu();
+            var clipMenu = BuildContextMenu();
+            // Anchor the menu to the clip itself, opening underneath it. The
+            // default mouse-point placement inside the scrolled timeline could
+            // throw the popup sideways and clip its left half off the window.
+            clipMenu.PlacementTarget = visual;
+            clipMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            visual.ContextMenu = clipMenu;
 
             return visual;
         }
@@ -392,8 +398,8 @@ namespace BeatSyncStudioPro
                 menu.Items.Add(new MenuItem { Header = "↔ Drag edges to trim • drag middle to move", IsEnabled = false });
 
                 // Volume slider (0–150%)
-                var volLabel = new TextBlock { Text = $"Volume: {(int)(Volume * 100)}%", Width = 90, VerticalAlignment = VerticalAlignment.Center };
-                var volSlider = new Slider { Minimum = 0, Maximum = 1.5, Value = Volume, Width = 150, VerticalAlignment = VerticalAlignment.Center };
+                var volLabel = new TextBlock { Text = $"Volume: {(int)(Volume * 100)}%", Width = 84, VerticalAlignment = VerticalAlignment.Center };
+                var volSlider = new Slider { Minimum = 0, Maximum = 1.5, Value = Volume, Width = 132, VerticalAlignment = VerticalAlignment.Center };
                 volSlider.ValueChanged += (s, e) =>
                 {
                     Volume = volSlider.Value;
@@ -405,8 +411,8 @@ namespace BeatSyncStudioPro
                 menu.Items.Add(new MenuItem { Header = volPanel, StaysOpenOnClick = true });
 
                 // Speed slider (0.25x–3x) — stretches the clip on the timeline too
-                var spdLabel = new TextBlock { Text = $"Speed: {Speed:0.00}x", Width = 90, VerticalAlignment = VerticalAlignment.Center };
-                var spdSlider = new Slider { Minimum = 0.25, Maximum = 3.0, Value = Speed, Width = 150, VerticalAlignment = VerticalAlignment.Center };
+                var spdLabel = new TextBlock { Text = $"Speed: {Speed:0.00}x", Width = 84, VerticalAlignment = VerticalAlignment.Center };
+                var spdSlider = new Slider { Minimum = 0.25, Maximum = 3.0, Value = Speed, Width = 132, VerticalAlignment = VerticalAlignment.Center };
                 spdSlider.ValueChanged += (s, e) =>
                 {
                     SetSpeed(spdSlider.Value);
@@ -494,8 +500,8 @@ namespace BeatSyncStudioPro
                 extractItem.Click += (s, e) => _owner.ExtractAudioFromVideo(this);
                 menu.Items.Add(extractItem);
 
-                var vSpdLabel = new TextBlock { Text = $"Video speed: {_owner.VideoSpeed:0.00}x", Width = 110, VerticalAlignment = VerticalAlignment.Center };
-                var vSpdSlider = new Slider { Minimum = 0.25, Maximum = 3.0, Value = _owner.VideoSpeed, Width = 150, VerticalAlignment = VerticalAlignment.Center };
+                var vSpdLabel = new TextBlock { Text = $"Video speed: {_owner.VideoSpeed:0.00}x", Width = 100, VerticalAlignment = VerticalAlignment.Center };
+                var vSpdSlider = new Slider { Minimum = 0.25, Maximum = 3.0, Value = _owner.VideoSpeed, Width = 132, VerticalAlignment = VerticalAlignment.Center };
                 vSpdSlider.ValueChanged += (s, e) =>
                 {
                     _owner.SetVideoSpeed(vSpdSlider.Value);
