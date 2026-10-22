@@ -2,10 +2,12 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Search Sounds &amp; Music" Icon="/Assets/app.ico"
-        Width="760" Height="600" MinWidth="580" MinHeight="440"
+        Width="760" Height="620" MinWidth="580" MinHeight="440"
         Background="#1E222B" Foreground="#FFFFFF" WindowStartupLocation="CenterOwner">
     <Grid Margin="14">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -13,16 +15,44 @@
 
         <TextBlock Text="🔎 Search Sounds &amp; Music" FontSize="16" FontWeight="Bold"/>
         <TextBlock Grid.Row="1" Margin="0,4,0,0" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"
-                   Text="One place to hunt for audio. 🔊 Sounds &amp; Samples = short stuff — drum hits, loops, effects (Freesound). 🎵 Music &amp; Recordings = full songs, live concerts, albums (Internet Archive — no key needed). 🎵 More Music = free independent-artist songs (Jamendo — free client ID). Pick the tab that matches what you're after."/>
+                   Text="One search box hunts every source at once — or pick a scope to search just sounds, just songs, or one source. Results land in the tabs below, ready to preview and add to your library. Accounts and keys live in the 🔑 Accounts &amp; Keys tab."/>
 
-        <TabControl x:Name="Tabs" Grid.Row="2" Margin="0,10,0,0" Background="#1E222B" BorderBrush="#2A3446">
+        <Grid Grid.Row="2" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="HubQueryBox" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8,6"
+                     KeyDown="HubQueryBox_KeyDown" ToolTip="kick drum, vinyl crackle, an artist, a song title…"/>
+            <ComboBox x:Name="HubScopePicker" Grid.Column="1" Margin="8,0,0,0" Width="218" SelectedIndex="0"
+                      ToolTip="Which sources the search box hunts: everything, sounds only, songs only, or one source at a time">
+                <ComboBoxItem Content="🌐 All sources"/>
+                <ComboBoxItem Content="🔊 Sounds — Freesound"/>
+                <ComboBoxItem Content="🎵 Songs — Archive"/>
+                <ComboBoxItem Content="🎵 Songs — Jamendo"/>
+                <ComboBoxItem Content="🎵 All songs (Archive + Jamendo)"/>
+            </ComboBox>
+            <Button x:Name="HubSearchButton" Grid.Column="2" Content="🔎 Search" Click="HubSearch_Click" Margin="8,0,0,0" Padding="16,6"
+                    Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+        </Grid>
+        <TextBlock x:Name="HubStatusText" Grid.Row="3" Margin="0,8,0,0" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"
+                   Text="🔊 Sounds = short stuff (drum hits, loops, effects — Freesound). 🎵 Songs = full tracks (Internet Archive needs no key; Jamendo needs a free client ID)."/>
+
+        <TabControl x:Name="Tabs" Grid.Row="4" Margin="0,10,0,0" Background="#1E222B" BorderBrush="#2A3446">
             <TabItem x:Name="FsTab" Header="🔊 Sounds &amp; Samples — Freesound" Foreground="White"/>
             <TabItem x:Name="IaTab" Header="🎵 Music &amp; Recordings — Archive" Foreground="White"/>
             <TabItem x:Name="JamTab" Header="🎵 More Music — Jamendo" Foreground="White"/>
-            <TabItem Header="🔑 API Keys" Foreground="White">
+            <TabItem Header="🔑 Accounts &amp; Keys" Foreground="White">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="10">
-                    <TextBlock Text="Freesound is free — it just needs your own API key so the downloads are yours. The key is the client secret from your Freesound API page; it's stored encrypted on this PC and only ever sent to freesound.org. (The 🎵 Archive tab needs no key at all.)"
-                               Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                    <TextBlock Text="Internet Archive" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock Text="Needs: nothing at all — no account, no key. FREE. Always ready — just search the 🎵 Songs — Archive tab."
+                               Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                    <TextBlock Text="Freesound" FontWeight="Bold" Foreground="White" Margin="0,18,0,0"/>
+                    <TextBlock Text="Needs: a free Freesound account + a free API key (the client secret from your Freesound API page). FREE — the key never costs anything. It's stored encrypted on this PC and only ever sent to freesound.org, so the downloads are yours."
+                               Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="FsAcctStatus" Margin="0,6,0,0" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
                     <Grid Margin="0,12,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -42,9 +72,10 @@
 
                     <Border BorderBrush="#2A3446" BorderThickness="0,1,0,0" Margin="0,18,0,0" Padding="0,14,0,0">
                         <StackPanel>
-                            <TextBlock Text="Jamendo client ID" FontWeight="Bold" Foreground="White"/>
-                            <TextBlock Text="Jamendo is free too — it uses a client ID from your (free) Jamendo developer app instead of a key. It's stored encrypted on this PC and only ever sent to api.jamendo.com."
+                            <TextBlock Text="Jamendo" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="Needs: a free Jamendo developer account + a free client ID from your app there. FREE — the client ID never costs anything. It's stored encrypted on this PC and only ever sent to api.jamendo.com."
                                        Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                            <TextBlock x:Name="JmAcctStatus" Margin="0,6,0,0" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
                             <Grid Margin="0,12,0,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
@@ -63,7 +94,22 @@
                             <TextBlock x:Name="JamKeyStatusText" Margin="0,12,0,0" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
+
+                    <Border BorderBrush="#2A3446" BorderThickness="0,1,0,0" Margin="0,18,0,0" Padding="0,14,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Coming in future updates" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="Audius — needs a free developer API key. FREE. (Not connected yet.)"
+                                       Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                            <TextBlock Text="Pixabay Music — needs a free API key. FREE. (Not connected yet.)"
+                                       Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                            <TextBlock Text="Mixkit — ⚠️ Mixkit has no API at all, so it can't be connected."
+                                       Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                            <TextBlock Text="Free Music Archive — ⚠️ FMA shut its API down, so it can't be connected."
+                                       Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
+                </ScrollViewer>
             </TabItem>
         </TabControl>
     </Grid>

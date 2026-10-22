@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Windows;
 
 namespace BeatSyncStudioPro
@@ -32,6 +34,12 @@ namespace BeatSyncStudioPro
             _fs.KeyProvider = () => KeyBox.Password;
             JamKeyBox.Password = JamendoSearchControl.LoadKey();
             _jm.KeyProvider = () => JamKeyBox.Password;
+            // v3.71: the hub's one search box drives all three panels, so
+            // each panel's own header + search row hides itself.
+            _fs.HideOwnChrome();
+            _ia.HideOwnChrome();
+            _jm.HideOwnChrome();
+            RefreshAccountStatus();
             Tabs.SelectedIndex = startTab is 1 or 2 ? startTab : 0;
             Closed += (s, e) => { _fs.StopPreview(); _ia.StopPreview(); _jm.StopPreview(); };
         }
@@ -51,7 +59,8 @@ namespace BeatSyncStudioPro
             try
             {
                 FreesoundSearchControl.SaveKey(KeyBox.Password.Trim());
-                KeyStatusText.Text = KeyBox.Password.Length > 0 ? "Key saved ✓ — head to the 🔊 Sounds & Samples tab and search away." : "Key cleared.";
+                KeyStatusText.Text = KeyBox.Password.Length > 0 ? "Key saved ✓ — the search box at the top of this window now hunts Freesound too." : "Key cleared.";
+                RefreshAccountStatus();
             }
             catch (Exception ex) { KeyStatusText.Text = "Couldn't save the key: " + ex.Message; }
         }
@@ -68,9 +77,72 @@ namespace BeatSyncStudioPro
             try
             {
                 JamendoSearchControl.SaveKey(JamKeyBox.Password.Trim());
-                JamKeyStatusText.Text = JamKeyBox.Password.Length > 0 ? "Client ID saved ✓ — head to the 🎵 More Music — Jamendo tab and search away." : "Client ID cleared.";
+                JamKeyStatusText.Text = JamKeyBox.Password.Length > 0 ? "Client ID saved ✓ — the search box at the top of this window now hunts Jamendo too." : "Client ID cleared.";
+                RefreshAccountStatus();
             }
             catch (Exception ex) { JamKeyStatusText.Text = "Couldn't save the client ID: " + ex.Message; }
+        }
+
+        // ---------- v3.71: unified search + account status ----------
+
+        private void RefreshAccountStatus()
+        {
+            bool fsOk = FreesoundSearchControl.LoadKey().Length > 0;
+            FsAcctStatus.Text = fsOk
+                ? "✅ Connected — your key is saved on this PC."
+                : "⚠️ Not connected yet — paste your free API key below and press Save Key.";
+            bool jmOk = JamendoSearchControl.LoadKey().Length > 0;
+            JmAcctStatus.Text = jmOk
+                ? "✅ Connected — your client ID is saved on this PC."
+                : "⚠️ Not connected yet — paste your free client ID below and press Save ID.";
+        }
+
+        private async void HubSearch_Click(object sender, RoutedEventArgs e) => await HubSearchAsync();
+
+        private async void HubQueryBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter) await HubSearchAsync();
+        }
+
+        private async Task HubSearchAsync()
+        {
+            string q = HubQueryBox.Text.Trim();
+            if (q.Length == 0)
+            {
+                HubStatusText.Text = "Type what you're hunting for first — a sound ('kick drum', 'vinyl crackle'), an artist, a song title…";
+                return;
+            }
+            int scope = HubScopePicker.SelectedIndex;
+            bool wantFs = scope is 0 or 1;
+            bool wantIa = scope is 0 or 2 or 4;
+            bool wantJm = scope is 0 or 3 or 4;
+
+            HubSearchButton.IsEnabled = false;
+            HubStatusText.Text = "Searching…";
+            int fsN = -1, iaN = -1, jmN = -1;
+            try { if (wantFs) fsN = await _fs.HubSearchAsync(q); } catch { fsN = 0; }
+            try { if (wantIa) iaN = await _ia.HubSearchAsync(q); } catch { iaN = 0; }
+            try { if (wantJm) jmN = await _jm.HubSearchAsync(q); } catch { jmN = 0; }
+            HubSearchButton.IsEnabled = true;
+
+            var parts = new List<string>();
+            if (fsN >= 0) parts.Add($"Freesound: {fsN}");
+            if (iaN >= 0) parts.Add($"Archive: {iaN}");
+            if (jmN >= 0) parts.Add($"Jamendo: {jmN}");
+            string summary = string.Join(" · ", parts) + " — results are in the tabs below.";
+            if (wantFs && fsN == 0 && FreesoundSearchControl.LoadKey().Length == 0)
+                summary += " Freesound found nothing because no API key is saved yet — add your free key in 🔑 Accounts & Keys.";
+            if (wantJm && jmN == 0 && JamendoSearchControl.LoadKey().Length == 0)
+                summary += " Jamendo found nothing because no client ID is saved yet — add your free ID in 🔑 Accounts & Keys.";
+            HubStatusText.Text = summary;
+
+            // Land on the first tab that found something.
+            if (fsN > 0) Tabs.SelectedIndex = 0;
+            else if (iaN > 0) Tabs.SelectedIndex = 1;
+            else if (jmN > 0) Tabs.SelectedIndex = 2;
+            else if (wantFs) Tabs.SelectedIndex = 0;
+            else if (wantIa) Tabs.SelectedIndex = 1;
+            else if (wantJm) Tabs.SelectedIndex = 2;
         }
     }
 }

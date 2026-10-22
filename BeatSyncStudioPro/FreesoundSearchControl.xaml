@@ -11,10 +11,10 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Text="🔊 Short sounds — drum hits, loops, effects, ambience, textures. Every result shows its license and author."
+        <TextBlock x:Name="HeadText" Text="🔊 Short sounds — drum hits, loops, effects, ambience, textures. Every result shows its license and author."
                    Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
 
-        <Grid Grid.Row="1" Margin="0,8,0,0">
+        <Grid x:Name="QueryRow" Grid.Row="1" Margin="0,8,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>

@@ -209,6 +209,13 @@
                 <MenuItem Header="🎚️ Mixer" Click="BtnMixer_Click"/>
                 <MenuItem Header="📺 Output Window" Click="BtnOutput_Click"/>
                 <MenuItem Header="🎧 DJ Decks" Click="BtnDj_Click"/>
+            </MenuItem>
+            <MenuItem Header="_Tools" Padding="10,4">
+                <MenuItem Header="🔎 Search Sounds &amp; Music..." Click="BtnFreesound_Click"/>
+                <MenuItem Header="🌐 Freesound Sounds..." Click="BtnFreesound_Click"/>
+                <MenuItem Header="🏛️ Internet Archive Music..." Click="BtnArchive_Click"/>
+                <MenuItem Header="🎵 Jamendo Music..." Click="BtnJamendo_Click"/>
+                <Separator/>
                 <MenuItem Header="🥁 Patterns..." Click="BtnPatterns_Click"/>
                 <MenuItem Header="🎹 Piano Roll..." Click="BtnPianoRoll_Click"/>
                 <MenuItem Header="🤖 Drum Generator..." Click="BtnDrumGenerator_Click"/>
@@ -216,10 +223,8 @@
                 <MenuItem Header="📝 Transcript..." Click="BtnTranscript_Click"/>
                 <MenuItem Header="🎚️ Stem Splitter..." Click="BtnStemSplit_Click"/>
                 <MenuItem Header="🤖 AI Lab..." Click="BtnAiLab_Click"/>
+                <Separator/>
                 <MenuItem Header="🎵 My Songs..." Click="BtnMySongs_Click"/>
-                <MenuItem Header="🌐 Freesound Sounds..." Click="BtnFreesound_Click"/>
-                <MenuItem Header="🏛️ Internet Archive Music..." Click="BtnArchive_Click"/>
-                <MenuItem Header="🎵 Jamendo Music..." Click="BtnJamendo_Click"/>
                 <MenuItem Header="🎁 Sound Pack..." Click="BtnSoundPack_Click"/>
                 <MenuItem Header="🎤 Create Song..." Click="BtnCreateSong_Click"/>
             </MenuItem>

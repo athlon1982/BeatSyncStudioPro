@@ -11,10 +11,10 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Text="🎵 Full-length music — songs, live concerts, albums, old-time radio. No account, no key: the Archive is open."
+        <TextBlock x:Name="HeadText" Text="🎵 Full-length music — songs, live concerts, albums, old-time radio. No account, no key: the Archive is open."
                    Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
 
-        <Grid Grid.Row="1" Margin="0,8,0,0">
+        <Grid x:Name="QueryRow" Grid.Row="1" Margin="0,8,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>

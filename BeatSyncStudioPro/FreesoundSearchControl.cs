@@ -85,6 +85,28 @@ namespace BeatSyncStudioPro
             if (e.Key == System.Windows.Input.Key.Enter) await SearchAsync();
         }
 
+        // ---------- hub integration (v3.71 unified search) ----------
+
+        /// <summary>Run a search driven by the hub's single search box.
+        /// Returns how many results landed (0 also when a key is missing
+        /// or the query is empty — this panel's status line says why).</summary>
+        public async Task<int> HubSearchAsync(string q)
+        {
+            QueryBox.Text = q;
+            _results.Clear();
+            ResultsList.Items.Clear();
+            await SearchAsync();
+            return _results.Count;
+        }
+
+        /// <summary>Hide this panel's own header + search row — the hub's
+        /// unified search box drives the searching instead.</summary>
+        public void HideOwnChrome()
+        {
+            HeadText.Visibility = Visibility.Collapsed;
+            QueryRow.Visibility = Visibility.Collapsed;
+        }
+
         private async Task SearchAsync()
         {
             string key = CurrentKey();

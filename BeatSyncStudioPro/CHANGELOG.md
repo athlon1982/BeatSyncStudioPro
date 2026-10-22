@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.71 — One Search Box for Every Source + Accounts & Keys
+- **One search box (🔎 Search Sounds & Music):** the search window now opens with a single search box and a scope picker — 🌐 All sources, 🔊 Sounds (Freesound), 🎵 Songs (Archive), 🎵 Songs (Jamendo), or 🎵 All songs. One search hunts everything you picked at once; the counts land in a summary line ("Freesound: 12 · Archive: 30 · Jamendo: 8") and the window jumps to the first tab with results. Each tab keeps its own results list, preview and Add to Library — the tabs' own search rows are retired, since the one box drives them all.
+- **🔑 Accounts & Keys tab:** the key tab is renamed and reorganized into plain sections — one per source — each saying exactly what it needs and what it costs: Internet Archive needs nothing (FREE, always ready), Freesound needs a free account + free API key, Jamendo needs a free developer account + free client ID. Each shows a live ✅ Connected / ⚠️ Not connected status. A "Coming in future updates" section notes Audius and Pixabay (both free keys) and is honest about the two that can't ever connect: Mixkit has no API, and Free Music Archive shut its API down.
+- **Menus sorted out:** the View menu was carrying a toolbox — it now holds just Mixer, Output Window and DJ Decks (things you *view*). Everything else moved to a new **Tools** menu: the unified search first, the three source shortcuts (they still open the hub on their tab), then Patterns, Piano Roll, Drum Generator, Monitor FX, Transcript, Stem Splitter, AI Lab, My Songs, Sound Pack and Create Song. Nothing was removed — everything just lives where it belongs.
+
 ## Version 3.70 — Shuffle + Repeat on Every Deck
 - **🔀 Shuffle (per deck):** each deck's track list gains a Shuffle toggle. With Auto-play on, when a song ends the deck jumps to a random *other* song from that deck's own track list instead of the next one in order — each deck shuffles independently.
 - **🔁 Repeat track (per deck):** a Repeat toggle beside it. When the song ends, the same track starts over from the top. Repeat works on its own (no need for Auto-play) and wins over advancing — turn it off to let the list move on.
