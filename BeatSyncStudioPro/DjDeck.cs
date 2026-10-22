@@ -91,7 +91,12 @@ namespace BeatSyncStudioPro
         // keeps the song's true place; on release the deck lands there.
         private double _slipPositionFrames;
         private bool _slipping;
-        public bool SlipMode { get; set; }
+        private bool _slipMode;
+        public bool SlipMode
+        {
+            get => _slipMode;
+            set { lock (_lock) { _slipMode = value; if (!value) _slipping = false; } }
+        }
         public bool IsSlipping { get { lock (_lock) return _slipping; } }
 
         /// <summary>Hand off: the record spins back up to normal speed from the release rate.</summary>

@@ -82,6 +82,8 @@ namespace BeatSyncStudioPro
         private DeckPanel? _cruisePanel;
         private DeckPanel? _cruiseFadePanel;
         private bool _cruiseFading;
+        private bool _cruiseLoading;
+        private int _cruiseGeneration;
         internal sealed record KeyCacheEntry(int Pc, bool Minor);
         private static readonly Brush KeyOkBrush = new SolidColorBrush(Color.FromRgb(0x1D, 0xB9, 0x54));
         private static readonly Brush KeyClashBrush = new SolidColorBrush(Color.FromRgb(0xE8, 0xC7, 0x66));
@@ -287,7 +289,7 @@ namespace BeatSyncStudioPro
             else StartCruise();
         }
 
-        private void StartCruise()
+        private async void StartCruise()
         {
             _cruisePlaylist.Clear();
             _cruisePlaylist.AddRange(_panelA.QueuePathsSnapshot);
@@ -305,13 +307,18 @@ namespace BeatSyncStudioPro
             _cruisePanel = _panelA;
             CruiseButton.Content = "\U0001F6A2 CRUISE: ON";
             CruiseButton.Background = new SolidColorBrush(Color.FromRgb(0x1D, 0xB9, 0x54));
-            while (_cruiseIndex < _cruisePlaylist.Count && !_panelA.LoadPathForCruise(_cruisePlaylist[_cruiseIndex]))
-                _cruiseIndex++;
-            if (_cruiseIndex >= _cruisePlaylist.Count)
+            _cruiseGeneration++;
+            int gen = _cruiseGeneration;
+            _cruiseLoading = true;
+            bool loaded = false;
+            while (_cruiseIndex < _cruisePlaylist.Count)
             {
-                TurnCruiseOff("\U0001F6A2 Cruise stopped - none of the queued tracks could be loaded.");
-                return;
+                if (await _panelA.LoadPathForCruiseAsync(_cruisePlaylist[_cruiseIndex])) { loaded = true; break; }
+                _cruiseIndex++;
             }
+            _cruiseLoading = false;
+            if (gen != _cruiseGeneration || !_cruiseOn) return;
+            if (!loaded) { TurnCruiseOff("\U0001F6A2 Cruise stopped - none of the queued tracks could be loaded."); return; }
             XfadeSlider.Value = 0;
             _panelA.StartForCruise();
             SetStatus($"\U0001F6A2 Cruise on - {_cruisePlaylist.Count} track(s) queued. Now playing: {_panelA.CurrentTitle}");
@@ -321,6 +328,8 @@ namespace BeatSyncStudioPro
         {
             _cruiseOn = false;
             _cruiseFading = false;
+            _cruiseLoading = false;
+            _cruiseGeneration++;
             _cruisePanel = null;
             _cruiseFadePanel = null;
             CruiseButton.Content = "\U0001F6A2 CRUISE: OFF";
@@ -417,13 +426,21 @@ namespace BeatSyncStudioPro
             }
             if (_cruisePanel.IsPlayingDeck && _cruisePanel.RemainingSeconds <= CruiseFadeSeconds + 2)
             {
+                if (_cruiseLoading) return;
                 var next = _cruisePanel == _panelA ? _panelB : _panelA;
                 int nextIndex = _cruiseIndex + 1;
-                if (!next.LoadPathForCruise(_cruisePlaylist[nextIndex]))
-                {
-                    _cruisePlaylist.RemoveAt(nextIndex);   // skip the broken file, retry next tick
-                    return;
-                }
+                _cruiseLoading = true;
+                _ = CruiseAdvanceAsync(next, nextIndex, _cruiseGeneration);
+            }
+        }
+
+        private async Task CruiseAdvanceAsync(DeckPanel next, int nextIndex, int gen)
+        {
+            try
+            {
+                bool ok = await next.LoadPathForCruiseAsync(_cruisePlaylist[nextIndex]);
+                if (gen != _cruiseGeneration || !_cruiseOn) return;
+                if (!ok) { _cruisePlaylist.RemoveAt(nextIndex); return; }   // skip the broken file, retry next tick
                 next.SyncForCruise();
                 next.StartForCruise();
                 _cruiseIndex = nextIndex;
@@ -435,6 +452,7 @@ namespace BeatSyncStudioPro
                 _fadeTo = next == _panelA ? 0 : 1000;
                 SetStatus($"\U0001F6A2 Cruise: fading to {(next == _panelA ? "DECK A" : "DECK B")} - {next.CurrentTitle}");
             }
+            finally { if (gen == _cruiseGeneration) _cruiseLoading = false; }
         }
 
         private void BuildSamplerPads()
@@ -1822,17 +1840,7 @@ namespace BeatSyncStudioPro
                 try
                 {
                     _deck.Load(bytes, name);
-                    _tempoSlider.Value = 0;
-                    _bpmBox.Text = "";
-                    _title.Text = $"{_name} — {_deck.Title}";
-                    RenderWaveform();
-                    RenderPlatterRing();
-                    _window.SetStatus($"{_name}: {_deck.Title} loaded ({FmtTime(_deck.TotalSeconds)}). Set the BPM to unlock SYNC and loops.");
-                    _stemKey = StemBaseName(name) + "-" + bytes.Length;
-                    _stemGeneration++;
-                    ShowStemChips(false, "");
-                    _ = TryLoadCachedStemsAsync();
-                    StartKeyDetection();
+                    FinishLoad(bytes, name);
                     return true;
                 }
                 catch (Exception ex)
@@ -1840,6 +1848,21 @@ namespace BeatSyncStudioPro
                     MessageBox.Show("Could not decode that song: " + ex.Message, _name);
                     return false;
                 }
+            }
+
+            private void FinishLoad(byte[] bytes, string name)
+            {
+                _tempoSlider.Value = 0;
+                _bpmBox.Text = "";
+                _title.Text = $"{_name} — {_deck.Title}";
+                RenderWaveform();
+                RenderPlatterRing();
+                _window.SetStatus($"{_name}: {_deck.Title} loaded ({FmtTime(_deck.TotalSeconds)}). Set the BPM to unlock SYNC and loops.");
+                _stemKey = StemBaseName(name) + "-" + bytes.Length;
+                _stemGeneration++;
+                ShowStemChips(false, "");
+                _ = TryLoadCachedStemsAsync();
+                StartKeyDetection();
             }
 
             private static string StemBaseName(string title)
@@ -2079,10 +2102,16 @@ namespace BeatSyncStudioPro
 
             internal void SetAutoNext(bool on) { if (_autoNextBox != null) _autoNextBox.IsChecked = on; }
 
-            internal bool LoadPathForCruise(string path)
+            internal async Task<bool> LoadPathForCruiseAsync(string path)
             {
-                try { return LoadBytes(File.ReadAllBytes(path), System.IO.Path.GetFileName(path)); }
+                byte[] bytes;
+                string name = System.IO.Path.GetFileName(path);
+                try { bytes = await Task.Run(() => File.ReadAllBytes(path)); }
                 catch { return false; }
+                bool ok = await Task.Run(() => { try { _deck.Load(bytes, name); return true; } catch { return false; } });
+                if (!ok) return false;
+                FinishLoad(bytes, name);
+                return true;
             }
 
             internal void StartForCruise()

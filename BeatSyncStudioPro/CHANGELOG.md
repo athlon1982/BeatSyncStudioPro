@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.38 — DJ Reliability Fixes (GLM Audit, Part 4)
+- **FIX 7 — Cruise no longer freezes the app:** auto-DJ track loads (file read + decode) now run off the UI thread and are applied when ready, with a generation guard so turning cruise off mid-load can't resurrect it. Broken files in the queue are skipped silently instead of popping a dialog mid-set. Manual loads behave exactly as before.
+- **FIX 8 — Slip cancel:** turning Slip mode OFF while holding a scratch now cancels the pending slip jump — releasing the record just keeps playing from where you are instead of teleporting to where the track "would have been".
+
 ## Version 3.37 — 🎛️ The Concept Board Layout
 - **The DJ window is rebuilt to the approved concept layout** — the floor plan this time, not just the paint: a brand strip across the top with a **live master spectrum**, decks left and right, a real center mixer, and the sampler as a full-width bar along the bottom.
 - **NEW — Channel strips in the mixer:** CH A and CH B strips with a **gain knob**, **HI / MID / LOW EQ knobs** (wired to each deck's real EQ — the same one the FX popup edits) and a **channel fader**, with live **VU meter columns** between them. The strip gain, strip fader and each deck's own gain knob are three surfaces on the same volume and stay in sync.
