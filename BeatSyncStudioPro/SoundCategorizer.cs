@@ -19,11 +19,22 @@ namespace BeatSyncStudioPro
         public const string Vocals = "Vocals";
         public const string Fx = "FX";
         public const string Stems = "Stems";
+        public const string Mashups = "Mash-ups";
         public const string Other = "Other";
 
         public static readonly string[] All = { Drums, Guitar, Bass, Keys, Loops, Vocals, Fx, Other };
 
-        public static string Icon(string category) => category switch
+        /// <summary>Stems are filed per type (v3.46): "Stems · Vocals", "Stems · Drums", …</summary>
+        public static string StemCategory(string stem) => (stem ?? "").Trim().ToLowerInvariant() switch
+        {
+            "vocals" => "Stems · Vocals",
+            "drums" => "Stems · Drums",
+            "bass" => "Stems · Bass",
+            "other" => "Stems · Other",
+            _ => Stems
+        };
+
+        public static string Icon(string category) => category.StartsWith("Stems", StringComparison.Ordinal) ? "🧬" : category switch
         {
             Drums => "🥁",
             Guitar => "🎸",
@@ -33,6 +44,7 @@ namespace BeatSyncStudioPro
             Vocals => "🎤",
             Fx => "✨",
             Stems => "🧬",
+            Mashups => "🔀",
             _ => "🎵"
         };
 

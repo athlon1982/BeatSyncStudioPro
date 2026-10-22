@@ -3,6 +3,17 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.46 — Grouped Library, ZIP Import, Saveable Mashups
+- **NEW — the main Asset Library is now a browser, just like the DJ sampler picker:** a category list on the left side of the editor (All + Drums, Guitar, Bass, Keys & Pads, Loops, Vocals, FX, Stems · Vocals/Drums/Bass/Other, 🔀 Mash-ups, Other, Video, Images — each with a count) and that category's sounds listed below it. Click a sound to arm it for the timeline, drag it straight onto a track, double-click (or ▶ Preview) to hear it first, ⏹ Stop cuts a long preview, and search filters the list. The old scrolling button-list library is gone.
+- **NEW — 📦 Import ZIP / files… (library sidebar + the sampler picker):** import whole ZIP sound packs or loose WAV/MP3 files; every sound is auto-categorized (pack folder names first, then name keywords), filed into your sound-library folder, and **duplicates are never added twice** (same name + same size = skipped; same name but a different sound is kept, numbered).
+- **NEW — delete sounds individually, with a confirm:** right-click any library sound → 🗑️ Delete sound…, or the picker's Delete button for library/imported sounds. Nothing deletes without the confirm dialog.
+- **NEW — 💾 Save Mashup:** every 🎤 MASHUP is captured automatically while it plays; if it's a keeper, one press saves it (silence trimmed off both ends) into the library under a new **🔀 Mash-ups** category, ready to drag onto the timeline. **MIX A+B and 🎲 Best Pair are removed** (Michael's call) — Mashup is the one-button mix now.
+- **NEW — ⏹ Stop Both Decks button:** stops both decks at once and rewinds them to their cue points (a playing mashup's capture keeps what already played, so it can still be saved).
+- **NEW — "Stems run on" picker in the DJ mixer:** Auto / GPU / CPU for stem splitting. Auto uses the graphics card when the PC has a proper one (DirectML) and the CPU otherwise; GPU/CPU force the choice. Applies to Mashup and Split Stems alike.
+- **Sampler pads wear their sound's name:** assign a sound and the pad's face takes that sound's name (and keeps it next launch); clearing a pad resets its face.
+- **Stems are filed by type now:** a split no longer dumps all four stems into one pile — the library and the picker get separate **Stems · Vocals / Stems · Drums / Stems · Bass / Stems · Other** groups.
+- **Picker fixes:** ▶ Preview now plays through the sampler engine itself (the old preview could stay silent) with a ⏹ Stop that cuts long sounds dead, and the ✓ Use button no longer renders as a blank white box when disabled.
+
 ## Version 3.45 — Sampler Sound Picker Window
 - **NEW — assigning a sampler pad opens a real sound browser window** instead of a bare file dialog: every sound sorted into categories — the built-in pack (read straight out of the compressed soundpack.zip), your editor library (including split stems), stem files on disk, and the PC's Downloads folder — each category with its sounds listed alphabetically.
 - **Preview before you commit:** select a sound, hit ▶ Preview to hear it, then ✓ Use this sound (or double-click). A 📁 Browse files… button still lets you grab any file from anywhere.

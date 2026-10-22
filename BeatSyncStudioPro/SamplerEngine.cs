@@ -70,6 +70,8 @@ namespace BeatSyncStudioPro
         public OneShotSlot[] Slots { get; }
         public VolumeSampleProvider Output { get; }
 
+        private readonly OneShotSlot _previewSlot = new OneShotSlot();
+
         public SamplerEngine()
         {
             Slots = new OneShotSlot[PadCount];
@@ -79,8 +81,20 @@ namespace BeatSyncStudioPro
                 Slots[i] = new OneShotSlot();
                 mixer.AddMixerInput(Slots[i]);
             }
+            mixer.AddMixerInput(_previewSlot);
             Output = new VolumeSampleProvider(mixer) { Volume = 0.9f };
         }
+
+        /// <summary>v3.46: picker previews play through the sampler's own bus —
+        /// same output the pads use, so a preview is always audible.</summary>
+        public void Preview(float[] samples)
+        {
+            _previewSlot.Load(samples);
+            _previewSlot.Trigger();
+        }
+
+        /// <summary>Cut a preview dead — for sounds that run long.</summary>
+        public void StopPreview() => _previewSlot.Clear();
 
         public void Trigger(int pad)
         {

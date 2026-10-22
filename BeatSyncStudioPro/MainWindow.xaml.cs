@@ -219,11 +219,21 @@ namespace BeatSyncStudioPro
 
             // v3.44: stems land in the library under "Stems" whenever a split finishes
             StemSeparator.StemsAvailable += OnStemsAvailable;
+            RefreshLibraryBrowser();
         }
 
         /// <summary>v3.44: file a set of split stems into the asset library under
         /// the "Stems" category so they can be dragged onto the timeline like any
         /// other sound. Duplicates (same song re-split or cache-loaded) are skipped.</summary>
+        /// <summary>Group rank for the library: every "Stems · X" group sits at the Stems slot.</summary>
+        private static int LibraryGroupRank(string category)
+        {
+            if (category == SoundCategorizer.Stems || category.StartsWith("Stems · ", StringComparison.Ordinal))
+                return Array.IndexOf(LibraryGroupOrder, SoundCategorizer.Stems);
+            int r = Array.IndexOf(LibraryGroupOrder, category);
+            return r < 0 ? LibraryGroupOrder.Length : r;
+        }
+
         private void OnStemsAvailable(string folder, string baseName)
         {
             if (!Dispatcher.CheckAccess())
@@ -240,7 +250,7 @@ namespace BeatSyncStudioPro
                 try
                 {
                     if (!File.Exists(path)) continue;
-                    AddToLibraryOnly(File.ReadAllBytes(path), display, SoundCategorizer.Stems);
+                    AddToLibraryOnly(File.ReadAllBytes(path), display, SoundCategorizer.StemCategory(stem));
                 }
                 catch { /* one bad stem file must not block the others */ }
             }
@@ -629,7 +639,7 @@ namespace BeatSyncStudioPro
             if (!VideoAssets.ContainsKey(name))
             {
                 VideoAssets[name] = path;
-                ListContainer.Children.Add(CreateAssetButton($"🎬 {name}", name));
+                AddAssetButtonToGroup(CreateAssetButton($"🎬 {name}", name));
             }
 
             // Drop it straight onto the video lane at the start of the timeline
@@ -651,7 +661,7 @@ namespace BeatSyncStudioPro
                 string name = System.IO.Path.GetFileName(path);
                 VideoAssets[name] = path;
 
-                ListContainer.Children.Add(CreateAssetButton($"🎬 {name}", name));
+                AddAssetButtonToGroup(CreateAssetButton($"🎬 {name}", name));
             }
         }
 
@@ -660,7 +670,7 @@ namespace BeatSyncStudioPro
         {
             string name = System.IO.Path.GetFileName(path);
             VideoAssets[name] = path;
-            ListContainer.Children.Add(CreateAssetButton($"🎬 {name}", name));
+            AddAssetButtonToGroup(CreateAssetButton($"🎬 {name}", name));
             ApplyLibraryFilter();
         }
 
@@ -679,7 +689,7 @@ namespace BeatSyncStudioPro
                 string name = System.IO.Path.GetFileName(path);
                 ImageAssets[name] = path;
 
-                ListContainer.Children.Add(CreateAssetButton($"🖼️ {name}", name));
+                AddAssetButtonToGroup(CreateAssetButton($"🖼️ {name}", name));
             }
         }
 
@@ -701,7 +711,7 @@ namespace BeatSyncStudioPro
                 {
                     try
                     {
-                        var addedNames = new List<string>();
+                        var addedNames = new List<(string Name, string FullPath)>();
                         using (var archive = ZipFile.OpenRead(path))
                         {
                             foreach (var entry in archive.Entries)
@@ -717,7 +727,7 @@ namespace BeatSyncStudioPro
                                             entry.Open().CopyTo(ms);
                                             ZipSounds[baseName] = ms.ToArray();
                                         }
-                                        addedNames.Add(baseName);
+                                        addedNames.Add((baseName, entry.FullName));
                                     }
                                 }
                             }
@@ -725,22 +735,16 @@ namespace BeatSyncStudioPro
 
                         if (addedNames.Count > 0)
                         {
-                            // Group this ZIP's sounds under their own header so the
-                            // pack stays together as one sorted, easy-to-scan list.
-                            ListContainer.Children.Add(new TextBlock
+                            // v3.46: no more loose ZIP headers — every sound is filed
+                            // under its category group (folder hint first, else inferred).
+                            foreach (var (soundName, fullPath) in addedNames.OrderBy(n => n.Name))
                             {
-                                Text = $"📦 {System.IO.Path.GetFileName(path)}",
-                                Foreground = (Brush)new BrushConverter().ConvertFromString("#A0A5B5")!,
-                                FontWeight = FontWeights.Bold,
-                                FontSize = 11,
-                                Margin = new Thickness(0, 10, 0, 2)
-                            });
-
-                            foreach (var soundName in addedNames.OrderBy(n => n))
-                            {
+                                if (!SoundCategories.ContainsKey(soundName))
+                                    SoundCategories[soundName] = CategoryFromZipPath(fullPath);
+                                string cat = SoundCategories[soundName];
                                 var sext = System.IO.Path.GetExtension(soundName).ToLowerInvariant();
-                                string icon = (sext == ".mid" || sext == ".midi") ? "🎹" : "🎵";
-                                ListContainer.Children.Add(CreateAssetButton($"{icon} {soundName}", soundName, 14));
+                                string icon = (sext == ".mid" || sext == ".midi") ? "🎹" : SoundCategorizer.Icon(cat);
+                                AddAssetButtonToGroup(CreateAssetButton($"{icon} {soundName}", soundName));
                             }
                         }
                     }
@@ -758,7 +762,7 @@ namespace BeatSyncStudioPro
                         ZipSounds[name] = bytes;
 
                         string icon = (ext == ".mid" || ext == ".midi") ? "🎹" : "🎵";
-                        ListContainer.Children.Add(CreateAssetButton($"{icon} {name}", name));
+                        AddAssetButtonToGroup(CreateAssetButton($"{icon} {name}", name));
                     }
                     catch (Exception ex)
                     {
@@ -811,6 +815,13 @@ namespace BeatSyncStudioPro
                     draggingSoundName = null;
                 }
             };
+
+            // v3.46: right-click any library entry to delete it (with a confirm).
+            var menu = new ContextMenu();
+            var miDelete = new MenuItem { Header = "🗑️ Delete sound…" };
+            miDelete.Click += (s, e) => DeleteLibraryAsset(assetName);
+            menu.Items.Add(miDelete);
+            btn.ContextMenu = menu;
 
             return btn;
         }
@@ -1311,7 +1322,7 @@ namespace BeatSyncStudioPro
             ZipSounds[name] = wavBytes;
             string cat = category ?? SoundCategorizer.Infer(name);
             SoundCategories[name] = cat;
-            ListContainer.Children.Add(CreateAssetButton($"{SoundCategorizer.Icon(cat)} {name}", name));
+            AddAssetButtonToGroup(CreateAssetButton($"{SoundCategorizer.Icon(cat)} {name}", name));
             ApplyLibraryFilter();
             return name;
         }
@@ -2054,7 +2065,7 @@ namespace BeatSyncStudioPro
 
                 string audioName = $"{System.IO.Path.GetFileNameWithoutExtension(VideoPath!)} (audio).wav";
                 ZipSounds[audioName] = bytes;
-                ListContainer.Children.Add(CreateAssetButton($"🎵 {audioName}", audioName));
+                AddAssetButtonToGroup(CreateAssetButton($"🎵 {audioName}", audioName));
 
                 MessageBox.Show($"✅ Audio extracted to the library as '{audioName}'.\n\nDrag it onto a timeline track to use it.", "Audio Extracted", MessageBoxButton.OK, MessageBoxImage.Information);
             }
@@ -2082,7 +2093,7 @@ namespace BeatSyncStudioPro
 
                 string audioName = $"{System.IO.Path.GetFileNameWithoutExtension(VideoPath!)} (audio).wav";
                 ZipSounds[audioName] = bytes;
-                ListContainer.Children.Add(CreateAssetButton($"🎵 {audioName}", audioName));
+                AddAssetButtonToGroup(CreateAssetButton($"🎵 {audioName}", audioName));
 
                 var audioBlock = new FixedBlock(this, TimelineCanvas, 0, audioName, block.StartX, bytes, "wav", 0, false, true);
                 TimelineBlocks.Add(audioBlock);
@@ -2251,7 +2262,7 @@ namespace BeatSyncStudioPro
                 SoundCategories.Clear();
                 VideoAssets.Clear();
                 ImageAssets.Clear();
-                ListContainer.Children.Clear();
+                ClearLibraryGroups();
 
                 string extractDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "BeatSyncStudioPro", "loaded-" + Guid.NewGuid().ToString("N"));
                 Directory.CreateDirectory(extractDir);
@@ -2352,7 +2363,8 @@ namespace BeatSyncStudioPro
                             using var ms = new MemoryStream();
                             es.CopyTo(ms);
                             ZipSounds[entry.Name] = ms.ToArray();
-                            ListContainer.Children.Add(CreateAssetButton($"🎵 {entry.Name}", entry.Name));
+                            string cat = SoundCategories.TryGetValue(entry.Name, out var savedCat) ? savedCat : SoundCategorizer.Infer(entry.Name);
+                            AddAssetButtonToGroup(CreateAssetButton($"{SoundCategorizer.Icon(cat)} {entry.Name}", entry.Name));
                         }
                         else if (full.StartsWith("video/") || full.StartsWith("images/"))
                         {
@@ -2366,12 +2378,12 @@ namespace BeatSyncStudioPro
                             if (full.StartsWith("video/"))
                             {
                                 VideoAssets[entry.Name] = dest;
-                                ListContainer.Children.Add(CreateAssetButton($"🎬 {entry.Name}", entry.Name));
+                                AddAssetButtonToGroup(CreateAssetButton($"🎬 {entry.Name}", entry.Name));
                             }
                             else
                             {
                                 ImageAssets[entry.Name] = dest;
-                                ListContainer.Children.Add(CreateAssetButton($"🖼️ {entry.Name}", entry.Name));
+                                AddAssetButtonToGroup(CreateAssetButton($"🖼️ {entry.Name}", entry.Name));
                             }
                         }
                     }
@@ -2562,28 +2574,318 @@ namespace BeatSyncStudioPro
             _downloadsWindow.Show();
         }
 
-        /// <summary>Filter the asset library by the category dropdown and the search box.</summary>
-        public void ApplyLibraryFilter()
+        // ===== v3.46: library category order for the sidebar browser =====
+        private static readonly string[] LibraryGroupOrder =
         {
-            if (ListContainer == null || LibraryCategoryBox == null) return;
-            string selected = (LibraryCategoryBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
-            string[] known = { "All Sounds", SoundCategorizer.Drums, SoundCategorizer.Guitar, SoundCategorizer.Bass,
-                SoundCategorizer.Keys, SoundCategorizer.Loops, SoundCategorizer.Vocals, SoundCategorizer.Fx,
-                SoundCategorizer.Stems, SoundCategorizer.Other, "Video", "Images" };
-            string filter = known.FirstOrDefault(k => selected.Contains(k)) ?? "";
-            string query = LibrarySearchBox?.Text?.Trim() ?? "";
-            foreach (var child in ListContainer.Children)
+            SoundCategorizer.Drums, SoundCategorizer.Guitar, SoundCategorizer.Bass, SoundCategorizer.Keys,
+            SoundCategorizer.Loops, SoundCategorizer.Vocals, SoundCategorizer.Fx, SoundCategorizer.Stems,
+            SoundCategorizer.Mashups, SoundCategorizer.Other, "Video", "Images"
+        };
+
+        private string CategoryForAsset(string name)
+        {
+            if (VideoAssets.ContainsKey(name)) return "Video";
+            if (ImageAssets.ContainsKey(name)) return "Images";
+            if (SoundCategories.TryGetValue(name, out var c)) return c;
+            return SoundCategorizer.Infer(name);
+        }
+
+        private static string GroupIcon(string category) => category switch
+        {
+            "Video" => "🎬",
+            "Images" => "🖼️",
+            _ => SoundCategorizer.Icon(category)
+        };
+
+        // ===== v3.46 sidebar browser: category list + sound list, the same
+        // shape as the DJ sampler picker (Michael's ask — it replaces the old
+        // button-list library). The asset dictionaries stay the source of truth. =====
+        private readonly List<string> _browserCategories = new();
+        private readonly List<string> _soundListNames = new();
+        private bool _refreshingLibrary;
+        private Point _libDragStart;
+        private string? _libDragName;
+
+        private void AddAssetButtonToGroup(Button btn) => RefreshLibraryBrowser();
+
+        private void ClearLibraryGroups() => RefreshLibraryBrowser();
+
+        /// <summary>Remove one asset from the library entirely (dictionaries + UI).
+        /// Callers handle the confirm dialog.</summary>
+        public void RemoveLibraryAsset(string name)
+        {
+            ZipSounds.Remove(name);
+            SoundCategories.Remove(name);
+            VideoAssets.Remove(name);
+            ImageAssets.Remove(name);
+            if (draggingSoundName == name) draggingSoundName = null;
+            RefreshLibraryBrowser();
+        }
+
+        private string SelectedBrowserCategory()
+        {
+            int i = LibraryCategoryList?.SelectedIndex ?? -1;
+            return i >= 0 && i < _browserCategories.Count ? _browserCategories[i] : "";
+        }
+
+        private void RefreshLibraryBrowser()
+        {
+            if (LibraryCategoryList == null || LibrarySoundList == null) return;
+            string keepCat = SelectedBrowserCategory();
+            var counts = new Dictionary<string, int>();
+            void Bump(string c) { counts[c] = counts.TryGetValue(c, out var n) ? n + 1 : 1; }
+            foreach (var name in ZipSounds.Keys) Bump(CategoryForAsset(name));
+            foreach (var name in VideoAssets.Keys) Bump("Video");
+            foreach (var name in ImageAssets.Keys) Bump("Images");
+            var cats = counts.Keys.ToList();
+            cats.Sort((a, b) =>
             {
-                if (child is not Button btn || btn.Tag is not string name) continue;
-                string cat;
-                if (VideoAssets.ContainsKey(name)) cat = "Video";
-                else if (ImageAssets.ContainsKey(name)) cat = "Images";
-                else if (SoundCategories.TryGetValue(name, out var c)) cat = c;
-                else cat = SoundCategorizer.Infer(name);
-                bool catOk = filter.Length == 0 || filter == "All Sounds" || cat == filter;
-                bool queryOk = query.Length == 0 || name.Contains(query, StringComparison.OrdinalIgnoreCase);
-                btn.Visibility = catOk && queryOk ? Visibility.Visible : Visibility.Collapsed;
+                int ra = LibraryGroupRank(a), rb = LibraryGroupRank(b);
+                return ra != rb ? ra.CompareTo(rb) : string.Compare(a, b, StringComparison.OrdinalIgnoreCase);
+            });
+            _refreshingLibrary = true;
+            _browserCategories.Clear();
+            _browserCategories.Add("");
+            _browserCategories.AddRange(cats);
+            LibraryCategoryList.Items.Clear();
+            int total = ZipSounds.Count + VideoAssets.Count + ImageAssets.Count;
+            LibraryCategoryList.Items.Add($"\U0001F5C2\uFE0F All  ({total})");
+            foreach (var c in cats) LibraryCategoryList.Items.Add($"{GroupIcon(c)} {c}  ({counts[c]})");
+            int sel = _browserCategories.IndexOf(keepCat);
+            LibraryCategoryList.SelectedIndex = sel >= 0 ? sel : 0;
+            _refreshingLibrary = false;
+            RefillSoundList();
+        }
+
+        private void RefillSoundList()
+        {
+            if (LibrarySoundList == null) return;
+            string cat = SelectedBrowserCategory();
+            string query = LibrarySearchBox?.Text?.Trim() ?? "";
+            var names = new List<string>();
+            void Consider(string name)
+            {
+                if ((cat == "" || CategoryForAsset(name) == cat) &&
+                    (query.Length == 0 || name.Contains(query, StringComparison.OrdinalIgnoreCase)))
+                    names.Add(name);
             }
+            foreach (var n in ZipSounds.Keys) Consider(n);
+            foreach (var n in VideoAssets.Keys) Consider(n);
+            foreach (var n in ImageAssets.Keys) Consider(n);
+            names.Sort((a, b) => string.Compare(a, b, StringComparison.OrdinalIgnoreCase));
+            _refreshingLibrary = true;
+            _soundListNames.Clear();
+            _soundListNames.AddRange(names);
+            LibrarySoundList.Items.Clear();
+            foreach (var n in names) LibrarySoundList.Items.Add($"{GroupIcon(CategoryForAsset(n))} {n}");
+            _refreshingLibrary = false;
+        }
+
+        public void ApplyLibraryFilter() => RefreshLibraryBrowser();
+
+        private void LibraryCategoryList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_refreshingLibrary) return;
+            RefillSoundList();
+        }
+
+        private void LibrarySoundList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_refreshingLibrary) return;
+            var n = SelectedSoundName();
+            if (n != null) draggingSoundName = n;   // click-to-place, same as the old buttons
+        }
+
+        private string? SelectedSoundName()
+        {
+            int i = LibrarySoundList?.SelectedIndex ?? -1;
+            return i >= 0 && i < _soundListNames.Count ? _soundListNames[i] : null;
+        }
+
+        private string? SoundNameFromPoint(Point point)
+        {
+            var el = LibrarySoundList.InputHitTest(point) as DependencyObject;
+            var item = ItemsControl.ContainerFromElement(LibrarySoundList, el) as ListBoxItem;
+            if (item == null) return null;
+            int idx = LibrarySoundList.ItemContainerGenerator.IndexFromContainer(item);
+            return idx >= 0 && idx < _soundListNames.Count ? _soundListNames[idx] : null;
+        }
+
+        private void LibrarySoundList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            _libDragStart = e.GetPosition(null);
+            _libDragName = SoundNameFromPoint(e.GetPosition(LibrarySoundList));
+        }
+
+        private void LibrarySoundList_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed || _libDragName == null) return;
+            Point pos = e.GetPosition(null);
+            if (Math.Abs(pos.X - _libDragStart.X) <= SystemParameters.MinimumHorizontalDragDistance &&
+                Math.Abs(pos.Y - _libDragStart.Y) <= SystemParameters.MinimumVerticalDragDistance) return;
+            string name = _libDragName;
+            _libDragName = null;
+            draggingSoundName = name;
+            var result = DragDrop.DoDragDrop(LibrarySoundList, new DataObject(DataFormats.StringFormat, name), DragDropEffects.Copy);
+            if (result == DragDropEffects.None && draggingSoundName == name) draggingSoundName = null;
+        }
+
+        private void LibrarySoundList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            var n = SoundNameFromPoint(e.GetPosition(LibrarySoundList)) ?? SelectedSoundName();
+            if (n != null && ZipSounds.ContainsKey(n)) PreviewLibrarySound(n);
+        }
+
+        private void BtnLibraryPreview_Click(object sender, RoutedEventArgs e)
+        {
+            var n = SelectedSoundName();
+            if (n != null) PreviewLibrarySound(n);
+        }
+
+        private void BtnLibraryStop_Click(object sender, RoutedEventArgs e) => StopLibraryPreview();
+
+        private void BtnLibraryDelete_Click(object sender, RoutedEventArgs e)
+        {
+            var n = SelectedSoundName();
+            if (n != null) DeleteLibraryAsset(n);
+        }
+
+        private WaveOutEvent? _libPreviewOut;
+
+        private void PreviewLibrarySound(string name)
+        {
+            StopLibraryPreview();
+            if (!ZipSounds.TryGetValue(name, out var bytes)) return;
+            try
+            {
+                var samples = SamplerEngine.DecodeBytes(bytes, name);
+                _libPreviewOut = new WaveOutEvent();
+                _libPreviewOut.Init(new SampleToWaveProvider(new ArraySampleProvider(samples)));
+                _libPreviewOut.Play();
+            }
+            catch { StopLibraryPreview(); }
+        }
+
+        private void StopLibraryPreview()
+        {
+            try { _libPreviewOut?.Stop(); _libPreviewOut?.Dispose(); } catch { }
+            _libPreviewOut = null;
+        }
+
+        private void DeleteLibraryAsset(string name)
+        {
+            var ask = MessageBox.Show($"Delete '{name}' from the library?\n\nSounds that live in your imported sound-library folder are deleted from disk too. This can't be undone.",
+                "Delete sound", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (ask != MessageBoxResult.Yes) return;
+            RemoveLibraryAsset(name);
+            // If the sound came from the imported sound-library folder, remove the file as well.
+            try
+            {
+                string root = SoundLibraryRoot;
+                if (Directory.Exists(root))
+                {
+                    foreach (var file in Directory.EnumerateFiles(root, name, SearchOption.AllDirectories))
+                        File.Delete(file);
+                }
+            }
+            catch { /* the library entry is gone either way */ }
+        }
+
+        // ===== v3.46: importing sounds (ZIP packs + loose files), auto-categorized, no duplicates =====
+        public static string SoundLibraryRoot => System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BeatSyncStudioPro", "sound-library");
+
+        private static readonly string[] ImportAudioExtensions = { ".wav", ".mp3" };
+
+        private static string CategoryFromZipPath(string fullName)
+        {
+            string first = fullName.Replace('\\', '/').Split('/')[0];
+            string f = " " + first.ToLowerInvariant() + " ";
+            if (f.Contains("drum") || f.Contains("kick") || f.Contains("snare") || f.Contains("perc")) return SoundCategorizer.Drums;
+            if (f.Contains("guitar") || f.Contains("riff")) return SoundCategorizer.Guitar;
+            if (f.Contains("bass")) return SoundCategorizer.Bass;
+            if (f.Contains("key") || f.Contains("piano") || f.Contains("synth") || f.Contains("pad")) return SoundCategorizer.Keys;
+            if (f.Contains("loop")) return SoundCategorizer.Loops;
+            if (f.Contains("vocal") || f.Contains("vox") || f.Contains("voice")) return SoundCategorizer.Vocals;
+            if (f.Contains("fx") || f.Contains("sfx") || f.Contains("sound effect")) return SoundCategorizer.Fx;
+            if (f.Contains("stem")) return SoundCategorizer.Stems;
+            return SoundCategorizer.Infer(fullName);
+        }
+
+        /// <summary>Import ZIP archives and/or loose audio files: every sound is
+        /// categorized (folder hint, else keyword inference), written into the
+        /// sound-library folder, and added to the project library. A sound whose
+        /// name + size already exists is skipped — never duplicated.</summary>
+        public (int Added, int Skipped) ImportSoundArchives(IEnumerable<string> paths)
+        {
+            int added = 0, skipped = 0;
+            var pending = new List<(string DisplayName, string Category, byte[] Bytes)>();
+            foreach (var path in paths)
+            {
+                try
+                {
+                    if (path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                    {
+                        using var zip = System.IO.Compression.ZipFile.OpenRead(path);
+                        foreach (var entry in zip.Entries)
+                        {
+                            string ext = System.IO.Path.GetExtension(entry.Name).ToLowerInvariant();
+                            if (!ImportAudioExtensions.Contains(ext) || entry.Name.Length == 0) continue;
+                            using var es = entry.Open();
+                            using var ms = new MemoryStream();
+                            es.CopyTo(ms);
+                            pending.Add((entry.Name, CategoryFromZipPath(entry.FullName), ms.ToArray()));
+                        }
+                    }
+                    else if (ImportAudioExtensions.Contains(System.IO.Path.GetExtension(path).ToLowerInvariant()))
+                    {
+                        pending.Add((System.IO.Path.GetFileName(path), SoundCategorizer.Infer(path), File.ReadAllBytes(path)));
+                    }
+                }
+                catch { skipped++; }
+            }
+            foreach (var (displayName, category, bytes) in pending)
+            {
+                string name = displayName;
+                // Never duplicate: same name + same size already in the library or on disk = skip.
+                if (ZipSounds.TryGetValue(name, out var existing) && existing.Length == bytes.Length) { skipped++; continue; }
+                string catDir = System.IO.Path.Combine(SoundLibraryRoot, category);
+                string diskPath = System.IO.Path.Combine(catDir, name);
+                if (File.Exists(diskPath) && new FileInfo(diskPath).Length == bytes.Length) { skipped++; continue; }
+                if (ZipSounds.ContainsKey(name) || File.Exists(diskPath))
+                {
+                    // Same name, different sound — keep both, tagged apart (not a duplicate).
+                    string baseName = System.IO.Path.GetFileNameWithoutExtension(name);
+                    string ext = System.IO.Path.GetExtension(name);
+                    int n = 2;
+                    while (ZipSounds.ContainsKey($"{baseName} ({n}){ext}") || File.Exists(System.IO.Path.Combine(catDir, $"{baseName} ({n}){ext}"))) n++;
+                    name = $"{baseName} ({n}){ext}";
+                    diskPath = System.IO.Path.Combine(catDir, name);
+                }
+                try
+                {
+                    Directory.CreateDirectory(catDir);
+                    File.WriteAllBytes(diskPath, bytes);
+                    AddToLibraryOnly(bytes, name, category);
+                    added++;
+                }
+                catch { skipped++; }
+            }
+            return (added, skipped);
+        }
+
+        private void BtnImportSounds_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Import sounds — ZIP packs or loose audio files",
+                Filter = "Sound packs & audio|*.zip;*.wav;*.mp3",
+                Multiselect = true
+            };
+            if (dialog.ShowDialog() != true) return;
+            var (added, skipped) = ImportSoundArchives(dialog.FileNames);
+            MessageBox.Show($"Imported {added} sound{(added == 1 ? "" : "s")} into the library, sorted by category.\n{skipped} skipped (duplicates or unreadable files).",
+                "Import sounds", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void LibraryFilter_Changed(object sender, RoutedEventArgs e) => ApplyLibraryFilter();
@@ -2605,6 +2907,7 @@ namespace BeatSyncStudioPro
 
         protected override void OnClosed(EventArgs e)
         {
+            StopLibraryPreview();
             outputDevice?.Dispose();
             base.OnClosed(e);
         }

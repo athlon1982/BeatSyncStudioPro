@@ -129,6 +129,11 @@ namespace BeatSyncStudioPro
             djMaster.AddMixerInput(_sampler.Output);
             SamplerVolumeKnob.ValueChanged += (s, e) => _sampler.Output.Volume = (float)SamplerVolumeKnob.Value;
             BuildSamplerPads();
+            // v3.46: stem compute picker (Auto / GPU / CPU) — the app-wide
+            // ComputeSettings the stem splitter already honors.
+            _stemPickerInit = true;
+            StemComputePicker.SelectedIndex = ComputeSettings.Load().Mode switch { "GPU" => 1, "CPU" => 2, _ => 0 };
+            _stemPickerInit = false;
             for (int i = 0; i < MicChannel.DeviceCount; i++) MicDevicePicker.Items.Add(MicChannel.DeviceName(i));
             if (MicDevicePicker.Items.Count > 0) MicDevicePicker.SelectedIndex = 0;
             else MicDevicePicker.Items.Add("(no microphone found)");
@@ -329,33 +334,15 @@ namespace BeatSyncStudioPro
             SetStatus($"Mixer: channel {which} reset — gain 1.0, EQ flat, fader at unity.");
         }
 
-        // ===== v3.41: MIX A+B — one button sets up and plays a two-deck mix =====
-        private bool _mixBusy;
-
-        private async void MixButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (_mixBusy) return;
-            if (!_panelA.HasTrack || !_panelB.HasTrack)
-            {
-                SetStatus("\U0001F500 MIX A+B needs a track loaded on BOTH decks first.");
-                return;
-            }
-            _mixBusy = true;
-            MixButton.IsEnabled = false;
-            FindPairButton.IsEnabled = false;
-            try { await RunMixSetupAsync(); }
-            finally { _mixBusy = false; MixButton.IsEnabled = true; FindPairButton.IsEnabled = true; }
-        }
-
         private async Task RunMixSetupAsync(bool mashup = false)
         {
-            if (_cruiseOn) TurnCruiseOff("\U0001F500 Cruise off — MIX A+B took over.");
-            SetStatus("\U0001F500 MIX A+B: working out the BPMs…");
+            if (_cruiseOn) TurnCruiseOff("🎤 Cruise off — MASHUP took over.");
+            SetStatus("🎤 MASHUP: working out the BPMs…");
             bool bpmA = await _panelA.EnsureBpmAsync();
             bool bpmB = await _panelB.EnsureBpmAsync();
             if (!bpmA || !bpmB)
             {
-                SetStatus($"\U0001F500 MIX A+B stopped — no BPM for {(!bpmA ? "Deck A" : "Deck B")} (auto-detect couldn't find one). Type it in or TAP it, then press MIX A+B again.");
+                SetStatus($"🎤 MASHUP stopped — no BPM for {(!bpmA ? "Deck A" : "Deck B")} (auto-detect couldn't find one). Type it in or TAP it, then press MASHUP again.");
                 return;
             }
             // Key detection runs by itself after each load; give it a moment to land.
@@ -380,9 +367,101 @@ namespace BeatSyncStudioPro
                 : $"⚠ BPMs too far apart to tempo-match ({_deckA.Bpm:0} vs {_deckB.Bpm:0}) — playing unmatched";
             string keyNote = keySynced ? "keys in sync" : (_panelA.KeyReady && _panelB.KeyReady ? "keys left as-is" : "key not detected — no key sync");
             if (mashup)
-                SetStatus($"🎤 MASHUP A+B: Deck A's VOCALS over Deck B's BEAT (drums+bass+other) • {tempoNote} • {keyNote} • crossfader centered. Want it the other way round? Swap the two tracks and press MASHUP again.");
-            else
-                SetStatus($"\U0001F500 MIXING A+B: {tempoNote} • {keyNote} • crossfader centered. Ride the channel faders + EQ to blend!");
+            {
+                string captureNote = StartMashupCapture()
+                    ? " It's being captured while it plays — if it's a keeper, press 💾 Save Mashup and it lands in the library under 🔀 Mash-ups."
+                    : " (Record Mix is already running, so this mashup isn't being auto-captured.)";
+                SetStatus($"🎤 MASHUP A+B: Deck A's VOCALS over Deck B's BEAT (drums+bass+other) • {tempoNote} • {keyNote} • crossfader centered.{captureNote} Want it the other way round? Swap the two tracks and press MASHUP again.");
+            }
+        }
+
+        // ===== v3.46: mashup capture — every mashup is recorded as it plays;
+        // 💾 Save Mashup files the keeper into the library's Mash-ups category =====
+        private bool _mashupCapture;
+        private string? _mashupTempPath;
+        private string _mashupTitleA = "";
+        private string _mashupTitleB = "";
+
+        private bool StartMashupCapture()
+        {
+            if (_recorder.IsRecording && !_mashupCapture) return false;   // a manual Record Mix owns the recorder
+            try
+            {
+                if (_mashupCapture) _recorder.Stop();
+                string dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BeatSyncStudioPro", "mashup-capture");
+                Directory.CreateDirectory(dir);
+                _mashupTempPath = System.IO.Path.Combine(dir, "last-mashup.wav");
+                if (File.Exists(_mashupTempPath)) File.Delete(_mashupTempPath);
+                _mashupTitleA = _panelA.CurrentTitle;
+                _mashupTitleB = _panelB.CurrentTitle;
+                _recorder.Start(_mashupTempPath);
+                _mashupCapture = true;
+                SaveMashupButton.IsEnabled = true;
+                SaveMashupButton.Content = "💾 Save Mashup (capturing…)";
+                return true;
+            }
+            catch { _mashupCapture = false; return false; }
+        }
+
+        private async void SaveMashupButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_mashupCapture || _mashupTempPath == null || !File.Exists(_mashupTempPath))
+            {
+                SetStatus("💾 No mashup captured yet — press 🎤 MASHUP A+B first; it captures automatically while it plays.");
+                return;
+            }
+            _recorder.Stop();
+            _mashupCapture = false;
+            SaveMashupButton.IsEnabled = false;
+            SaveMashupButton.Content = "💾 Save Mashup";
+            string tempPath = _mashupTempPath;
+            string titleA = _mashupTitleA, titleB = _mashupTitleB;
+            SetStatus("💾 Saving your mashup…");
+            try
+            {
+                var result = await Task.Run(() =>
+                {
+                    var samples = SamplerEngine.DecodeBytes(File.ReadAllBytes(tempPath), tempPath);
+                    // Trim the silence at both ends (keep a quarter-second of breathing room).
+                    const float thresh = 0.002f;
+                    int first = 0, last = samples.Length - 2;
+                    while (first < samples.Length - 1 && Math.Abs(samples[first]) < thresh && Math.Abs(samples[first + 1]) < thresh) first += 2;
+                    while (last > 0 && Math.Abs(samples[last]) < thresh && Math.Abs(samples[last + 1]) < thresh) last -= 2;
+                    first = Math.Max(0, first - 44100 / 2);
+                    last = Math.Min(samples.Length - 2, last + 44100 / 2);
+                    int count = Math.Max(0, last - first + 2);
+                    if (count < 44100 * 2) throw new InvalidOperationException("the capture came out silent — nothing to save.");
+                    var trimmed = new float[count];
+                    Array.Copy(samples, first, trimmed, 0, count);
+                    string Clean(string t)
+                    {
+                        string s = System.IO.Path.GetFileNameWithoutExtension(t ?? "");
+                        foreach (var ch in System.IO.Path.GetInvalidFileNameChars()) s = s.Replace(ch, ' ');
+                        s = s.Trim();
+                        if (s.Length > 40) s = s.Substring(0, 40).Trim();
+                        return s.Length == 0 ? "Track" : s;
+                    }
+                    string desired = $"Mashup - {Clean(titleA)} x {Clean(titleB)}.wav";
+                    string dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BeatSyncStudioPro", "mashup-capture");
+                    string finalTemp = System.IO.Path.Combine(dir, "final-mashup.wav");
+                    if (File.Exists(finalTemp)) File.Delete(finalTemp);
+                    WaveFileWriter.CreateWaveFile16(finalTemp, new ArraySampleProvider(trimmed));
+                    return (Desired: desired, FinalTemp: finalTemp, Seconds: count / 2.0 / 44100.0);
+                });
+                var bytes = File.ReadAllBytes(result.FinalTemp);
+                string savedName = _owner.AddToLibraryOnly(bytes, result.Desired, SoundCategorizer.Mashups);
+                try
+                {
+                    string diskDir = System.IO.Path.Combine(MainWindow.SoundLibraryRoot, SoundCategorizer.Mashups);
+                    Directory.CreateDirectory(diskDir);
+                    string diskPath = System.IO.Path.Combine(diskDir, savedName);
+                    if (!File.Exists(diskPath) || new FileInfo(diskPath).Length != bytes.Length)
+                        File.WriteAllBytes(diskPath, bytes);
+                }
+                catch { /* the library copy is saved either way */ }
+                SetStatus($"💾 Mashup saved to the library under 🔀 Mash-ups: '{savedName}' ({result.Seconds:0}s). Drag it onto the timeline like any other sound!");
+            }
+            catch (Exception ex) { SetStatus("💾 Couldn't save the mashup: " + ex.Message); }
         }
 
         // ===== v3.43: shared progress window (Best Pair + Mashup narrate their steps) =====
@@ -465,21 +544,28 @@ namespace BeatSyncStudioPro
             private readonly ListBox _soundList;
             private readonly TextBlock _status;
             private readonly Button _useBtn;
-            private readonly Dictionary<string, List<SoundChoice>> _catalog;
-            private readonly List<string> _cats;
-            private WaveOutEvent? _previewOut;
+            private Dictionary<string, List<SoundChoice>> _catalog;
+            private List<string> _cats;
+            private readonly Style? _buttonStyle;
 
             public SoundChoice? Result { get; private set; }
+            public Func<SoundChoice, string?>? PreviewHandler;
+            public Action? StopPreviewHandler;
+            public Func<SoundChoice, bool>? DeleteHandler;
+            public Func<string?>? ImportHandler;
 
-            public SoundPickerWindow(Window owner, int pad, Dictionary<string, List<SoundChoice>> catalog)
+            public SoundPickerWindow(Window owner, int pad, Dictionary<string, List<SoundChoice>> catalog, Style? buttonStyle = null)
             {
+                _buttonStyle = buttonStyle;
                 _catalog = catalog;
-                string[] preferred = { SoundCategorizer.Drums, SoundCategorizer.Guitar, SoundCategorizer.Bass, SoundCategorizer.Keys, SoundCategorizer.Loops, SoundCategorizer.Fx, SoundCategorizer.Vocals, SoundCategorizer.Stems, "Downloads", SoundCategorizer.Other };
+                string[] preferred = { SoundCategorizer.Drums, SoundCategorizer.Guitar, SoundCategorizer.Bass, SoundCategorizer.Keys, SoundCategorizer.Loops, SoundCategorizer.Fx, SoundCategorizer.Vocals, SoundCategorizer.Stems, SoundCategorizer.Mashups, "Downloads", SoundCategorizer.Other };
                 _cats = catalog.Keys.ToList();
                 _cats.Sort((a, b) =>
                 {
-                    int ia = Array.IndexOf(preferred, a); if (ia < 0) ia = 100;
-                    int ib = Array.IndexOf(preferred, b); if (ib < 0) ib = 100;
+                    string ka = a.StartsWith("Stems", StringComparison.Ordinal) ? SoundCategorizer.Stems : a;
+                    string kb = b.StartsWith("Stems", StringComparison.Ordinal) ? SoundCategorizer.Stems : b;
+                    int ia = Array.IndexOf(preferred, ka); if (ia < 0) ia = 100;
+                    int ib = Array.IndexOf(preferred, kb); if (ib < 0) ib = 100;
                     return ia != ib ? ia.CompareTo(ib) : string.Compare(a, b, StringComparison.OrdinalIgnoreCase);
                 });
                 _win = new Window
@@ -503,14 +589,18 @@ namespace BeatSyncStudioPro
                 bottom.Children.Add(_status);
                 var btnRow = new StackPanel { Orientation = Orientation.Horizontal };
                 bottom.Children.Add(btnRow);
-                var previewBtn = new Button { Content = "▶ Preview", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 8, 0) };
-                var stopBtn = new Button { Content = "⏹ Stop", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 8, 0) };
-                var browseBtn = new Button { Content = "📁 Browse files…", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 8, 0) };
-                _useBtn = new Button { Content = "✓ Use this sound", Padding = new Thickness(14, 6, 14, 6), FontWeight = FontWeights.Bold, Background = new SolidColorBrush(Color.FromRgb(0x1D, 0xB9, 0x54)), Foreground = Brushes.White, BorderThickness = new Thickness(0), IsEnabled = false };
-                var cancelBtn = new Button { Content = "Cancel", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(8, 0, 0, 0) };
+                var previewBtn = new Button { Content = "▶ Preview", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 8, 0), Style = _buttonStyle };
+                var stopBtn = new Button { Content = "⏹ Stop", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 8, 0), Style = _buttonStyle };
+                var browseBtn = new Button { Content = "📁 Browse files…", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 8, 0), Style = _buttonStyle };
+                var importBtn = new Button { Content = "📦 Import ZIP…", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 8, 0), Style = _buttonStyle };
+                var deleteBtn = new Button { Content = "🗑️ Delete", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 8, 0), Style = _buttonStyle, IsEnabled = false };
+                _useBtn = new Button { Content = "✓ Use this sound", Padding = new Thickness(14, 6, 14, 6), FontWeight = FontWeights.Bold, Background = new SolidColorBrush(Color.FromRgb(0x1D, 0xB9, 0x54)), Foreground = Brushes.White, BorderThickness = new Thickness(0), IsEnabled = false, Style = _buttonStyle };
+                var cancelBtn = new Button { Content = "Cancel", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(8, 0, 0, 0), Style = _buttonStyle };
                 btnRow.Children.Add(previewBtn);
                 btnRow.Children.Add(stopBtn);
                 btnRow.Children.Add(browseBtn);
+                btnRow.Children.Add(importBtn);
+                btnRow.Children.Add(deleteBtn);
                 btnRow.Children.Add(_useBtn);
                 btnRow.Children.Add(cancelBtn);
                 var grid = new Grid();
@@ -536,16 +626,72 @@ namespace BeatSyncStudioPro
                     foreach (var ch in _catalog[cat]) _soundList.Items.Add(ch.Display);
                     _status.Text = $"{cat}: {_catalog[cat].Count} sounds — pick one and hit Preview.";
                 };
-                _soundList.SelectionChanged += (s, e) => _useBtn.IsEnabled = SelectedChoice() != null;
+                _soundList.SelectionChanged += (s, e) =>
+                {
+                    _useBtn.IsEnabled = SelectedChoice() != null;
+                    var ch = SelectedChoice();
+                    deleteBtn.IsEnabled = ch != null && DeleteHandler != null &&
+                        (ch.PersistKey.StartsWith("library:", StringComparison.Ordinal) ||
+                         ch.PersistKey.StartsWith(MainWindow.SoundLibraryRoot, StringComparison.OrdinalIgnoreCase));
+                };
                 _soundList.MouseDoubleClick += (s, e) => { if (SelectedChoice() != null) Accept(); };
                 previewBtn.Click += (s, e) => Preview();
                 stopBtn.Click += (s, e) => StopPreview();
                 browseBtn.Click += (s, e) => Browse();
+                importBtn.Click += (s, e) =>
+                {
+                    StopPreview();
+                    var note = ImportHandler?.Invoke();
+                    if (note != null) _status.Text = note;
+                };
+                deleteBtn.Click += (s, e) =>
+                {
+                    var ch = SelectedChoice();
+                    if (ch == null || DeleteHandler == null) return;
+                    StopPreview();
+                    if (DeleteHandler(ch))
+                    {
+                        string cat = _cats[_catList.SelectedIndex];
+                        _catalog[cat].Remove(ch);
+                        _soundList.Items.RemoveAt(_soundList.SelectedIndex);
+                        RefreshCategoryCounts();
+                        _status.Text = $"Deleted: {ch.Display}";
+                    }
+                };
                 _useBtn.Click += (s, e) => Accept();
                 cancelBtn.Click += (s, e) => { StopPreview(); _win.DialogResult = false; };
                 _win.Closed += (s, e) => StopPreview();
                 if (_catList.Items.Count > 0) _catList.SelectedIndex = 0;
                 else _status.Text = "No sounds found anywhere — use Browse files… to pick one from disk.";
+            }
+
+            private void RefreshCategoryCounts()
+            {
+                for (int i = 0; i < _cats.Count && i < _catList.Items.Count; i++)
+                {
+                    string c = _cats[i];
+                    _catList.Items[i] = $"{SoundCategorizer.Icon(c)} {c}  ({_catalog[c].Count})";
+                }
+            }
+
+            public void ReloadCatalog(Dictionary<string, List<SoundChoice>> catalog)
+            {
+                StopPreview();
+                _catalog = catalog;
+                string[] preferred = { SoundCategorizer.Drums, SoundCategorizer.Guitar, SoundCategorizer.Bass, SoundCategorizer.Keys, SoundCategorizer.Loops, SoundCategorizer.Vocals, SoundCategorizer.Fx, SoundCategorizer.Stems, SoundCategorizer.Mashups, "Downloads", SoundCategorizer.Other };
+                _cats = catalog.Keys.ToList();
+                _cats.Sort((a, b) =>
+                {
+                    string ka = a.StartsWith("Stems", StringComparison.Ordinal) ? SoundCategorizer.Stems : a;
+                    string kb = b.StartsWith("Stems", StringComparison.Ordinal) ? SoundCategorizer.Stems : b;
+                    int ia = Array.IndexOf(preferred, ka); if (ia < 0) ia = 100;
+                    int ib = Array.IndexOf(preferred, kb); if (ib < 0) ib = 100;
+                    return ia != ib ? ia.CompareTo(ib) : string.Compare(a, b, StringComparison.OrdinalIgnoreCase);
+                });
+                _catList.Items.Clear();
+                foreach (var c in _cats) _catList.Items.Add($"{SoundCategorizer.Icon(c)} {c}  ({catalog[c].Count})");
+                _soundList.Items.Clear();
+                if (_catList.Items.Count > 0) _catList.SelectedIndex = 0;
             }
 
             private SoundChoice? SelectedChoice()
@@ -559,24 +705,14 @@ namespace BeatSyncStudioPro
                 StopPreview();
                 var ch = SelectedChoice();
                 if (ch == null) { _status.Text = "Pick a sound first."; return; }
-                try
-                {
-                    var bytes = ch.LoadBytes();
-                    if (bytes == null) { _status.Text = "That sound couldn't be loaded."; return; }
-                    var floats = SamplerEngine.DecodeBytes(bytes, ch.DecodeName);
-                    _previewOut = new WaveOutEvent();
-                    _previewOut.Init(new SampleToWaveProvider(new ArraySampleProvider(floats)));
-                    _previewOut.Play();
-                    _status.Text = $"▶ Previewing: {ch.Display}";
-                }
-                catch (Exception ex) { _status.Text = "Preview failed: " + ex.Message; }
+                if (PreviewHandler == null) { _status.Text = "Preview isn't available here."; return; }
+                var err = PreviewHandler(ch);
+                _status.Text = err == null
+                    ? $"▶ Previewing: {ch.Display} — hit ⏹ Stop if it runs long."
+                    : "Preview failed: " + err;
             }
 
-            private void StopPreview()
-            {
-                try { _previewOut?.Stop(); _previewOut?.Dispose(); } catch { }
-                _previewOut = null;
-            }
+            private void StopPreview() => StopPreviewHandler?.Invoke();
 
             private void Browse()
             {
@@ -612,7 +748,7 @@ namespace BeatSyncStudioPro
 
         private async void MashupButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_mashupBusy || _mixBusy || _pairBusy) return;
+            if (_mashupBusy) return;
             if (!_panelA.HasTrack || !_panelB.HasTrack)
             {
                 SetStatus("🎤 MASHUP A+B needs a track loaded on BOTH decks first.");
@@ -620,8 +756,6 @@ namespace BeatSyncStudioPro
             }
             _mashupBusy = true;
             MashupButton.IsEnabled = false;
-            MixButton.IsEnabled = false;
-            FindPairButton.IsEnabled = false;
             var prog = new ProgressWindowHelper(this, "🎤 Mashup A+B — vocals over beat");
             prog.Show();
             try
@@ -663,135 +797,7 @@ namespace BeatSyncStudioPro
             {
                 _mashupBusy = false;
                 MashupButton.IsEnabled = true;
-                MixButton.IsEnabled = true;
-                FindPairButton.IsEnabled = true;
             }
-        }
-
-        // ===== v3.42: Find Best Pair — analyze a pile of songs, remix the two that fit =====
-        private sealed class PairCandidate
-        {
-            public string Name = "";
-            public byte[] Bytes = Array.Empty<byte>();
-            public double Bpm;
-            public KeyDetector.KeyResult? Key;
-        }
-
-        private bool _pairBusy;
-
-        private async void FindPairButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (_pairBusy || _mixBusy) return;
-            var dialog = new OpenFileDialog
-            {
-                Title = "Pick a bunch of songs — I'll find the best two to remix",
-                Filter = "Audio|*.mp3;*.wav",
-                Multiselect = true
-            };
-            if (dialog.ShowDialog() != true) return;
-            var files = dialog.FileNames.Take(12).ToArray();
-            if (files.Length < 2) { SetStatus("🎲 Pick at least two songs and I'll find the best pair."); return; }
-            _pairBusy = true;
-            FindPairButton.IsEnabled = false;
-            MixButton.IsEnabled = false;
-            MashupButton.IsEnabled = false;
-            var prog = new ProgressWindowHelper(this, "🎲 Find Best Pair");
-            prog.Show();
-            prog.Log($"Analyzing {files.Length} songs — BPM and key for each one…");
-            try
-            {
-                var found = new List<PairCandidate>();
-                for (int i = 0; i < files.Length; i++)
-                {
-                    string path = files[i];
-                    string name = System.IO.Path.GetFileName(path);
-                    prog.SetStatus($"Analyzing {i + 1}/{files.Length}: {name}…");
-                    prog.SetBar(i, files.Length);
-                    try
-                    {
-                        var bytes = await Task.Run(() => File.ReadAllBytes(path));
-                        string type = System.IO.Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
-                        var (bpm, _, _) = await Task.Run(() => BeatDetector.Detect(bytes, type));
-                        if (bpm < 50 || bpm > 200) { prog.Log($"✗ {name} — skipped (no clear BPM found)"); continue; }
-                        KeyDetector.KeyResult? key = null;
-                        try
-                        {
-                            key = await Task.Run(() =>
-                            {
-                                var (l, r) = StemSeparator.DecodeBytes(bytes, type);
-                                var mono = new float[l.Length];
-                                for (int j = 0; j < l.Length; j++) mono[j] = (l[j] + r[j]) * 0.5f;
-                                return KeyDetector.Detect(mono);
-                            });
-                        }
-                        catch { /* key unknown — scores neutral */ }
-                        var cand = new PairCandidate { Name = name, Bytes = bytes, Bpm = Math.Round(bpm * 2) / 2, Key = key };
-                        found.Add(cand);
-                        prog.Log($"✓ {name} — {cand.Bpm:0} BPM, {(key != null ? key.KeyName + " (" + key.Camelot + ")" : "key not detected")}");
-                        prog.SetBar(i + 1, files.Length);
-                    }
-                    catch { prog.Log($"✗ {name} — skipped (couldn't read that file)"); }
-                }
-                if (found.Count < 2)
-                {
-                    prog.Fail($"Only {found.Count} of those songs could be analyzed — pick at least two good MP3/WAV files.");
-                    return;
-                }
-                prog.SetStatus("Scoring every pair for tempo + key fit…");
-                prog.Log($"Scoring {found.Count * (found.Count - 1) / 2} possible pairs…");
-                PairCandidate? bestA = null, bestB = null;
-                double bestScore = double.MinValue;
-                for (int i = 0; i < found.Count; i++)
-                    for (int j = i + 1; j < found.Count; j++)
-                    {
-                        double sc = PairScore(found[i], found[j]);
-                        if (sc > bestScore) { bestScore = sc; bestA = found[i]; bestB = found[j]; }
-                    }
-                if (bestA == null || bestB == null) return;
-                string keyA = bestA.Key != null ? bestA.Key.KeyName + " (" + bestA.Key.Camelot + ")" : "key ?";
-                string keyB = bestB.Key != null ? bestB.Key.KeyName + " (" + bestB.Key.Camelot + ")" : "key ?";
-                prog.Log($"🏆 Best pair: \"{bestA.Name}\" ({bestA.Bpm:0} BPM, {keyA})", true);
-                prog.Log($"🏆        + \"{bestB.Name}\" ({bestB.Bpm:0} BPM, {keyB})", true);
-                prog.Log("Loading them onto the decks and mixing… (Tip: press 🎤 MASHUP next for A's vocals over B's beat — no lyric pile-up.)");
-                if (!_panelA.LoadForMix(bestA.Bytes, bestA.Name) || !_panelB.LoadForMix(bestB.Bytes, bestB.Name))
-                {
-                    prog.Fail("Couldn't load the winning pair onto the decks.");
-                    return;
-                }
-                _panelA.SetBpmUi(bestA.Bpm);
-                _panelB.SetBpmUi(bestB.Bpm);
-                prog.Close();
-                await RunMixSetupAsync();
-            }
-            finally
-            {
-                _pairBusy = false;
-                FindPairButton.IsEnabled = true;
-                MixButton.IsEnabled = true;
-                MashupButton.IsEnabled = true;
-            }
-        }
-
-        private static double PairScore(PairCandidate a, PairCandidate b)
-        {
-            // Tempo: straight match within ±8% scores up to 100; half/double-time up to 60; else 0.
-            double r = b.Bpm / a.Bpm;
-            double tempo;
-            if (r >= 0.92 && r <= 1.08) tempo = 100 * (1 - Math.Abs(r - 1) / 0.08 * 0.5);
-            else if (r * 2 >= 0.92 && r * 2 <= 1.08) tempo = 60 * (1 - Math.Abs(r * 2 - 1) / 0.08 * 0.5);
-            else if (r / 2 >= 0.92 && r / 2 <= 1.08) tempo = 60 * (1 - Math.Abs(r / 2 - 1) / 0.08 * 0.5);
-            else tempo = 0;
-            // Key: Camelot-compatible = 100; within 2 semitones = 55; unknown = 35; far = 10.
-            double keyScore;
-            if (a.Key == null || b.Key == null) keyScore = 35;
-            else if (KeyDetector.CamelotCompatible(a.Key.Camelot, b.Key.Camelot)) keyScore = 100;
-            else
-            {
-                int d = Math.Abs(a.Key.PitchClass - b.Key.PitchClass);
-                d = Math.Min(d, 12 - d);
-                keyScore = d <= 2 ? 55 : 10;
-            }
-            return tempo * 0.6 + keyScore * 0.4;
         }
 
         private async void StartCruise()
@@ -992,6 +998,7 @@ namespace BeatSyncStudioPro
                 _padSubs[i] = sub;
                 _padTitles[i] = title;
                 SamplerPadGrid.Children.Add(btn);
+                string? loadedName = null;   // v3.46: the pad's face follows its sound's name
                 if (assignments.TryGetValue(i, out string? key))
                 {
                     if (string.IsNullOrEmpty(key)) sub.Text = "right-click: assign a sound";
@@ -1001,7 +1008,7 @@ namespace BeatSyncStudioPro
                         var pb = SamplerEngine.ReadPackEntry(entry);
                         if (pb != null)
                         {
-                            try { _sampler.Slots[i].Load(SamplerEngine.DecodeBytes(pb, entry)); sub.Text = "sound pack"; }
+                            try { _sampler.Slots[i].Load(SamplerEngine.DecodeBytes(pb, entry)); sub.Text = "sound pack"; loadedName = System.IO.Path.GetFileNameWithoutExtension(entry); }
                             catch { sub.Text = "sound pack (decode failed)"; }
                         }
                         else sub.Text = "sound pack not found";
@@ -1011,14 +1018,14 @@ namespace BeatSyncStudioPro
                         string lname = key.Substring(8);
                         if (_owner.ZipSounds.TryGetValue(lname, out var lb))
                         {
-                            try { _sampler.Slots[i].Load(SamplerEngine.DecodeBytes(lb, lname)); sub.Text = lname; }
+                            try { _sampler.Slots[i].Load(SamplerEngine.DecodeBytes(lb, lname)); sub.Text = lname; loadedName = System.IO.Path.GetFileNameWithoutExtension(lname); }
                             catch { sub.Text = "library sound (decode failed)"; }
                         }
                         else sub.Text = "not in this project — reassign";
                     }
                     else if (File.Exists(key))
                     {
-                        try { _sampler.Slots[i].Load(SamplerEngine.DecodeBytes(File.ReadAllBytes(key), key)); sub.Text = System.IO.Path.GetFileName(key); }
+                        try { _sampler.Slots[i].Load(SamplerEngine.DecodeBytes(File.ReadAllBytes(key), key)); sub.Text = System.IO.Path.GetFileName(key); loadedName = System.IO.Path.GetFileNameWithoutExtension(key); }
                         catch { sub.Text = "assigned file unreadable"; }
                     }
                     else sub.Text = "right-click: assign a sound";
@@ -1034,6 +1041,10 @@ namespace BeatSyncStudioPro
                     else sub.Text = "sound pack not found";
                 }
                 else sub.Text = "right-click: assign a sound";
+                // A pad with an assigned sound shows that sound's name on its face
+                // (a name the user typed in Rename still wins).
+                if (loadedName != null && !names.ContainsKey(i))
+                    title.Text = emoji + " " + loadedName;
             }
         }
 
@@ -1059,7 +1070,24 @@ namespace BeatSyncStudioPro
 
         private void AssignPad(int pad)
         {
-            var picker = new SoundPickerWindow(this, pad, BuildSoundCatalog());
+            var picker = new SoundPickerWindow(this, pad, BuildSoundCatalog(), (Style)TryFindResource("HwButton"));
+            picker.PreviewHandler = PreviewPickerSound;
+            picker.StopPreviewHandler = () => _sampler.StopPreview();
+            picker.DeleteHandler = DeletePickerSound;
+            picker.ImportHandler = () =>
+            {
+                var dialog = new OpenFileDialog
+                {
+                    Title = "Import sounds — ZIP packs or loose audio files",
+                    Filter = "Sound packs & audio|*.zip;*.wav;*.mp3",
+                    Multiselect = true
+                };
+                if (dialog.ShowDialog() != true) return null;
+                var (added, skipped) = _owner.ImportSoundArchives(dialog.FileNames);
+                picker.ReloadCatalog(BuildSoundCatalog());
+                SetStatus($"Imported {added} sound(s) into the library ({skipped} skipped — duplicates or unreadable).");
+                return $"Imported {added} sound(s), sorted by category. {skipped} skipped (duplicates or unreadable).";
+            };
             if (picker.ShowDialog() != true) return;
             var choice = picker.Result;
             if (choice == null) return;
@@ -1077,11 +1105,57 @@ namespace BeatSyncStudioPro
                 var map = LoadPadAssignments();
                 map[pad] = choice.PersistKey;
                 SavePadAssignments(map);
+                // v3.46: the pad's face takes the sound's name (and keeps it across restarts).
+                var names = LoadPadNames();
+                names[pad] = choice.Display;
+                SavePadNames(names);
+                _padTitles[pad].Text = PadDefs[pad].Emoji + " " + choice.Display;
                 _padSubs[pad].Text = choice.SubLabel;
-                SetStatus($"Sampler pad {pad + 1}: {choice.SubLabel} assigned.");
+                SetStatus($"Sampler pad {pad + 1}: {choice.Display} assigned.");
                 TriggerPad(pad);
             }
             catch (Exception ex) { SetStatus("Could not load that sound: " + ex.Message); }
+        }
+
+        /// <summary>v3.46: picker previews play through the sampler engine itself
+        /// (the same bus the pads use) — returns an error string or null.</summary>
+        private string? PreviewPickerSound(SoundChoice choice)
+        {
+            try
+            {
+                var bytes = choice.LoadBytes();
+                if (bytes == null) return "That sound couldn't be loaded.";
+                var samples = SamplerEngine.DecodeBytes(bytes, choice.DecodeName);
+                _owner.EnsureOutputRunning();
+                _sampler.Preview(samples);
+                return null;
+            }
+            catch (Exception ex) { return ex.Message; }
+        }
+
+        /// <summary>v3.46: picker delete — library entries and imported
+        /// sound-library files only, always behind a confirm.</summary>
+        private bool DeletePickerSound(SoundChoice choice)
+        {
+            bool isLibrary = choice.PersistKey.StartsWith("library:", StringComparison.Ordinal);
+            bool isSoundLibFile = !isLibrary && choice.PersistKey.StartsWith(MainWindow.SoundLibraryRoot, StringComparison.OrdinalIgnoreCase);
+            if (!isLibrary && !isSoundLibFile) return false;
+            var ask = MessageBox.Show($"Delete '{choice.Display}'?\n\nThis removes it from the library{(isSoundLibFile ? " and deletes the file from your sound-library folder" : "")}. This can't be undone.",
+                "Delete sound", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (ask != MessageBoxResult.Yes) return false;
+            try
+            {
+                if (isLibrary) _owner.RemoveLibraryAsset(choice.PersistKey.Substring(8));
+                if (isSoundLibFile)
+                {
+                    string fileName = System.IO.Path.GetFileName(choice.PersistKey);
+                    if (_owner.ZipSounds.ContainsKey(fileName)) _owner.RemoveLibraryAsset(fileName);
+                    if (File.Exists(choice.PersistKey)) File.Delete(choice.PersistKey);
+                }
+                SetStatus($"Deleted sound: {choice.Display}");
+                return true;
+            }
+            catch (Exception ex) { SetStatus("Delete failed: " + ex.Message); return false; }
         }
 
         /// <summary>v3.45: every assignable sound in one sorted catalog —
@@ -1091,8 +1165,10 @@ namespace BeatSyncStudioPro
         private Dictionary<string, List<SoundChoice>> BuildSoundCatalog()
         {
             var catalog = new Dictionary<string, List<SoundChoice>>();
+            var seen = new HashSet<(string, string)>();   // v3.46: (category, display) — the same sound never shows twice
             void Add(string cat, SoundChoice c)
             {
+                if (!seen.Add((cat, c.Display.ToLowerInvariant()))) return;
                 if (!catalog.TryGetValue(cat, out var list)) { list = new List<SoundChoice>(); catalog[cat] = list; }
                 list.Add(c);
             }
@@ -1141,17 +1217,22 @@ namespace BeatSyncStudioPro
                 string stemsRoot = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BeatSyncStudioPro", "stems");
                 if (Directory.Exists(stemsRoot))
                 {
-                    var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    var seenStems = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     foreach (var file in Directory.EnumerateFiles(stemsRoot, "*.wav", SearchOption.AllDirectories))
                     {
                         string fn = System.IO.Path.GetFileNameWithoutExtension(file);
                         string display = fn;
+                        string stemCat = SoundCategorizer.Stems;
                         int p = fn.LastIndexOf(" (", StringComparison.Ordinal);
                         if (p > 0 && fn.EndsWith(")"))
-                            display = fn.Substring(0, p) + " — " + char.ToUpperInvariant(fn[p + 2]) + fn.Substring(p + 3, fn.Length - p - 4);
-                        if (!seen.Add(display)) continue;
+                        {
+                            string stemWord = fn.Substring(p + 2, fn.Length - p - 4);
+                            display = fn.Substring(0, p) + " — " + char.ToUpperInvariant(stemWord[0]) + stemWord.Substring(1);
+                            stemCat = SoundCategorizer.StemCategory(stemWord);   // v3.46: stems filed per type, not one pile
+                        }
+                        if (!seenStems.Add(display)) continue;
                         string path = file;
-                        Add(SoundCategorizer.Stems, new SoundChoice
+                        Add(stemCat, new SoundChoice
                         {
                             Display = display,
                             DecodeName = file,
@@ -1185,6 +1266,32 @@ namespace BeatSyncStudioPro
                 }
             }
             catch { /* downloads folder unreadable — fine */ }
+            // 5) The imported sound-library folder (v3.46) — category = its subfolder
+            try
+            {
+                string libRoot = MainWindow.SoundLibraryRoot;
+                if (Directory.Exists(libRoot))
+                {
+                    foreach (var dir in Directory.EnumerateDirectories(libRoot))
+                    {
+                        string cat = System.IO.Path.GetFileName(dir);
+                        foreach (var file in Directory.EnumerateFiles(dir, "*.*", SearchOption.AllDirectories)
+                                     .Where(f => f.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            string path = file;
+                            Add(cat, new SoundChoice
+                            {
+                                Display = System.IO.Path.GetFileNameWithoutExtension(file),
+                                DecodeName = file,
+                                PersistKey = file,
+                                SubLabel = System.IO.Path.GetFileName(file),
+                                LoadBytes = () => File.Exists(path) ? File.ReadAllBytes(path) : null
+                            });
+                        }
+                    }
+                }
+            }
+            catch { /* sound library unreadable — fine */ }
             foreach (var list in catalog.Values) list.Sort((a, b) => string.Compare(a.Display, b.Display, StringComparison.OrdinalIgnoreCase));
             return catalog;
         }
@@ -1253,6 +1360,10 @@ namespace BeatSyncStudioPro
             var map = LoadPadAssignments();
             map[pad] = "";   // an empty entry means "intentionally cleared" — the built-in default must not come back
             SavePadAssignments(map);
+            var names = LoadPadNames();
+            names.Remove(pad);   // no sound on the pad — its face goes back to the default label
+            SavePadNames(names);
+            _padTitles[pad].Text = PadDefs[pad].Emoji + " " + PadDefs[pad].Name;
             _padSubs[pad].Text = "right-click: assign a sound";
             SetStatus($"Sampler pad {pad + 1} cleared — right-click it to assign a new sound.");
         }
@@ -1381,8 +1492,34 @@ namespace BeatSyncStudioPro
                 $"{{\"a\":{Deck(_panelA)},\"b\":{Deck(_panelB)},\"xfader\":{XfadeSlider.Value:0},\"master\":{DjMasterKnob.Value * 100:0},\"cruise\":{(_cruiseOn ? "true" : "false")},\"mic\":{(_micOn ? "true" : "false")}}}");
         }
 
+        private void StopBothButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_cruiseOn) TurnCruiseOff("⏹ Cruise off — both decks stopped.");
+            _panelA.MixStopAndRewindToCue();
+            _panelB.MixStopAndRewindToCue();
+            SetStatus(_mashupCapture
+                ? "⏹ Both decks stopped. The mashup capture kept what played — press 💾 Save Mashup if it was a keeper."
+                : "⏹ Both decks stopped and rewound to their cues.");
+        }
+
+        private bool _stemPickerInit;
+
+        private void StemComputePicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_stemPickerInit || StemComputePicker == null) return;
+            var settings = ComputeSettings.Load();
+            settings.Mode = StemComputePicker.SelectedIndex switch { 1 => "GPU", 2 => "CPU", _ => "Auto" };
+            settings.Save();
+            SetStatus($"⚙️ Stem splitting now runs on: {settings.Describe()} — applies to the next Mashup / stem split.");
+        }
+
         private void RecordButton_Click(object sender, RoutedEventArgs e)
         {
+            if (_mashupCapture)
+            {
+                SetStatus("🎤 A mashup capture is running on the recorder — press 💾 Save Mashup to keep it in the library, or press MASHUP again to restart the capture.");
+                return;
+            }
             if (_recorder.IsRecording)
             {
                 _recorder.Stop();

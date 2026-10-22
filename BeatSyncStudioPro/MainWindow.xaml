@@ -1,4 +1,4 @@
-﻿<Window x:Class="BeatSyncStudioPro.MainWindow"
+<Window x:Class="BeatSyncStudioPro.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -166,7 +166,7 @@
                     <Image Source="/Assets/app-icon.png" Width="34" Height="34"/>
                     <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="19" FontWeight="Bold" Effect="{StaticResource GlowText}"><Run Text="BEATSYNC" Foreground="#FFFFFF"/><Run Text=" STUDIO PRO" Foreground="#1DB954"/></TextBlock>
                     <Border Background="#1B212E" BorderBrush="#C9A227" BorderThickness="1" CornerRadius="9" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="v3.45" FontSize="11" Foreground="#E8C766" FontWeight="Bold"/>
+                        <TextBlock Text="v3.46" FontSize="11" Foreground="#E8C766" FontWeight="Bold"/>
                     </Border>
                 </StackPanel>
             </Grid>
@@ -242,22 +242,10 @@
                     <Border Background="#1DB954" Height="2" Width="46" HorizontalAlignment="Left" CornerRadius="1" Margin="0,5,0,0"/>
                 </StackPanel>
 
-                <!-- Category filter + search + downloads -->
+                <!-- Search + import + downloads (v3.46: the library itself is grouped by collapsible categories) -->
                 <StackPanel Grid.Row="1" Orientation="Vertical" Margin="0,0,0,8">
-                    <ComboBox x:Name="LibraryCategoryBox" SelectionChanged="LibraryFilter_Changed" Margin="0,0,0,6">
-                        <ComboBoxItem Content="🗂️ All Sounds" IsSelected="True"/>
-                        <ComboBoxItem Content="🥁 Drums"/>
-                        <ComboBoxItem Content="🎸 Guitar"/>
-                        <ComboBoxItem Content="🔊 Bass"/>
-                        <ComboBoxItem Content="🎹 Keys &amp; Pads"/>
-                        <ComboBoxItem Content="🔁 Loops"/>
-                        <ComboBoxItem Content="🎤 Vocals"/>
-                        <ComboBoxItem Content="✨ FX"/>
-                        <ComboBoxItem Content="🧬 Stems"/>
-                        <ComboBoxItem Content="🎵 Other"/>
-                        <ComboBoxItem Content="🎬 Video"/>
-                        <ComboBoxItem Content="🖼️ Images"/>
-                    </ComboBox>
+                    <Button Content="📦 Import ZIP / files…" Click="BtnImportSounds_Click" Padding="10,6" Margin="0,0,0,6" Background="{StaticResource GreenGrad}" Foreground="White" Height="32"
+                            ToolTip="Import ZIP sound packs or loose WAV/MP3 files — they're auto-sorted into the category groups below, and duplicates are skipped."/>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -279,9 +267,29 @@
                     <Button Content="🎵 Quick Audio" Click="BtnImportAudioOrZip_Click" Padding="10,8" Background="{StaticResource GreenGrad}" Foreground="White" Height="36" Effect="{StaticResource GlowGreen}"/>
                 </StackPanel>
 
-                <ScrollViewer Grid.Row="3" Margin="0,10,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel x:Name="ListContainer"/>
-                </ScrollViewer>
+                <!-- v3.46 sidebar browser: categories on top, that category's sounds below (sampler-picker style) -->
+                <Grid Grid.Row="3" Margin="0,10,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="168"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <ListBox x:Name="LibraryCategoryList" Grid.Row="0" SelectionChanged="LibraryCategoryList_SelectionChanged" Background="#14171E" Foreground="White" BorderBrush="#333" Margin="0,0,0,6"
+                             ToolTip="Categories — pick one and its sounds show below, just like the DJ sampler picker."/>
+                    <ListBox x:Name="LibrarySoundList" Grid.Row="1" SelectionChanged="LibrarySoundList_SelectionChanged" PreviewMouseLeftButtonDown="LibrarySoundList_PreviewMouseLeftButtonDown" MouseMove="LibrarySoundList_MouseMove" MouseDoubleClick="LibrarySoundList_MouseDoubleClick" Background="#14171E" Foreground="White" BorderBrush="#333"
+                             ToolTip="Click a sound to arm it, then click the timeline to place it — or drag it straight onto a track. Double-click previews it.">
+                        <ListBox.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="🗑️ Delete sound…" Click="BtnLibraryDelete_Click"/>
+                            </ContextMenu>
+                        </ListBox.ContextMenu>
+                    </ListBox>
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,6,0,0">
+                        <Button Content="▶ Preview" Click="BtnLibraryPreview_Click" Padding="10,5" Margin="0,0,6,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Preview the selected sound (double-clicking it works too)."/>
+                        <Button Content="⏹ Stop" Click="BtnLibraryStop_Click" Padding="10,5" Margin="0,0,6,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Stop the preview — handy for long sounds."/>
+                        <Button Content="🗑️ Delete" Click="BtnLibraryDelete_Click" Padding="10,5" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Delete the selected sound (asks first)."/>
+                    </StackPanel>
+                </Grid>
             </Grid>
         </Border>
 
