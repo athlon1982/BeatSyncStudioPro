@@ -178,16 +178,23 @@ namespace BeatSyncStudioPro
         /// <summary>Load the 4 stem WAVs the separator wrote ("name (stem).wav") as this deck's stem buffers.</summary>
         public bool LoadStemsFromFolder(string folder, string baseName)
         {
-            var stems = new float[4][];
-            for (int s = 0; s < 4; s++)
+            try
             {
-                string p = Path.Combine(folder, baseName + " (" + StemSeparator.StemNames[s] + ").wav");
-                if (!File.Exists(p)) return false;
-                using var reader = new WaveFileReader(p);
-                stems[s] = ReadAll(reader);
+                var stems = new float[4][];
+                for (int s = 0; s < 4; s++)
+                {
+                    string p = Path.Combine(folder, baseName + " (" + StemSeparator.StemNames[s] + ").wav");
+                    if (!File.Exists(p)) return false;
+                    using var reader = new WaveFileReader(p);
+                    stems[s] = ReadAll(reader);
+                }
+                LoadStems(stems);
+                return true;
             }
-            LoadStems(stems);
-            return true;
+            catch
+            {
+                return false;
+            }
         }
 
         private static float[] Decode(byte[] bytes, string filename)

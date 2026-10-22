@@ -152,14 +152,24 @@ namespace BeatSyncStudioPro
         public double? LoopEndX { get; private set; }
         public bool LoopEnabled { get; private set; }
         private double _currentPlayX;
-        private bool _djAttached;
+        private ISampleProvider? _djProvider;
 
-        /// <summary>Route the DJ decks' master mix into the main engine (once).</summary>
+        /// <summary>Route the DJ decks' master mix into the main engine (a reopened DJ window swaps its new chain in).</summary>
         public void AttachDjMixer(ISampleProvider provider)
         {
-            if (mixerEngine == null || _djAttached) return;
+            if (mixerEngine == null) return;
+            if (ReferenceEquals(_djProvider, provider)) return;
+            if (_djProvider != null) mixerEngine.RemoveMixerInput(_djProvider);
             mixerEngine.AddMixerInput(provider);
-            _djAttached = true;
+            _djProvider = provider;
+        }
+
+        /// <summary>Remove the DJ decks' master mix from the main engine (DJ window closed).</summary>
+        public void DetachDjMixer(ISampleProvider provider)
+        {
+            if (mixerEngine == null || !ReferenceEquals(_djProvider, provider)) return;
+            mixerEngine.RemoveMixerInput(provider);
+            _djProvider = null;
         }
 
         /// <summary>

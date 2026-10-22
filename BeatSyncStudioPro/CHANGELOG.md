@@ -3,6 +3,12 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.34 — 🛠️ DJ Reliability Fixes (GLM Audit, Part 1)
+- **FIXED — Silent DJ window after reopen:** Closing and reopening the DJ window no longer leaves it silent. The DJ audio chain now detaches from the main mixer on close, and the reopened window's chain swaps in on open.
+- **FIXED — Corrupt stem crash:** A corrupt or half-written cached stem file can no longer crash the app. Stem loads are guarded at the deck and the window; failures report "cached stems failed to load" instead of taking the app down.
+- **NEW — Crash safety net:** An unhandled UI error is written to crash.log in the app-data folder and the app stays alive instead of dying mid-set; background-task exceptions get the same logging.
+- Fixes from the GLM 5.3 Flash code audit (OpenCode), implemented under brief and verified line-by-line before shipping. More audit fixes are queued.
+
 ## Version 3.33 — 🎛️ The Hardware Board Reskin
 ### New look, same machine
 - **The DJ window now looks like a real board** — the splash art come to life: dark brushed-metal panels, machined **rotary knobs** with lit tick rings (master, mic level, sampler volume, per-deck gain — drag up/down or scroll to turn), **fader caps** on the crossfader and tempo sliders, a proper **toggle switch** for mic ducking, and backlit hardware buttons with metal edging everywhere.

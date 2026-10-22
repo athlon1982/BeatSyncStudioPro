@@ -139,7 +139,7 @@ namespace BeatSyncStudioPro
                 Left = wa.Left + Math.Max(0, (wa.Width - ActualWidth) / 2);
                 Top = wa.Top + Math.Max(0, (wa.Height - ActualHeight) / 2);
             };
-            Closed += (s, e) => { _timer.Stop(); _recorder.Stop(); _mic.Dispose(); _companion.Stop(); };
+            Closed += (s, e) => { _timer.Stop(); _recorder.Stop(); _owner.DetachDjMixer(_recorder); _mic.Dispose(); _companion.Stop(); };
         }
 
         private (VolumeSampleProvider Xfade, VolumeSampleProvider Channel, AudioTapSampleProvider Tap) BuildDeckChain(
@@ -1776,16 +1776,23 @@ namespace BeatSyncStudioPro
 
             private async Task TryLoadCachedStemsAsync()
             {
-                int gen = ++_stemGeneration;
-                string key = _stemKey;
-                if (key.Length == 0) return;
-                string baseName = StemBaseName(_deck.Title);
-                string folder = StemCacheFolder(key);
-                if (!StemCacheExists(folder, baseName)) return;
-                _stemStatus.Text = "loading cached stems...";
-                bool ok = await Task.Run(() => _deck.LoadStemsFromFolder(folder, baseName));
-                if (gen != _stemGeneration) return;
-                ShowStemChips(ok, ok ? "stems ready (cached)" : "");
+                try
+                {
+                    int gen = ++_stemGeneration;
+                    string key = _stemKey;
+                    if (key.Length == 0) return;
+                    string baseName = StemBaseName(_deck.Title);
+                    string folder = StemCacheFolder(key);
+                    if (!StemCacheExists(folder, baseName)) return;
+                    _stemStatus.Text = "loading cached stems...";
+                    bool ok = await Task.Run(() => _deck.LoadStemsFromFolder(folder, baseName));
+                    if (gen != _stemGeneration) return;
+                    ShowStemChips(ok, ok ? "stems ready (cached)" : "");
+                }
+                catch
+                {
+                    ShowStemChips(false, "cached stems failed to load");
+                }
             }
 
             private async Task SplitStemsAsync()
@@ -1797,7 +1804,9 @@ namespace BeatSyncStudioPro
                 if (StemCacheExists(folder, baseName))
                 {
                     _stemStatus.Text = "loading cached stems...";
-                    bool okc = await Task.Run(() => _deck.LoadStemsFromFolder(folder, baseName));
+                    bool okc;
+                    try { okc = await Task.Run(() => _deck.LoadStemsFromFolder(folder, baseName)); }
+                    catch { okc = false; }
                     ShowStemChips(okc, okc ? "stems ready (cached)" : "cached stems failed to load");
                     return;
                 }
