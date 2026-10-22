@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.53 — ID Tags & Cover Art
+- **The app now reads the tags inside your MP3 and FLAC files** — title, artist, album, year, genre, the BPM and key written in the file, and the embedded cover art. No new downloads or libraries; the reader is built in.
+- **On the DJ decks:** load a tagged song and the deck header shows the cover art thumbnail and the tagged "Artist – Title" instead of the bare file name, with an album • year • genre line under it. The new **🏷️ Tags** button on each deck opens the full tag sheet with the cover art big.
+- **While browsing:** in the sampler's sound picker, selecting a tagged MP3 or FLAC shows its cover thumbnail and tag summary at the bottom of the window — so you can see what a file really is before you use it.
+
 ## Version 3.52 — Every Window, Same Dark Look
 - **The white-on-white controls are fixed everywhere at once.** The Stem Splitter's Cancel button, the Create Song window's Cancel button and sliders, the Freesound key box and buttons — they all had the same root cause: those windows never styled their plain buttons, text boxes and sliders, so Windows rendered them with the stock light theme on a dark window. Instead of patching window after window, the app now carries one shared dark style for buttons, text boxes, password boxes, sliders, list boxes, tabs, menus, tooltips and progress bars — every window picks it up automatically, including ones added later.
 - Windows that already had their own look keep it: the main window's buttons, the AI Lab and the DJ board's hardware controls are unchanged.

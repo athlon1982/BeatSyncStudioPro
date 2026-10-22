@@ -542,6 +542,9 @@ namespace BeatSyncStudioPro
             private readonly Style? _buttonStyle;
             private readonly Button _previewBtn;
             private readonly DispatcherTimer _previewTimer;
+            // v3.53: tag line + cover thumbnail under the lists.
+            private readonly TextBlock _tagLine;
+            private readonly Image _coverThumb;
 
             public SoundChoice? Result { get; private set; }
             public Func<SoundChoice, string?>? PreviewHandler;
@@ -551,6 +554,8 @@ namespace BeatSyncStudioPro
             public Func<string?>? ImportHandler;
             public Action<SoundChoice>? ExportHandler;
             public Func<SoundChoice, bool>? RenameHandler;
+            // v3.53: read the selected sound's embedded tags (cover + text).
+            public Func<SoundChoice, TagInfo?>? TagsHandler;
 
             public SoundPickerWindow(Window owner, int pad, Dictionary<string, List<SoundChoice>> catalog, Style? buttonStyle = null)
             {
@@ -585,6 +590,14 @@ namespace BeatSyncStudioPro
                 root.Children.Add(bottom);
                 _status = new TextBlock { Foreground = new SolidColorBrush(Color.FromRgb(0xA0, 0xA5, 0xB5)), Text = "Pick a category, then a sound.", Margin = new Thickness(0, 0, 0, 8) };
                 bottom.Children.Add(_status);
+                // v3.53: when the picked sound is a tagged MP3/FLAC, show its
+                // cover thumbnail + tag summary here while you browse.
+                var tagRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
+                _coverThumb = new Image { Width = 40, Height = 40, Stretch = Stretch.UniformToFill, Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 8, 0) };
+                tagRow.Children.Add(_coverThumb);
+                _tagLine = new TextBlock { Foreground = Brushes.White, FontSize = 12.5, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+                tagRow.Children.Add(_tagLine);
+                bottom.Children.Add(tagRow);
                 var btnRow = new StackPanel { Orientation = Orientation.Horizontal };
                 bottom.Children.Add(btnRow);
                 var previewBtn = new Button { Content = "▶ Preview", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 8, 0), Style = _buttonStyle };
@@ -626,6 +639,7 @@ namespace BeatSyncStudioPro
                 _soundList.SelectionChanged += (s, e) =>
                 {
                     _useBtn.IsEnabled = SelectedChoice() != null;
+                    UpdateTagLine();
                     var ch = SelectedChoice();
                     deleteBtn.IsEnabled = ch != null && DeleteHandler != null &&
                         (ch.PersistKey.StartsWith("library:", StringComparison.Ordinal) ||
@@ -722,6 +736,44 @@ namespace BeatSyncStudioPro
             {
                 if (_catList.SelectedIndex < 0 || _soundList.SelectedIndex < 0) return null;
                 return _catalog[_cats[_catList.SelectedIndex]][_soundList.SelectedIndex];
+            }
+
+            // v3.53: fill the tag line + cover thumbnail for the selected sound.
+            private void UpdateTagLine()
+            {
+                _tagLine.Text = "";
+                _coverThumb.Source = null;
+                _coverThumb.Visibility = Visibility.Collapsed;
+                var ch = SelectedChoice();
+                if (ch == null || TagsHandler == null) return;
+                TagInfo? tags;
+                try { tags = TagsHandler(ch); } catch { tags = null; }
+                if (tags == null) return;
+                var parts = new List<string>();
+                if (tags.DisplayName.Length > 0) parts.Add("🏷️ " + tags.DisplayName);
+                if (tags.Album.Length > 0) parts.Add("💿 " + tags.Album);
+                if (tags.Year.Length > 0) parts.Add(tags.Year);
+                if (tags.Genre.Length > 0) parts.Add(tags.Genre);
+                _tagLine.Text = string.Join(" • ", parts);
+                var pic = tags.Picture;
+                if (pic != null && pic.Length > 0)
+                {
+                    try
+                    {
+                        var bmp = new BitmapImage();
+                        using (var ms = new MemoryStream(pic))
+                        {
+                            bmp.BeginInit();
+                            bmp.CacheOption = BitmapCacheOption.OnLoad;
+                            bmp.StreamSource = ms;
+                            bmp.EndInit();
+                        }
+                        bmp.Freeze();
+                        _coverThumb.Source = bmp;
+                        _coverThumb.Visibility = Visibility.Visible;
+                    }
+                    catch { _coverThumb.Source = null; _coverThumb.Visibility = Visibility.Collapsed; }
+                }
             }
 
             private void Preview()
@@ -1114,6 +1166,11 @@ namespace BeatSyncStudioPro
         {
             var picker = new SoundPickerWindow(this, pad, BuildSoundCatalog(), (Style)TryFindResource("HwButton"));
             picker.PreviewHandler = PreviewPickerSound;
+            picker.TagsHandler = ch =>
+            {
+                try { var b = ch.LoadBytes(); return b == null ? null : TagReader.Parse(b, ch.DecodeName); }
+                catch { return null; }
+            };
             picker.StopPreviewHandler = () => _sampler.StopPreview();
             picker.PreviewPlayingHandler = () => _sampler.PreviewIsPlaying;
             picker.DeleteHandler = DeletePickerSound;
@@ -1719,6 +1776,11 @@ namespace BeatSyncStudioPro
             private KnobControl? _gainKnob;
 
             private readonly TextBlock _title;
+            // v3.53: embedded ID tags + cover art for the loaded track.
+            private readonly Image _coverImage;
+            private readonly TextBlock _tagLine;
+            private readonly Button _tagsButton;
+            private TagInfo? _tags;
             private readonly Image _waveImage;
             private readonly Canvas _waveCanvas;
             private readonly Line _playheadLine;
@@ -1844,8 +1906,29 @@ namespace BeatSyncStudioPro
                     }
                 };
 
-                _title = new TextBlock { Text = $"{name} — empty", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = accent, Margin = new Thickness(0, 0, 0, 6) };
-                root.Children.Add(_title);
+                // v3.53 header row: cover art thumbnail (when the file has
+                // one), title + tag line, and the Tags button.
+                var headerGrid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                _coverImage = new Image { Width = 46, Height = 46, Stretch = Stretch.UniformToFill, Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 8, 0) };
+                headerGrid.Children.Add(_coverImage);
+                var titleStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+                _title = new TextBlock { Text = $"{name} — empty", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = accent, TextTrimming = TextTrimming.CharacterEllipsis };
+                titleStack.Children.Add(_title);
+                _tagLine = new TextBlock { FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0x93, 0xA6)), TextTrimming = TextTrimming.CharacterEllipsis, Visibility = Visibility.Collapsed };
+                titleStack.Children.Add(_tagLine);
+                Grid.SetColumn(titleStack, 1);
+                headerGrid.Children.Add(titleStack);
+                _tagsButton = MakeButton("🏷️ Tags", 78);
+                _tagsButton.VerticalAlignment = VerticalAlignment.Top;
+                _tagsButton.IsEnabled = false;
+                _tagsButton.ToolTip = "See everything tagged inside this file — title, artist, album, cover art and more.";
+                _tagsButton.Click += (s, e) => ShowTags();
+                Grid.SetColumn(_tagsButton, 2);
+                headerGrid.Children.Add(_tagsButton);
+                root.Children.Add(headerGrid);
 
                 // v3.40 compact board: two-column zones so the whole deck fits
                 // on screen at once — no scrolling. Platter zone on the left,
@@ -2914,7 +2997,7 @@ namespace BeatSyncStudioPro
                 _lastName = name;
                 _tempoSlider.Value = 0;
                 _bpmBox.Text = "";
-                _title.Text = $"{_name} — {_deck.Title}";
+                ApplyTagHeader(bytes);
                 RenderWaveform();
                 RenderPlatterRing();
                 _window.SetStatus($"{_name}: {_deck.Title} loaded ({FmtTime(_deck.TotalSeconds)}). Set the BPM to unlock SYNC and loops.");
@@ -2923,6 +3006,56 @@ namespace BeatSyncStudioPro
                 ShowStemChips(false, "");
                 _ = TryLoadCachedStemsAsync();
                 StartKeyDetection();
+            }
+
+            // v3.53: read the file's embedded tags and dress the deck header
+            // with them — tagged "Artist – Title" instead of the bare file
+            // name, an album/year/genre line, the cover art thumbnail, and
+            // the Tags button lit up.
+            private void ApplyTagHeader(byte[] bytes)
+            {
+                _tags = TagReader.Parse(bytes, _lastName);
+                string display = _tags?.DisplayName ?? "";
+                _title.Text = display.Length > 0 ? $"{_name} — {display}" : $"{_name} — {_deck.Title}";
+                var parts = new List<string>();
+                if (_tags != null)
+                {
+                    if (_tags.Album.Length > 0) parts.Add("💿 " + _tags.Album);
+                    if (_tags.Year.Length > 0) parts.Add(_tags.Year);
+                    if (_tags.Genre.Length > 0) parts.Add(_tags.Genre);
+                    if (_tags.Bpm.Length > 0) parts.Add(_tags.Bpm + " BPM (tag)");
+                    if (_tags.KeyTag.Length > 0) parts.Add("Key " + _tags.KeyTag + " (tag)");
+                }
+                _tagLine.Text = string.Join(" • ", parts);
+                _tagLine.Visibility = parts.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+                var pic = _tags?.Picture;
+                if (pic != null && pic.Length > 0)
+                {
+                    try
+                    {
+                        var bmp = new BitmapImage();
+                        using (var ms = new MemoryStream(pic))
+                        {
+                            bmp.BeginInit();
+                            bmp.CacheOption = BitmapCacheOption.OnLoad;
+                            bmp.StreamSource = ms;
+                            bmp.EndInit();
+                        }
+                        bmp.Freeze();
+                        _coverImage.Source = bmp;
+                        _coverImage.Visibility = Visibility.Visible;
+                    }
+                    catch { _coverImage.Source = null; _coverImage.Visibility = Visibility.Collapsed; }
+                }
+                else { _coverImage.Source = null; _coverImage.Visibility = Visibility.Collapsed; }
+                _tagsButton.IsEnabled = _tags != null;
+            }
+
+            private void ShowTags()
+            {
+                if (_tags == null) return;
+                var w = new TagsWindow(_tags, _lastName, _deck.TotalSeconds) { Owner = _window };
+                w.Show();
             }
 
             private static string StemBaseName(string title)
