@@ -104,5 +104,330 @@
             </Setter>
         </Style>
 
+        <!-- v3.52: ONE dark look for the everyday controls, app-wide. Child
+             windows (Stem Splitter, Create Song, Freesound, ...) set a white
+             window Foreground but never styled their plain buttons, text
+             boxes or sliders, so those rendered with the stock light Windows
+             chrome — white buttons with unreadable text, washed-out input
+             boxes, white slider tracks. These implicit styles are the root
+             fix: every window gets them for free. Windows that define their
+             own look (MainWindow buttons, AiLab buttons, the DJ board's
+             named hardware styles) keep theirs — local and named styles
+             still win over these. -->
+        <Style TargetType="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#2A303C"/>
+            <Setter Property="BorderBrush" Value="#3D4454"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#3A4356"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#1B212E"/>
+                            </Trigger>
+                            <Trigger Property="IsDefault" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#22C55E"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Background" Value="#20242E"/>
+                                <Setter Property="Foreground" Value="#8A93A6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="#14171E"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#3D4454"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CaretBrush" Value="White"/>
+            <Setter Property="SelectionBrush" Value="#14532D"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ScrollViewer x:Name="PART_ContentHost"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#22C55E"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#8A93A6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="PasswordBox">
+            <Setter Property="Background" Value="#14171E"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#3D4454"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SelectionBrush" Value="#14532D"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="PasswordBox">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ScrollViewer x:Name="PART_ContentHost"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#22C55E"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#8A93A6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Slider parts (keyed, so scrollbars and other RepeatButton/Thumb
+             users are untouched). -->
+        <Style x:Key="SliderDecreaseButton" TargetType="RepeatButton">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RepeatButton">
+                        <Border Background="#14532D" Height="4" CornerRadius="2" VerticalAlignment="Center"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="SliderIncreaseButton" TargetType="RepeatButton">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RepeatButton">
+                        <Border Background="#3D4454" Height="4" CornerRadius="2" VerticalAlignment="Center"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="SliderThumbBase" TargetType="Thumb">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border x:Name="Bd" Background="#3B465C" BorderBrush="#8A93A6"
+                                BorderThickness="1" CornerRadius="3"/>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#4A5872"/>
+                            </Trigger>
+                            <Trigger Property="IsDragging" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#14532D"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="SliderThumbH" TargetType="Thumb" BasedOn="{StaticResource SliderThumbBase}">
+            <Setter Property="Width" Value="12"/>
+            <Setter Property="Height" Value="22"/>
+        </Style>
+        <Style x:Key="SliderThumbV" TargetType="Thumb" BasedOn="{StaticResource SliderThumbBase}">
+            <Setter Property="Width" Value="22"/>
+            <Setter Property="Height" Value="12"/>
+        </Style>
+
+        <Style TargetType="Slider">
+            <Setter Property="Foreground" Value="#8A93A6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition x:Name="TrackRow" Height="Auto" MinHeight="{TemplateBinding MinHeight}"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition x:Name="TrackCol" Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TickBar x:Name="TopTick" Grid.Row="0" Grid.Column="1" Height="4" Margin="0,1,0,3"
+                                     Fill="{TemplateBinding Foreground}" Placement="Top" Visibility="Collapsed"/>
+                            <TickBar x:Name="BottomTick" Grid.Row="2" Grid.Column="1" Height="4" Margin="0,3,0,1"
+                                     Fill="{TemplateBinding Foreground}" Placement="Bottom" Visibility="Collapsed"/>
+                            <TickBar x:Name="LeftTick" Grid.Row="1" Grid.Column="0" Width="4" Margin="1,0,3,0"
+                                     Fill="{TemplateBinding Foreground}" Placement="Left" Visibility="Collapsed"/>
+                            <TickBar x:Name="RightTick" Grid.Row="1" Grid.Column="2" Width="4" Margin="3,0,1,0"
+                                     Fill="{TemplateBinding Foreground}" Placement="Right" Visibility="Collapsed"/>
+                            <Track x:Name="PART_Track" Grid.Row="1" Grid.Column="1"
+                                   Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}"
+                                   Value="{TemplateBinding Value}" Orientation="{TemplateBinding Orientation}"
+                                   IsDirectionReversed="{TemplateBinding IsDirectionReversed}">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Style="{StaticResource SliderDecreaseButton}" Command="Slider.DecreaseLarge"/>
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Style="{StaticResource SliderIncreaseButton}" Command="Slider.IncreaseLarge"/>
+                                </Track.IncreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb x:Name="Thumb" Style="{StaticResource SliderThumbH}"/>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="Orientation" Value="Horizontal"/>
+                                    <Condition Property="TickPlacement" Value="TopLeft"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="TopTick" Property="Visibility" Value="Visible"/>
+                            </MultiTrigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="Orientation" Value="Horizontal"/>
+                                    <Condition Property="TickPlacement" Value="BottomRight"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="BottomTick" Property="Visibility" Value="Visible"/>
+                            </MultiTrigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="Orientation" Value="Horizontal"/>
+                                    <Condition Property="TickPlacement" Value="Both"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="TopTick" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="BottomTick" Property="Visibility" Value="Visible"/>
+                            </MultiTrigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="Orientation" Value="Vertical"/>
+                                    <Condition Property="TickPlacement" Value="TopLeft"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="LeftTick" Property="Visibility" Value="Visible"/>
+                            </MultiTrigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="Orientation" Value="Vertical"/>
+                                    <Condition Property="TickPlacement" Value="BottomRight"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="RightTick" Property="Visibility" Value="Visible"/>
+                            </MultiTrigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="Orientation" Value="Vertical"/>
+                                    <Condition Property="TickPlacement" Value="Both"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="LeftTick" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="RightTick" Property="Visibility" Value="Visible"/>
+                            </MultiTrigger>
+                            <Trigger Property="Orientation" Value="Vertical">
+                                <Setter TargetName="TrackRow" Property="Height" Value="*"/>
+                                <Setter TargetName="TrackCol" Property="Width" Value="Auto"/>
+                                <Setter TargetName="Thumb" Property="Style" Value="{StaticResource SliderThumbV}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style TargetType="RadioButton">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style TargetType="GroupBox">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#3D4454"/>
+        </Style>
+        <Style TargetType="ListBox">
+            <Setter Property="Background" Value="#14171E"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#3D4454"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style TargetType="ListBoxItem">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="6,3"/>
+        </Style>
+        <Style TargetType="ContextMenu">
+            <Setter Property="Background" Value="#1B212E"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#2A3446"/>
+        </Style>
+        <Style TargetType="MenuItem">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style TargetType="ToolTip">
+            <Setter Property="Background" Value="#1B212E"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#2A3446"/>
+            <Setter Property="Padding" Value="8,4"/>
+        </Style>
+        <Style TargetType="ProgressBar">
+            <Setter Property="Background" Value="#2A3446"/>
+            <Setter Property="Foreground" Value="#22C55E"/>
+            <Setter Property="BorderBrush" Value="#3D4454"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style TargetType="TabControl">
+            <Setter Property="Background" Value="#1B212E"/>
+            <Setter Property="BorderBrush" Value="#3D4454"/>
+        </Style>
+        <Style TargetType="TabItem">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#2A303C"/>
+            <Setter Property="BorderBrush" Value="#3D4454"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1,1,1,0" CornerRadius="4,4,0,0"
+                                Padding="{TemplateBinding Padding}" Margin="0,0,2,0">
+                            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#14532D"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#3A4356"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#8A93A6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
     </Application.Resources>
 </Application>

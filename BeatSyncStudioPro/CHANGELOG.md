@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.52 — Every Window, Same Dark Look
+- **The white-on-white controls are fixed everywhere at once.** The Stem Splitter's Cancel button, the Create Song window's Cancel button and sliders, the Freesound key box and buttons — they all had the same root cause: those windows never styled their plain buttons, text boxes and sliders, so Windows rendered them with the stock light theme on a dark window. Instead of patching window after window, the app now carries one shared dark style for buttons, text boxes, password boxes, sliders, list boxes, tabs, menus, tooltips and progress bars — every window picks it up automatically, including ones added later.
+- Windows that already had their own look keep it: the main window's buttons, the AI Lab and the DJ board's hardware controls are unchanged.
+- Sliders everywhere are now dark with a green filled track, and buttons highlight on hover and grey out properly when disabled (like the Stem Splitter's Cancel does before a file is picked).
+
 ## Version 3.51 — Sidebar Cleanup
 - **The library search box is gone** (Michael's call — it sat unlabeled under the Import button and anything typed into it silently filtered the sound list to empty). The category list + sound list are the way to browse now, exactly like the DJ sampler picker.
 - **Buttons renamed:** Quick Video → **Add Video**, Quick Images → **Add Image**, Quick Audio → **Add Song**.
