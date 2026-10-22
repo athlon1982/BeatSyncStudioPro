@@ -90,7 +90,7 @@ namespace BeatSyncStudioPro
 
                 var buffer = new byte[81920];
                 var sw = Stopwatch.StartNew();
-                long windowBytes = 0, lastDone = 0;
+                long windowBytes = 0;
                 double speed = 0;
                 int read;
                 while (true)

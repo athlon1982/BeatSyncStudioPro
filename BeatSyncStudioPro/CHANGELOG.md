@@ -3,6 +3,9 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.65 — Audit Fix 6: Warning Residue Cleared
+- **Cleanup (audit #6 of 6 — the audit list is now fully worked through):** removed a never-read variable from the download engine, and untangled a drag-and-drop helper that aliased its own parameter into a same-named local and nulled it (the compiler's last real warnings). The build now compiles with only one warning left — a deliberate one on the playback dispatch, which is fire-and-forget by design and guarded inside.
+
 ## Version 3.64 — Audit Fix 5: Create Song Slider Cleanup
 - **Cleanup (audit #5 of 6):** the Create Song window's constructor used to "sync the slider labels" by calling the slider event handler with a fake null argument — it worked only by accident. The label sync is now its own little method that both the handler and the constructor call properly. No behavior change.
 

@@ -975,13 +975,15 @@ namespace BeatSyncStudioPro
 
         private void PlaceAssetAt(string assetName, Point clickPoint)
         {
-            string draggingSoundName = assetName;
+            // Audit Bug 6 (v3.65): this method used to alias the parameter
+            // into a same-named local and null it at the end (CS8600) — the
+            // alias is gone; the parameter is used directly.
             int trackId = (int)(clickPoint.Y / 50);
 
             // VIDEO: Always goes to video track
-            if (VideoAssets.ContainsKey(draggingSoundName))
+            if (VideoAssets.ContainsKey(assetName))
             {
-                VideoPath = VideoAssets[draggingSoundName];
+                VideoPath = VideoAssets[assetName];
                 SetVideoAudioSeparated(false);
                 _videoNaturalSeconds = 0;
                 SetVideoSpeed(1.0);
@@ -1005,31 +1007,30 @@ namespace BeatSyncStudioPro
                 }
 
                 // Add to VIDEO track (AudioTrackCount)
-                FixedBlock vblock = new FixedBlock(this, TimelineCanvas, AudioTrackCount, draggingSoundName, clickPoint.X, Array.Empty<byte>(), "mp4", 280 * FixedBlock.PixelsPerSecond / 100.0, true);
+                FixedBlock vblock = new FixedBlock(this, TimelineCanvas, AudioTrackCount, assetName, clickPoint.X, Array.Empty<byte>(), "mp4", 280 * FixedBlock.PixelsPerSecond / 100.0, true);
                 TimelineBlocks.Add(vblock);
                 RenderStudioGridLanes();
             }
             // IMAGE: Goes to clicked audio track
-            else if (ImageAssets.ContainsKey(draggingSoundName))
+            else if (ImageAssets.ContainsKey(assetName))
             {
                 if (trackId >= 0 && trackId < AudioTrackCount)
                 {
-                    FixedBlock iblock = new FixedBlock(this, TimelineCanvas, trackId, draggingSoundName, clickPoint.X, Array.Empty<byte>(), "image", 120 * FixedBlock.PixelsPerSecond / 100.0, false);
+                    FixedBlock iblock = new FixedBlock(this, TimelineCanvas, trackId, assetName, clickPoint.X, Array.Empty<byte>(), "image", 120 * FixedBlock.PixelsPerSecond / 100.0, false);
                     TimelineBlocks.Add(iblock);
                 }
             }
             // AUDIO: Goes to clicked audio track
-            else if (ZipSounds.ContainsKey(draggingSoundName))
+            else if (ZipSounds.ContainsKey(assetName))
             {
                 if (trackId >= 0 && trackId < AudioTrackCount)
                 {
-                    byte[] data = ZipSounds[draggingSoundName];
-                    string fileExt = System.IO.Path.GetExtension(draggingSoundName).Replace(".", "").ToLower();
-                    FixedBlock ablock = new FixedBlock(this, TimelineCanvas, trackId, draggingSoundName, clickPoint.X, data, fileExt);
+                    byte[] data = ZipSounds[assetName];
+                    string fileExt = System.IO.Path.GetExtension(assetName).Replace(".", "").ToLower();
+                    FixedBlock ablock = new FixedBlock(this, TimelineCanvas, trackId, assetName, clickPoint.X, data, fileExt);
                     TimelineBlocks.Add(ablock);
                 }
             }
-            draggingSoundName = null;
         }
 
         private void BtnAddTrack_Click(object sender, RoutedEventArgs e)
