@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.70 — Shuffle + Repeat on Every Deck
+- **🔀 Shuffle (per deck):** each deck's track list gains a Shuffle toggle. With Auto-play on, when a song ends the deck jumps to a random *other* song from that deck's own track list instead of the next one in order — each deck shuffles independently.
+- **🔁 Repeat track (per deck):** a Repeat toggle beside it. When the song ends, the same track starts over from the top. Repeat works on its own (no need for Auto-play) and wins over advancing — turn it off to let the list move on.
+- Both toggles sit right under the "Auto-play the next track" checkbox in each deck's Track List section, with hover help explaining exactly what they do.
+
 ## Version 3.69 — The Mic Section Is Back (Mixer Column Scrolls)
 - **Bug fix:** the center mixer column had quietly outgrown its fixed space as new buttons were added over the last several updates (Mashup, Save Mashup, Stop Both Decks, the stems picker). Everything at the bottom of the column — the whole 🎤 MIC block: mic picker, MIC on/off, level meter and knob, "Duck music while talking", Mic FX and the Companion button — was being clipped off the bottom of the board. Nothing was deleted; it was pushed off-screen.
 - **The column scrolls now:** the mixer column has its own scrollbar, so the mic and ducking controls are always reachable — and no future button added to this column can ever push anything off the board again. Scroll with the mouse wheel anywhere over the mixer (wheels over knobs still turn the knobs, as before).

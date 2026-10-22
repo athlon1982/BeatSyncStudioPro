@@ -2168,6 +2168,9 @@ namespace BeatSyncStudioPro
             private ListBox _queueList = null!;
             private TextBlock _queueCount = null!;
             private CheckBox _autoNextBox = null!;
+            private CheckBox _shuffleBox = null!;
+            private CheckBox _repeatBox = null!;
+            private readonly Random _shuffleRng = new Random();
             private bool _wasPlayingLastTick;
 
             private static readonly Brush PanelBtn = new SolidColorBrush(Color.FromRgb(0x2A, 0x30, 0x3C));
@@ -2615,6 +2618,23 @@ namespace BeatSyncStudioPro
                     Margin = new Thickness(0, 6, 0, 0)
                 };
                 root.Children.Add(_autoNextBox);
+                var srRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+                _shuffleBox = new CheckBox
+                {
+                    Content = "🔀 Shuffle",
+                    Foreground = MutedText,
+                    FontSize = 11,
+                    Margin = new Thickness(0, 0, 14, 0)
+                };
+                _repeatBox = new CheckBox
+                {
+                    Content = "🔁 Repeat track",
+                    Foreground = MutedText,
+                    FontSize = 11
+                };
+                srRow.Children.Add(_shuffleBox);
+                srRow.Children.Add(_repeatBox);
+                root.Children.Add(srRow);
 
                 // v3.40: hover help on every control in the deck.
                 _playButton.ToolTip = "Play / pause this deck.";
@@ -2647,6 +2667,8 @@ namespace BeatSyncStudioPro
                 nextBtn.ToolTip = "Load the next song in the track list.";
                 removeBtn.ToolTip = "Remove the selected song from the track list.";
                 _autoNextBox.ToolTip = "When this song ends, automatically load and play the next one in the track list.";
+                _shuffleBox.ToolTip = "Shuffle: with Auto-play on, when a song ends jump to a random other song in this deck's track list instead of the next one in order.";
+                _repeatBox.ToolTip = "Repeat: when this song ends, start the same song over from the top. Works on its own — no need for Auto-play.";
 
                 ApplyHardwareStyles(root);
                 host.Child = root;
@@ -3977,6 +3999,20 @@ namespace BeatSyncStudioPro
                 }
             }
 
+            /// <summary>Where Auto-play goes next: a random other track when
+            /// Shuffle is on, otherwise the next one in order (-1 = stop).</summary>
+            private int NextQueueIndex()
+            {
+                if (_queuePaths.Count == 0) return -1;
+                if (_shuffleBox != null && _shuffleBox.IsChecked == true && _queuePaths.Count > 1)
+                {
+                    int n;
+                    do { n = _shuffleRng.Next(_queuePaths.Count); } while (n == _queueIndex);
+                    return n;
+                }
+                return _queueIndex + 1 < _queuePaths.Count ? _queueIndex + 1 : -1;
+            }
+
             private void LoadQueueItem(int i, bool autoplay)
             {
                 _window.CruiseManualOverride();
@@ -4267,13 +4303,19 @@ namespace BeatSyncStudioPro
                 // Track-list auto-advance: the deck flips IsPlaying off at the
                 // true end of a song — only then (and only near the end, so a
                 // manual pause never triggers it) roll into the next track.
-                if (_autoNextBox != null && _autoNextBox.IsChecked == true
-                    && _wasPlayingLastTick && !_deck.IsPlaying
-                    && _queueIndex >= 0 && _queueIndex + 1 < _queuePaths.Count
+                bool trackEnded = _wasPlayingLastTick && !_deck.IsPlaying
+                    && _queueIndex >= 0
                     && _deck.IsLoaded && _deck.TotalSeconds > 0
-                    && _deck.PositionSeconds >= _deck.TotalSeconds - 1.0)
+                    && _deck.PositionSeconds >= _deck.TotalSeconds - 1.0;
+                if (trackEnded && _repeatBox != null && _repeatBox.IsChecked == true)
                 {
-                    LoadQueueItem(_queueIndex + 1, true);
+                    // Repeat wins first: start the same track over.
+                    LoadQueueItem(_queueIndex, true);
+                }
+                else if (trackEnded && _autoNextBox != null && _autoNextBox.IsChecked == true)
+                {
+                    int next = NextQueueIndex();
+                    if (next >= 0) LoadQueueItem(next, true);
                 }
                 _wasPlayingLastTick = _deck.IsPlaying;
                 if (_deck.IsLoaded)
