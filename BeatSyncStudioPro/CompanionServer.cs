@@ -59,6 +59,8 @@ namespace BeatSyncStudioPro
             catch { }
         }
 
+        private const int MaxBodyBytes = 65536; // 64 KB: real phone requests are tiny JSON, so cap every request body
+
         private TcpListener? _listener;
         private CancellationTokenSource? _cts;
         private readonly HashSet<string> _tokens = new HashSet<string>();
@@ -164,8 +166,9 @@ namespace BeatSyncStudioPro
                 using (var stream = client.GetStream())
                 {
                     string remoteIp = (client.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString() ?? "?";
-                    var (method, path, headers, body) = ReadRequest(stream);
+                    var (tooLarge, method, path, headers, body) = ReadRequest(stream);
                     if (method == null) return;
+                    if (tooLarge) { Respond(stream, 413, "text/plain", "payload too large"); return; }
                     headers.TryGetValue("x-companion-token", out string? token);
 
                     if (method == "GET" && path == "/")
@@ -238,7 +241,7 @@ namespace BeatSyncStudioPro
             }
         }
 
-        private static (string? Method, string Path, Dictionary<string, string> Headers, string Body) ReadRequest(NetworkStream stream)
+        private static (bool TooLarge, string? Method, string Path, Dictionary<string, string> Headers, string Body) ReadRequest(NetworkStream stream)
         {
             var headerBytes = new List<byte>();
             var one = new byte[1];
@@ -247,7 +250,7 @@ namespace BeatSyncStudioPro
             while (headerBytes.Count < 65536)
             {
                 int n = stream.Read(one, 0, 1);
-                if (n <= 0) return (null, "", new Dictionary<string, string>(), "");
+                if (n <= 0) return (false, null, "", new Dictionary<string, string>(), "");
                 headerBytes.Add(one[0]);
                 matched = one[0] == terminator[matched] ? matched + 1 : (one[0] == terminator[0] ? 1 : 0);
                 if (matched == 4) break;
@@ -255,7 +258,7 @@ namespace BeatSyncStudioPro
             string headerText = Encoding.ASCII.GetString(headerBytes.ToArray());
             var lines = headerText.Split(new[] { "\r\n" }, StringSplitOptions.None);
             var first = lines[0].Split(' ');
-            if (first.Length < 2) return (null, "", new Dictionary<string, string>(), "");
+            if (first.Length < 2) return (false, null, "", new Dictionary<string, string>(), "");
             string method = first[0], path = first[1];
             var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             int contentLength = 0;
@@ -267,6 +270,9 @@ namespace BeatSyncStudioPro
                 headers[k] = v;
                 if (k.Equals("Content-Length", StringComparison.OrdinalIgnoreCase)) int.TryParse(v, out contentLength);
             }
+            if (contentLength < 0) contentLength = 0;
+            if (contentLength > MaxBodyBytes)
+                return (true, method, path, headers, "");
             string body = "";
             if (contentLength > 0)
             {
@@ -282,7 +288,7 @@ namespace BeatSyncStudioPro
             }
             int q = path.IndexOf('?');
             if (q >= 0) path = path[..q];
-            return (method, path, headers, body);
+            return (false, method, path, headers, body);
         }
 
         private static void Respond(NetworkStream stream, int status, string contentType, string body)

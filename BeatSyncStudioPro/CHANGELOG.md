@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.35 — 🛠️ DJ Reliability Fixes (GLM Audit, Part 2)
+- **FIXED — Companion request cap:** The phone remote now rejects request bodies over 64 KB (HTTP 413) before allocating anything — previously any device on the Wi-Fi could force a huge memory allocation just by declaring a giant Content-Length.
+- **FIXED — Button icons:** The CRUISE and MIC buttons, the Mic FX and Phone Companion buttons, and the MIC header now show their actual icons instead of literal "\U..." text — the labels were written as C# escapes, which XAML shows as raw text.
+
 ## Version 3.34 — 🛠️ DJ Reliability Fixes (GLM Audit, Part 1)
 - **FIXED — Silent DJ window after reopen:** Closing and reopening the DJ window no longer leaves it silent. The DJ audio chain now detaches from the main mixer on close, and the reopened window's chain swaps in on open.
 - **FIXED — Corrupt stem crash:** A corrupt or half-written cached stem file can no longer crash the app. Stem loads are guarded at the deck and the window; failures report "cached stems failed to load" instead of taking the app down.
