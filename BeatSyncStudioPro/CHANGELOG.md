@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.45 — Sampler Sound Picker Window
+- **NEW — assigning a sampler pad opens a real sound browser window** instead of a bare file dialog: every sound sorted into categories — the built-in pack (read straight out of the compressed soundpack.zip), your editor library (including split stems), stem files on disk, and the PC's Downloads folder — each category with its sounds listed alphabetically.
+- **Preview before you commit:** select a sound, hit ▶ Preview to hear it, then ✓ Use this sound (or double-click). A 📁 Browse files… button still lets you grab any file from anywhere.
+- Pad assignments from the pack or library remember *where* the sound lives (not just a file path), so they reload correctly next launch.
+
 ## Version 3.44 — Stems Land in the Library
 - **NEW — 🧬 Stems category in the editor's asset library:** whenever a stem split finishes — in the editor's stem splitter OR on a DJ deck — the four stems (vocals / drums / bass / other) are automatically filed in the main window's Asset Library under a new **Stems** category, named like "Song — Vocals", ready to drag onto the timeline like any other sound. Cached stems loaded on a deck are filed too, and re-splitting the same song doesn't create duplicates.
 

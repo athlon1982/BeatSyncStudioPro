@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.IO.Compression;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -447,6 +448,165 @@ namespace BeatSyncStudioPro
             }
         }
 
+        // ===== v3.45: sound picker — categorized browser with preview =====
+        private sealed class SoundChoice
+        {
+            public string Display = "";
+            public string DecodeName = "";
+            public string PersistKey = "";
+            public string SubLabel = "";
+            public Func<byte[]?> LoadBytes = () => null;
+        }
+
+        private sealed class SoundPickerWindow
+        {
+            private readonly Window _win;
+            private readonly ListBox _catList;
+            private readonly ListBox _soundList;
+            private readonly TextBlock _status;
+            private readonly Button _useBtn;
+            private readonly Dictionary<string, List<SoundChoice>> _catalog;
+            private readonly List<string> _cats;
+            private WaveOutEvent? _previewOut;
+
+            public SoundChoice? Result { get; private set; }
+
+            public SoundPickerWindow(Window owner, int pad, Dictionary<string, List<SoundChoice>> catalog)
+            {
+                _catalog = catalog;
+                string[] preferred = { SoundCategorizer.Drums, SoundCategorizer.Guitar, SoundCategorizer.Bass, SoundCategorizer.Keys, SoundCategorizer.Loops, SoundCategorizer.Fx, SoundCategorizer.Vocals, SoundCategorizer.Stems, "Downloads", SoundCategorizer.Other };
+                _cats = catalog.Keys.ToList();
+                _cats.Sort((a, b) =>
+                {
+                    int ia = Array.IndexOf(preferred, a); if (ia < 0) ia = 100;
+                    int ib = Array.IndexOf(preferred, b); if (ib < 0) ib = 100;
+                    return ia != ib ? ia.CompareTo(ib) : string.Compare(a, b, StringComparison.OrdinalIgnoreCase);
+                });
+                _win = new Window
+                {
+                    Title = $"Assign a sound — sampler pad {pad + 1}",
+                    Width = 720,
+                    Height = 520,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Owner = owner,
+                    Background = new SolidColorBrush(Color.FromRgb(0x14, 0x17, 0x1E)),
+                    Foreground = Brushes.White
+                };
+                var root = new DockPanel { Margin = new Thickness(14) };
+                var header = new TextBlock { Text = "🎵 Pick a sound — everything sorted by category. Preview it, then use it.", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Brushes.White, Margin = new Thickness(0, 0, 0, 10) };
+                DockPanel.SetDock(header, Dock.Top);
+                root.Children.Add(header);
+                var bottom = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
+                DockPanel.SetDock(bottom, Dock.Bottom);
+                root.Children.Add(bottom);
+                _status = new TextBlock { Foreground = new SolidColorBrush(Color.FromRgb(0xA0, 0xA5, 0xB5)), Text = "Pick a category, then a sound.", Margin = new Thickness(0, 0, 0, 8) };
+                bottom.Children.Add(_status);
+                var btnRow = new StackPanel { Orientation = Orientation.Horizontal };
+                bottom.Children.Add(btnRow);
+                var previewBtn = new Button { Content = "▶ Preview", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 8, 0) };
+                var stopBtn = new Button { Content = "⏹ Stop", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 8, 0) };
+                var browseBtn = new Button { Content = "📁 Browse files…", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 8, 0) };
+                _useBtn = new Button { Content = "✓ Use this sound", Padding = new Thickness(14, 6, 14, 6), FontWeight = FontWeights.Bold, Background = new SolidColorBrush(Color.FromRgb(0x1D, 0xB9, 0x54)), Foreground = Brushes.White, BorderThickness = new Thickness(0), IsEnabled = false };
+                var cancelBtn = new Button { Content = "Cancel", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(8, 0, 0, 0) };
+                btnRow.Children.Add(previewBtn);
+                btnRow.Children.Add(stopBtn);
+                btnRow.Children.Add(browseBtn);
+                btnRow.Children.Add(_useBtn);
+                btnRow.Children.Add(cancelBtn);
+                var grid = new Grid();
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(190) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                var listBg = new SolidColorBrush(Color.FromRgb(0x1A, 0x1E, 0x28));
+                var listBorder = new SolidColorBrush(Color.FromRgb(0x2A, 0x34, 0x46));
+                _catList = new ListBox { Background = listBg, Foreground = Brushes.White, BorderBrush = listBorder, Margin = new Thickness(0, 0, 8, 0) };
+                _soundList = new ListBox { Background = listBg, Foreground = Brushes.White, BorderBrush = listBorder };
+                Grid.SetColumn(_soundList, 1);
+                grid.Children.Add(_catList);
+                grid.Children.Add(_soundList);
+                root.Children.Add(grid);
+                _win.Content = root;
+                foreach (var c in _cats) _catList.Items.Add($"{SoundCategorizer.Icon(c)} {c}  ({catalog[c].Count})");
+                _catList.SelectionChanged += (s, e) =>
+                {
+                    StopPreview();
+                    _soundList.Items.Clear();
+                    _useBtn.IsEnabled = false;
+                    if (_catList.SelectedIndex < 0) return;
+                    string cat = _cats[_catList.SelectedIndex];
+                    foreach (var ch in _catalog[cat]) _soundList.Items.Add(ch.Display);
+                    _status.Text = $"{cat}: {_catalog[cat].Count} sounds — pick one and hit Preview.";
+                };
+                _soundList.SelectionChanged += (s, e) => _useBtn.IsEnabled = SelectedChoice() != null;
+                _soundList.MouseDoubleClick += (s, e) => { if (SelectedChoice() != null) Accept(); };
+                previewBtn.Click += (s, e) => Preview();
+                stopBtn.Click += (s, e) => StopPreview();
+                browseBtn.Click += (s, e) => Browse();
+                _useBtn.Click += (s, e) => Accept();
+                cancelBtn.Click += (s, e) => { StopPreview(); _win.DialogResult = false; };
+                _win.Closed += (s, e) => StopPreview();
+                if (_catList.Items.Count > 0) _catList.SelectedIndex = 0;
+                else _status.Text = "No sounds found anywhere — use Browse files… to pick one from disk.";
+            }
+
+            private SoundChoice? SelectedChoice()
+            {
+                if (_catList.SelectedIndex < 0 || _soundList.SelectedIndex < 0) return null;
+                return _catalog[_cats[_catList.SelectedIndex]][_soundList.SelectedIndex];
+            }
+
+            private void Preview()
+            {
+                StopPreview();
+                var ch = SelectedChoice();
+                if (ch == null) { _status.Text = "Pick a sound first."; return; }
+                try
+                {
+                    var bytes = ch.LoadBytes();
+                    if (bytes == null) { _status.Text = "That sound couldn't be loaded."; return; }
+                    var floats = SamplerEngine.DecodeBytes(bytes, ch.DecodeName);
+                    _previewOut = new WaveOutEvent();
+                    _previewOut.Init(new SampleToWaveProvider(new ArraySampleProvider(floats)));
+                    _previewOut.Play();
+                    _status.Text = $"▶ Previewing: {ch.Display}";
+                }
+                catch (Exception ex) { _status.Text = "Preview failed: " + ex.Message; }
+            }
+
+            private void StopPreview()
+            {
+                try { _previewOut?.Stop(); _previewOut?.Dispose(); } catch { }
+                _previewOut = null;
+            }
+
+            private void Browse()
+            {
+                StopPreview();
+                var dialog = new OpenFileDialog { Title = "Pick any sound file", Filter = "Audio|*.wav;*.mp3" };
+                if (dialog.ShowDialog() != true) return;
+                string file = dialog.FileName;
+                Result = new SoundChoice
+                {
+                    Display = System.IO.Path.GetFileNameWithoutExtension(file),
+                    DecodeName = file,
+                    PersistKey = file,
+                    SubLabel = System.IO.Path.GetFileName(file),
+                    LoadBytes = () => File.Exists(file) ? File.ReadAllBytes(file) : null
+                };
+                _win.DialogResult = true;
+            }
+
+            private void Accept()
+            {
+                var ch = SelectedChoice();
+                if (ch == null) return;
+                StopPreview();
+                Result = ch;
+                _win.DialogResult = true;
+            }
+
+            public bool? ShowDialog() => _win.ShowDialog();
+        }
+
         // ===== v3.43: MASHUP A+B — A's vocals over B's beat (the real remix recipe) =====
         private bool _mashupBusy;
 
@@ -832,11 +992,33 @@ namespace BeatSyncStudioPro
                 _padSubs[i] = sub;
                 _padTitles[i] = title;
                 SamplerPadGrid.Children.Add(btn);
-                if (assignments.TryGetValue(i, out string? path))
+                if (assignments.TryGetValue(i, out string? key))
                 {
-                    if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                    if (string.IsNullOrEmpty(key)) sub.Text = "right-click: assign a sound";
+                    else if (key.StartsWith("pack:", StringComparison.Ordinal))
                     {
-                        try { _sampler.Slots[i].Load(SamplerEngine.DecodeBytes(File.ReadAllBytes(path), path)); sub.Text = System.IO.Path.GetFileName(path); }
+                        string entry = key.Substring(5);
+                        var pb = SamplerEngine.ReadPackEntry(entry);
+                        if (pb != null)
+                        {
+                            try { _sampler.Slots[i].Load(SamplerEngine.DecodeBytes(pb, entry)); sub.Text = "sound pack"; }
+                            catch { sub.Text = "sound pack (decode failed)"; }
+                        }
+                        else sub.Text = "sound pack not found";
+                    }
+                    else if (key.StartsWith("library:", StringComparison.Ordinal))
+                    {
+                        string lname = key.Substring(8);
+                        if (_owner.ZipSounds.TryGetValue(lname, out var lb))
+                        {
+                            try { _sampler.Slots[i].Load(SamplerEngine.DecodeBytes(lb, lname)); sub.Text = lname; }
+                            catch { sub.Text = "library sound (decode failed)"; }
+                        }
+                        else sub.Text = "not in this project — reassign";
+                    }
+                    else if (File.Exists(key))
+                    {
+                        try { _sampler.Slots[i].Load(SamplerEngine.DecodeBytes(File.ReadAllBytes(key), key)); sub.Text = System.IO.Path.GetFileName(key); }
                         catch { sub.Text = "assigned file unreadable"; }
                     }
                     else sub.Text = "right-click: assign a sound";
@@ -877,20 +1059,134 @@ namespace BeatSyncStudioPro
 
         private void AssignPad(int pad)
         {
-            var dialog = new OpenFileDialog { Title = $"Assign a sound to sampler pad {pad + 1}", Filter = "Audio|*.wav;*.mp3" };
-            if (dialog.ShowDialog() != true) return;
+            var picker = new SoundPickerWindow(this, pad, BuildSoundCatalog());
+            if (picker.ShowDialog() != true) return;
+            var choice = picker.Result;
+            if (choice == null) return;
+            var bytes = choice.LoadBytes();
+            if (bytes == null) { SetStatus("That sound couldn't be loaded."); return; }
+            ApplyPadChoice(pad, bytes, choice);
+        }
+
+        private void ApplyPadChoice(int pad, byte[] bytes, SoundChoice choice)
+        {
             try
             {
-                var samples = SamplerEngine.DecodeBytes(File.ReadAllBytes(dialog.FileName), dialog.FileName);
+                var samples = SamplerEngine.DecodeBytes(bytes, choice.DecodeName);
                 _sampler.Slots[pad].Load(samples);
                 var map = LoadPadAssignments();
-                map[pad] = dialog.FileName;
+                map[pad] = choice.PersistKey;
                 SavePadAssignments(map);
-                _padSubs[pad].Text = System.IO.Path.GetFileName(dialog.FileName);
-                SetStatus($"Sampler pad {pad + 1}: {System.IO.Path.GetFileName(dialog.FileName)} assigned.");
+                _padSubs[pad].Text = choice.SubLabel;
+                SetStatus($"Sampler pad {pad + 1}: {choice.SubLabel} assigned.");
                 TriggerPad(pad);
             }
             catch (Exception ex) { SetStatus("Could not load that sound: " + ex.Message); }
+        }
+
+        /// <summary>v3.45: every assignable sound in one sorted catalog —
+        /// the built-in pack (compressed, read straight from soundpack.zip),
+        /// the editor library (incl. split stems), stem files on disk, and the
+        /// PC's Downloads folder.</summary>
+        private Dictionary<string, List<SoundChoice>> BuildSoundCatalog()
+        {
+            var catalog = new Dictionary<string, List<SoundChoice>>();
+            void Add(string cat, SoundChoice c)
+            {
+                if (!catalog.TryGetValue(cat, out var list)) { list = new List<SoundChoice>(); catalog[cat] = list; }
+                list.Add(c);
+            }
+            // 1) Built-in sound pack (Assets/soundpack.zip, Category/name.wav entries)
+            try
+            {
+                string pack = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "soundpack.zip");
+                if (File.Exists(pack))
+                {
+                    using var zip = ZipFile.OpenRead(pack);
+                    foreach (var entry in zip.Entries.Where(en => en.Name.EndsWith(".wav", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        string cat = entry.FullName.Contains('/') ? entry.FullName.Substring(0, entry.FullName.IndexOf('/')) : "Sounds";
+                        if (cat == "Keys") cat = SoundCategorizer.Keys;
+                        string entryName = entry.FullName;
+                        string display = System.IO.Path.GetFileNameWithoutExtension(entry.Name);
+                        Add(cat, new SoundChoice
+                        {
+                            Display = display,
+                            DecodeName = entryName,
+                            PersistKey = "pack:" + entryName,
+                            SubLabel = display,
+                            LoadBytes = () => SamplerEngine.ReadPackEntry(entryName)
+                        });
+                    }
+                }
+            }
+            catch { /* pack missing/unreadable — the rest of the catalog still works */ }
+            // 2) The editor library (this project's sounds, incl. stems filed by v3.44)
+            foreach (var (name, bytes) in _owner.ZipSounds)
+            {
+                string cat = _owner.SoundCategories.TryGetValue(name, out var c) ? c : SoundCategorizer.Infer(name);
+                var captured = bytes;
+                Add(cat, new SoundChoice
+                {
+                    Display = System.IO.Path.GetFileNameWithoutExtension(name),
+                    DecodeName = name,
+                    PersistKey = "library:" + name,
+                    SubLabel = name,
+                    LoadBytes = () => captured
+                });
+            }
+            // 3) Stem files on disk (the DJ stem cache) — also reachable as plain files
+            try
+            {
+                string stemsRoot = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BeatSyncStudioPro", "stems");
+                if (Directory.Exists(stemsRoot))
+                {
+                    var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var file in Directory.EnumerateFiles(stemsRoot, "*.wav", SearchOption.AllDirectories))
+                    {
+                        string fn = System.IO.Path.GetFileNameWithoutExtension(file);
+                        string display = fn;
+                        int p = fn.LastIndexOf(" (", StringComparison.Ordinal);
+                        if (p > 0 && fn.EndsWith(")"))
+                            display = fn.Substring(0, p) + " — " + char.ToUpperInvariant(fn[p + 2]) + fn.Substring(p + 3, fn.Length - p - 4);
+                        if (!seen.Add(display)) continue;
+                        string path = file;
+                        Add(SoundCategorizer.Stems, new SoundChoice
+                        {
+                            Display = display,
+                            DecodeName = file,
+                            PersistKey = file,
+                            SubLabel = display,
+                            LoadBytes = () => File.Exists(path) ? File.ReadAllBytes(path) : null
+                        });
+                    }
+                }
+            }
+            catch { /* no stems yet — fine */ }
+            // 4) The PC's Downloads folder (sounds downloaded outside the app)
+            try
+            {
+                string dl = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+                if (Directory.Exists(dl))
+                {
+                    foreach (var file in Directory.EnumerateFiles(dl, "*.*", SearchOption.TopDirectoryOnly)
+                                 .Where(f => f.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        string path = file;
+                        Add("Downloads", new SoundChoice
+                        {
+                            Display = System.IO.Path.GetFileNameWithoutExtension(file),
+                            DecodeName = file,
+                            PersistKey = file,
+                            SubLabel = System.IO.Path.GetFileName(file),
+                            LoadBytes = () => File.Exists(path) ? File.ReadAllBytes(path) : null
+                        });
+                    }
+                }
+            }
+            catch { /* downloads folder unreadable — fine */ }
+            foreach (var list in catalog.Values) list.Sort((a, b) => string.Compare(a.Display, b.Display, StringComparison.OrdinalIgnoreCase));
+            return catalog;
         }
 
         private static string PadAssignmentsPath => System.IO.Path.Combine(
