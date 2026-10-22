@@ -3,6 +3,9 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.63 — Audit Fix 4: Online Stem Split Hardening
+- **Bug fix (audit #4 of 6):** the online (cloud) stem-split path trusted its inputs too much — it dereferenced the clip and the cancel token through null-forgiving shortcuts, so opening it with no file and no clip (or a clip with no audio) could crash instead of explaining itself. It now checks first ("Nothing to split — pick a sound file or a timeline clip first") and carries one captured cancel token through the whole run.
+
 ## Version 3.62 — Audit Fix 3: Beat Detection Can't Crash the App
 - **Bug fix (audit #3 of 6):** running Detect Beats on a corrupt or unusual clip could crash the whole app — the two entry points that feed it are fire-and-forget (`async void`), where an unhandled error has nowhere to go but down. Both are guarded now: a bad clip simply reports "no steady beat found" (or tells you what went wrong) and the app carries on.
 

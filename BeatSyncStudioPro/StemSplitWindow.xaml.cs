@@ -154,6 +154,11 @@ namespace BeatSyncStudioPro
         /// <summary>☁️ Online route: the chosen cloud provider's Demucs does the heavy lifting.</summary>
         private async Task SplitOnlineAsync(FixedBlock? clip, ComputeSettings compute)
         {
+            // Audit Bug 4 (v3.63): capture the token ONCE — the old code kept
+            // dereferencing _cts with null-forgiving bangs, and the field is
+            // disposed/nulled by the caller's finally, so a late read could
+            // blow up instead of cancelling politely.
+            var token = _cts?.Token ?? CancellationToken.None;
             bool hf = compute.OnlineProvider == "huggingface";
             bool fal = compute.OnlineProvider == "fal";
             string key = hf ? compute.GetHfKey() : fal ? compute.GetFalKey() : compute.GetOnlineKey();
@@ -171,15 +176,22 @@ namespace BeatSyncStudioPro
             string baseName, outFolder, ext;
             if (_filePath != null)
             {
-                bytes = await File.ReadAllBytesAsync(_filePath, _cts!.Token);
+                bytes = await File.ReadAllBytesAsync(_filePath, token);
                 baseName = Path.GetFileNameWithoutExtension(_filePath);
                 outFolder = Path.Combine(Path.GetDirectoryName(_filePath) ?? "", baseName + " stems");
                 ext = Path.GetExtension(_filePath).TrimStart('.');
             }
             else
             {
-                var c = clip!;
-                bytes = c.RawBytes!;
+                // No file AND no usable clip = nothing to split; say so
+                // instead of dereferencing null (the old clip! path).
+                if (clip == null || clip.RawBytes == null || clip.RawBytes.Length == 0)
+                {
+                    StatusText.Text = "Nothing to split — pick a sound file or a timeline clip first.";
+                    return;
+                }
+                var c = clip;
+                bytes = c.RawBytes;
                 baseName = Path.GetFileNameWithoutExtension(c.Filename);
                 ext = c.SoundType;
                 string music = Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
@@ -188,15 +200,15 @@ namespace BeatSyncStudioPro
 
             BusyBar.IsIndeterminate = true;
             var stems = hf
-                ? await OnlineStems.RunHfDemucsAsync(bytes, ext, key, msg => StatusText.Text = msg, _cts.Token)
+                ? await OnlineStems.RunHfDemucsAsync(bytes, ext, key, msg => StatusText.Text = msg, token)
                 : fal
-                ? await FalOnline.RunDemucsAsync(bytes, ext, key, msg => StatusText.Text = msg, _cts.Token)
-                : await OnlineStems.RunDemucsAsync(bytes, ext, key, msg => StatusText.Text = msg, _cts.Token);
+                ? await FalOnline.RunDemucsAsync(bytes, ext, key, msg => StatusText.Text = msg, token)
+                : await OnlineStems.RunDemucsAsync(bytes, ext, key, msg => StatusText.Text = msg, token);
             Directory.CreateDirectory(outFolder);
             foreach (var kv in stems)
             {
                 string file = Path.Combine(outFolder, $"{baseName} ({kv.Key}).{kv.Value.Ext}");
-                await File.WriteAllBytesAsync(file, kv.Value.Data, _cts.Token);
+                await File.WriteAllBytesAsync(file, kv.Value.Data, token);
                 ResultList.Items.Add(file);
             }
             StatusText.Text = $"✅ Done (☁️ {(hf ? "Hugging Face" : fal ? "fal.ai" : "Replicate")}) — stems are in:\n{outFolder}\nImport them from the library (Import Audio) to drop them on tracks.";
