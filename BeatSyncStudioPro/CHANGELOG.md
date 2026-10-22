@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.67 — Suggest Next Song
+- **New 🎯 Suggest button on each DJ deck:** load a track, hit Suggest, and BeatSync ranks your library songs by how well they mix *after* that deck's track — Camelot key compatibility counts most (same key, relative major/minor, and ±1 energy shifts score highest), BPM closeness second, with half/double-time tempos folded in fairly. The ranked list shows each song's key, BPM, and a match %.
+- **Pick loads the other deck:** double-click a suggestion (or hit "⬇ Load onto Deck…") and it loads straight onto the opposite deck, ready to mix in.
+- **It learns your library:** key and BPM analysis results are cached (the key cache you already had, plus a new BPM cache), so the first Suggest run over new songs is the slow one and every run after is faster. Split stems and short hits/loops under 45 seconds are never suggested as a "next song."
+
 ## Version 3.66 — Jamendo Joins the Search Hub
 - **New music source:** the 🔎 Search Sounds & Music window gains a third source — **🎵 More Music — Jamendo**. Search jamendo.com's library of free, Creative Commons-licensed full songs by independent artists, preview them streaming, and add them to your library (filed into categories automatically, with the license and artist shown for credit) — same flow as the Archive tab.
 - **Free client ID, your account:** Jamendo needs a free client ID from devportal.jamendo.com (sign up, create an app, copy the ID). Paste it in the hub's renamed **🔑 API Keys** tab, which now holds both the Freesound key and the Jamendo ID — stored encrypted on this PC, sent only to Jamendo. The tab has a one-click button that opens the signup page.

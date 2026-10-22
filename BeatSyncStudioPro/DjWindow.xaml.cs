@@ -1085,6 +1085,43 @@ namespace BeatSyncStudioPro
             }
         }
 
+        // v3.67: BPM cache (bpm-cache.json) — Suggest Next analyzes library
+        // tracks once and remembers their BPM; same pattern as the key cache.
+        private static string BpmCachePath => System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BeatSyncStudioPro", "bpm-cache.json");
+
+        internal static System.Collections.Generic.Dictionary<string, double> LoadBpmCache()
+        {
+            try
+            {
+                if (File.Exists(BpmCachePath))
+                {
+                    var map = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, double>>(File.ReadAllText(BpmCachePath));
+                    if (map != null) return map;
+                }
+            }
+            catch { }
+            return new System.Collections.Generic.Dictionary<string, double>();
+        }
+
+        private static readonly object BpmCacheLock = new object();
+
+        internal static void SaveBpmCacheEntry(string key, double bpm)
+        {
+            lock (BpmCacheLock)
+            {
+                try
+                {
+                    var map = LoadBpmCache();
+                    map[key] = bpm;
+                    var dir = System.IO.Path.GetDirectoryName(BpmCachePath);
+                    if (dir != null) Directory.CreateDirectory(dir);
+                    File.WriteAllText(BpmCachePath, System.Text.Json.JsonSerializer.Serialize(map));
+                }
+                catch { }
+            }
+        }
+
         private void CruiseTick()
         {
             if (!_cruiseOn || _cruisePanel == null) return;
@@ -1421,6 +1458,92 @@ namespace BeatSyncStudioPro
             }
             MessageBox.Show("That sound lives outside the library (built-in pack / a loose file), so it keeps its original name. Sounds you've imported can be renamed.", "Rename sound");
             return false;
+        }
+
+        // ===== v3.67: Suggest Next results window =====
+        private sealed class SuggestWindow
+        {
+            private readonly Window _win;
+            private readonly ListBox _list;
+            private readonly DeckPanel _target;
+            private readonly System.Collections.Generic.List<DeckPanel.SuggestPick> _picks;
+
+            public SuggestWindow(DjWindow owner, DeckPanel source, DeckPanel target, System.Collections.Generic.List<DeckPanel.SuggestPick> picks)
+            {
+                _target = target;
+                _picks = picks;
+                _win = new Window
+                {
+                    Title = "🎯 Suggest Next Song",
+                    Width = 580,
+                    Height = 440,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1E, 0x22, 0x2B)),
+                    Foreground = Brushes.White,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Owner = owner,
+                };
+                var grid = new Grid { Margin = new Thickness(12) };
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                var head = new TextBlock
+                {
+                    Text = $"Songs that mix well after {source.PanelName}'s track — best first. Key match counts most, BPM closeness second.",
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xA0, 0xA5, 0xB5)),
+                    FontSize = 11,
+                    TextWrapping = TextWrapping.Wrap,
+                };
+                grid.Children.Add(head);
+                _list = new ListBox
+                {
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x14, 0x17, 0x1E)),
+                    Foreground = Brushes.White,
+                    BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x33, 0x33, 0x33)),
+                    Margin = new Thickness(0, 10, 0, 0),
+                };
+                foreach (var p in picks)
+                    _list.Items.Add($"{p.Choice.Display}  ·  key {p.Camelot}  ·  {(p.Bpm > 0 ? p.Bpm.ToString("0") + " BPM" : "BPM ?")}  ·  match {p.Score}%");
+                if (_list.Items.Count > 0) _list.SelectedIndex = 0;
+                _list.MouseDoubleClick += (s, e) => LoadPicked();
+                Grid.SetRow(_list, 1);
+                grid.Children.Add(_list);
+                var loadBtn = new Button
+                {
+                    Content = $"⬇ Load onto {target.PanelName}",
+                    Padding = new Thickness(14, 6, 14, 6),
+                    Margin = new Thickness(0, 10, 0, 0),
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2A, 0x30, 0x3C)),
+                    Foreground = Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    FontWeight = FontWeights.Bold,
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                };
+                loadBtn.Click += (s, e) => LoadPicked();
+                Grid.SetRow(loadBtn, 2);
+                grid.Children.Add(loadBtn);
+                var note = new TextBlock
+                {
+                    Text = "Analysis is cached — the more you use Suggest, the faster it answers.",
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xA0, 0xA5, 0xB5)),
+                    FontSize = 11,
+                    Margin = new Thickness(0, 8, 0, 0),
+                };
+                Grid.SetRow(note, 3);
+                grid.Children.Add(note);
+                _win.Content = grid;
+            }
+
+            public void Show() => _win.Show();
+
+            private void LoadPicked()
+            {
+                int idx = _list.SelectedIndex;
+                if (idx < 0 || idx >= _picks.Count) return;
+                var p = _picks[idx];
+                _target.LoadForMix(p.Bytes, p.Choice.DecodeName);
+                _win.Close();
+            }
         }
 
         /// <summary>v3.45: every assignable sound in one sorted catalog —
@@ -1858,6 +1981,7 @@ namespace BeatSyncStudioPro
             private double _keyAppliedTotal;
             private CancellationTokenSource? _keyRenderCts;
             private readonly Button _keyLockBtn;
+            private Button _suggestBtn = null!;
             private bool _quantize = true;
             private readonly Button _quantizeBtn;
             private int _loadGen;
@@ -2352,6 +2476,11 @@ namespace BeatSyncStudioPro
                 _keyLockBtn.ToolTip = "Key Lock: tempo changes speed WITHOUT changing pitch (master tempo). Off = vinyl style, pitch follows tempo.";
                 _keyLockBtn.Click += async (s, e) => await ToggleKeyLockAsync();
                 keyRow.Children.Add(_keyLockBtn);
+                _suggestBtn = MakeButton("\U0001F3AF Suggest", 84);
+                _suggestBtn.Margin = new Thickness(6, 0, 0, 0);
+                _suggestBtn.ToolTip = "Suggest Next: find library songs that mix well after this deck's track (matching key, close BPM) and load your pick onto the other deck.";
+                _suggestBtn.Click += async (s, e) => await SuggestNextAsync();
+                keyRow.Children.Add(_suggestBtn);
                 midL.Children.Add(keyRow);
 
                 // Hot cues
@@ -3514,6 +3643,177 @@ namespace BeatSyncStudioPro
                 var (bpm, _, _) = await Task.Run(() => BeatDetector.Detect(bytes, type));
                 if (bpm >= 50 && bpm <= 200) { SetBpmUi(Math.Round(bpm * 2) / 2); return true; }
                 return false;
+            }
+
+            // ===== v3.67: Suggest Next Song =====
+            internal sealed record SuggestPick(SoundChoice Choice, byte[] Bytes, string Camelot, double Bpm, int Score);
+
+            private bool _suggestBusy;
+
+            /// <summary>Find library songs that mix well after this deck's
+            /// track — Camelot-compatible key first, close BPM second —
+            /// analyzing (and caching) library tracks as needed, then offer
+            /// the ranked list in a window that loads the pick onto the
+            /// OTHER deck.</summary>
+            internal async Task SuggestNextAsync()
+            {
+                if (_suggestBusy) return;
+                if (!_deck.IsLoaded || _lastBytes == null) { _window.SetStatus($"{_name}: load a track first, then I'll suggest what follows it."); return; }
+                if (DetectedKey == null)
+                {
+                    StartKeyDetection();
+                    _window.SetStatus($"{_name}: detecting this track's key first — give it a second, then hit 🎯 Suggest again.");
+                    return;
+                }
+                if (!await EnsureBpmAsync())
+                {
+                    _window.SetStatus($"{_name}: I need this track's BPM to suggest a match — type it or TAP it in, then hit 🎯 Suggest.");
+                    return;
+                }
+                _suggestBusy = true;
+                _suggestBtn.IsEnabled = false;
+                try
+                {
+                    string srcCamelot = EffectiveCamelot ?? "";
+                    double srcBpm = _deck.Bpm;
+                    string srcKey = _stemKey;
+                    var target = _window.OtherPanel(this);
+                    string otherKey = target._stemKey;
+                    var catalog = _window.BuildSoundCatalog();
+                    var pool = new System.Collections.Generic.List<SoundChoice>();
+                    foreach (var kv in catalog)
+                    {
+                        if (kv.Key == SoundCategorizer.Stems || kv.Key.StartsWith("Stems · ", StringComparison.Ordinal)) continue;
+                        pool.AddRange(kv.Value);
+                    }
+                    _window.SetStatus($"{_name}: analyzing your library for a good follow-up… (first run is the slow one — key + BPM results are cached, so it gets faster)");
+                    var picks = await Task.Run(() => AnalyzeCandidates(pool, srcCamelot, srcBpm, srcKey, otherKey));
+                    if (picks.Count == 0)
+                    {
+                        _window.SetStatus($"{_name}: no library songs with a detectable key yet — import a few full songs and try again.");
+                        return;
+                    }
+                    _window.SetStatus($"{_name}: {picks.Count} songs mix well after this one — pick one to load it onto {target.PanelName}.");
+                    new SuggestWindow(_window, this, target, picks).Show();
+                }
+                catch (Exception ex) { _window.SetStatus($"{_name}: suggest failed — {ex.Message}"); }
+                finally { _suggestBusy = false; _suggestBtn.IsEnabled = true; }
+            }
+
+            private System.Collections.Generic.List<SuggestPick> AnalyzeCandidates(
+                System.Collections.Generic.List<SoundChoice> pool, string srcCamelot, double srcBpm, string srcKey, string otherKey)
+            {
+                var keyCache = DjWindow.LoadKeyCache();
+                var bpmCache = DjWindow.LoadBpmCache();
+                var picks = new System.Collections.Generic.List<SuggestPick>();
+                int examined = 0;
+                foreach (var choice in pool)
+                {
+                    if (examined >= 48) break;
+                    byte[]? bytes;
+                    try { bytes = choice.LoadBytes(); } catch { bytes = null; }
+                    if (bytes == null || bytes.Length == 0) continue;
+                    examined++;
+                    string stemKey = StemBaseName(choice.DecodeName) + "-" + bytes.Length;
+                    if (stemKey == srcKey || stemKey == otherKey) continue;
+
+                    KeyDetector.KeyResult? kr = null;
+                    double seconds = 0;
+                    if (keyCache.TryGetValue(stemKey, out var hit))
+                        kr = new KeyDetector.KeyResult(hit.Pc, hit.Minor, KeyDetector.KeyNameFor(hit.Pc, hit.Minor), KeyDetector.CamelotFor(hit.Pc, hit.Minor), 1);
+                    if (kr == null)
+                    {
+                        var mono = DecodeMono(bytes, choice.DecodeName, out seconds);
+                        if (mono == null || mono.Length == 0) continue;
+                        kr = KeyDetector.Detect(mono);
+                        if (kr != null) DjWindow.SaveKeyCacheEntry(stemKey, new KeyCacheEntry(kr.PitchClass, kr.IsMinor));
+                    }
+                    if (kr == null) continue;
+                    if (seconds > 0 && seconds < 45) continue; // a hit or a loop, not a next song
+
+                    double bpm = 0;
+                    if (bpmCache.TryGetValue(stemKey, out var cb) && cb > 0) bpm = cb;
+                    else
+                    {
+                        string type = System.IO.Path.GetExtension(choice.DecodeName).TrimStart('.').ToLowerInvariant();
+                        try
+                        {
+                            var (detected, _, _) = BeatDetector.Detect(bytes, type);
+                            if (detected >= 50 && detected <= 200) { bpm = Math.Round(detected * 2) / 2; DjWindow.SaveBpmCacheEntry(stemKey, bpm); }
+                        }
+                        catch { }
+                    }
+                    string camelot = KeyDetector.CamelotFor(kr.PitchClass, kr.IsMinor);
+                    picks.Add(new SuggestPick(choice, bytes, camelot, bpm, ScoreMatch(srcCamelot, srcBpm, camelot, bpm)));
+                }
+                picks.Sort((a, b) => b.Score.CompareTo(a.Score));
+                if (picks.Count > 10) picks.RemoveRange(10, picks.Count - 10);
+                return picks;
+            }
+
+            /// <summary>Decode a candidate file to mono 44.1k samples for key
+            /// detection (channel-averaged by hand — no format helpers).</summary>
+            private static float[]? DecodeMono(byte[] bytes, string name, out double seconds)
+            {
+                seconds = 0;
+                try
+                {
+                    string type = System.IO.Path.GetExtension(name).TrimStart('.').ToLowerInvariant();
+                    using var reader = AudioReaderFactory.Open(bytes, type);
+                    var sp = reader.ToSampleProvider();
+                    int ch = Math.Max(1, sp.WaveFormat.Channels);
+                    NAudio.Wave.ISampleProvider p441 = sp.WaveFormat.SampleRate == 44100
+                        ? sp
+                        : new NAudio.Wave.SampleProviders.WdlResamplingSampleProvider(sp, 44100);
+                    var all = new System.Collections.Generic.List<float>();
+                    var buf = new float[44100 * 2 * ch];
+                    int read;
+                    while ((read = p441.Read(buf, 0, buf.Length)) > 0)
+                        for (int i = 0; i + ch - 1 < read; i += ch)
+                        {
+                            float s = 0;
+                            for (int c = 0; c < ch; c++) s += buf[i + c];
+                            all.Add(s / ch);
+                        }
+                    seconds = all.Count / 44100.0;
+                    return all.ToArray();
+                }
+                catch { return null; }
+            }
+
+            private static int ScoreMatch(string srcCamelot, double srcBpm, string candCamelot, double candBpm)
+            {
+                int keyScore = 35;
+                if (ParseCamelot(srcCamelot, out int sn, out char sl) && ParseCamelot(candCamelot, out int cn, out char cl))
+                {
+                    int dn = Math.Abs(sn - cn);
+                    dn = Math.Min(dn, 12 - dn);
+                    bool sameLetter = sl == cl;
+                    if (dn == 0 && sameLetter) keyScore = 100;
+                    else if (dn == 0) keyScore = 86;               // relative major/minor
+                    else if (dn == 1 && sameLetter) keyScore = 88; // energy shift, up or down
+                    else if (dn == 1) keyScore = 62;
+                    else keyScore = Math.Max(28, (sameLetter ? 78 : 70) - dn * 14);
+                }
+                int bpmScore = 45;
+                if (srcBpm > 0 && candBpm > 0)
+                {
+                    double r = candBpm / srcBpm;
+                    while (r < 0.85) r *= 2;
+                    while (r > 1.18) r /= 2;
+                    double diff = Math.Abs(r - 1);
+                    bpmScore = diff <= 0.06 ? (int)(100 - diff * 300) : Math.Max(0, (int)(82 - (diff - 0.06) * 400));
+                }
+                return (int)Math.Round(keyScore * 0.6 + bpmScore * 0.4);
+            }
+
+            private static bool ParseCamelot(string s, out int num, out char letter)
+            {
+                num = 0;
+                letter = 'A';
+                if (string.IsNullOrEmpty(s) || s.Length < 2) return false;
+                letter = char.ToUpperInvariant(s[s.Length - 1]);
+                return int.TryParse(s.Substring(0, s.Length - 1), out num);
             }
 
             /// <summary>FIX 10 + MIX A+B: match this deck's tempo to a target
