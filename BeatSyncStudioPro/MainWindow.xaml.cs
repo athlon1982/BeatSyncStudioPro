@@ -2737,6 +2737,12 @@ namespace BeatSyncStudioPro
         private readonly List<string> _browserCategories = new();
         private readonly List<string> _soundListNames = new();
         private bool _refreshingLibrary;
+        // v3.55: the stems sub-categories nest under one expandable "+ Stems"
+        // parent row (Michael's layout) instead of sitting as flat siblings.
+        private bool _stemsExpanded = true;
+        private const string StemsParentKey = "STEMS_PARENT";
+        private static bool IsStemsFamily(string c) => c == SoundCategorizer.Stems || c.StartsWith("Stems · ", StringComparison.Ordinal);
+        private static string StemChildLabel(string c) => c == SoundCategorizer.Stems ? "General" : c.Substring("Stems · ".Length);
         private Point _libDragStart;
         private string? _libDragName;
         private List<ExternalSound> _externals = new();
@@ -2924,11 +2930,39 @@ namespace BeatSyncStudioPro
             _refreshingLibrary = true;
             _browserCategories.Clear();
             _browserCategories.Add("");
-            _browserCategories.AddRange(cats);
             LibraryCategoryList.Items.Clear();
             LibraryCategoryList.Items.Add($"\U0001F5C2\uFE0F All  ({entries.Count})");
-            foreach (var c in cats) LibraryCategoryList.Items.Add($"{GroupIcon(c)} {c}  ({counts[c]})");
+            bool stemsEmitted = false;
+            foreach (var c in cats)
+            {
+                if (IsStemsFamily(c))
+                {
+                    if (stemsEmitted) continue;
+                    stemsEmitted = true;
+                    // v3.55: one parent row for the whole stems family; the
+                    // per-type categories become indented child rows under it.
+                    var fam = cats.Where(IsStemsFamily).ToList();
+                    int total = fam.Sum(fc => counts[fc]);
+                    _browserCategories.Add(StemsParentKey);
+                    LibraryCategoryList.Items.Add($"{(_stemsExpanded ? "\u2796" : "\u2795")} {GroupIcon(SoundCategorizer.Stems)} Stems  ({total})");
+                    if (_stemsExpanded)
+                    {
+                        var children = fam.Where(fc => fc != SoundCategorizer.Stems)
+                                          .Concat(fam.Where(fc => fc == SoundCategorizer.Stems));
+                        foreach (var fc in children)
+                        {
+                            _browserCategories.Add(fc);
+                            LibraryCategoryList.Items.Add($" -- {StemChildLabel(fc)}  ({counts[fc]})");
+                        }
+                    }
+                    continue;
+                }
+                _browserCategories.Add(c);
+                LibraryCategoryList.Items.Add($"{GroupIcon(c)} {c}  ({counts[c]})");
+            }
             int sel = _browserCategories.IndexOf(keepCat);
+            if (sel < 0 && (keepCat == StemsParentKey || IsStemsFamily(keepCat)))
+                sel = _browserCategories.IndexOf(StemsParentKey);
             LibraryCategoryList.SelectedIndex = sel >= 0 ? sel : 0;
             _refreshingLibrary = false;
             RefillSoundList(entries);
@@ -2940,7 +2974,7 @@ namespace BeatSyncStudioPro
             entries ??= MergedEntries();
             string cat = SelectedBrowserCategory();
             var rows = entries
-                .Where(e => cat == "" || e.Category == cat)
+                .Where(e => cat == "" || e.Category == cat || (cat == StemsParentKey && IsStemsFamily(e.Category)))
                 .OrderBy(e => e.Display, StringComparer.OrdinalIgnoreCase)
                 .ToList();
             _refreshingLibrary = true;
@@ -2960,6 +2994,23 @@ namespace BeatSyncStudioPro
         {
             if (_refreshingLibrary) return;
             RefillSoundList();
+        }
+
+        // v3.55: clicking the "+ Stems" parent row folds/unfolds its
+        // sub-category rows (Bass, Drums, Other, Vocals). MouseLeftButtonUp,
+        // not SelectionChanged, so re-clicking the already-selected parent
+        // toggles too.
+        private void LibraryCategoryList_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            var el = LibraryCategoryList.InputHitTest(e.GetPosition(LibraryCategoryList)) as DependencyObject;
+            var item = ItemsControl.ContainerFromElement(LibraryCategoryList, el) as ListBoxItem;
+            if (item == null) return;
+            int idx = LibraryCategoryList.ItemContainerGenerator.IndexFromContainer(item);
+            if (idx >= 0 && idx < _browserCategories.Count && _browserCategories[idx] == StemsParentKey)
+            {
+                _stemsExpanded = !_stemsExpanded;
+                RefreshLibraryBrowser();
+            }
         }
 
         private void LibrarySoundList_SelectionChanged(object sender, SelectionChangedEventArgs e)

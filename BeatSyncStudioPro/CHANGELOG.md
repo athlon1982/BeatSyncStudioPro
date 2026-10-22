@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.55 — Stems, Nested
+- **The stems sub-categories now nest under one Stems parent** (Michael's layout): instead of "Stems · Bass", "Stems · Drums" and friends sitting in the category list as flat rows, there's a single **+ Stems** row with the total count, and the sub-categories live underneath it, indented: **-- Bass**, **-- Drums**, **-- Other**, **-- Vocals**. Click the Stems row to fold them away or bring them back.
+- Picking **Stems** itself shows every stem at once; picking a sub-category shows just that kind.
+- The DJ sampler's sound picker uses the same nested layout, so both browsers work the same way.
+
 ## Version 3.54 — Under-the-Hood Tune-Up
 - **The DJ board audit is now fully worked through** — this build clears the last batch of small findings:
 - Knobs redraw properly when their range changes and can't get stuck in a feedback loop.

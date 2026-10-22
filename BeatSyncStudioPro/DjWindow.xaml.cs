@@ -539,6 +539,16 @@ namespace BeatSyncStudioPro
             private readonly Button _useBtn;
             private Dictionary<string, List<SoundChoice>> _catalog;
             private List<string> _cats;
+            // v3.55: same nested stems layout as the main library — the
+            // category list rows are _rows (keys into _catalog, plus one
+            // StemsParentKey row); _shown mirrors the sound list so a sound
+            // picked under the Stems parent still maps to its real choice.
+            private List<string> _rows = new();
+            private readonly List<SoundChoice> _shown = new();
+            private bool _stemsExpanded = true;
+            private const string StemsParentKey = "STEMS_PARENT";
+            private static bool IsStemsFamily(string c) => c == SoundCategorizer.Stems || c.StartsWith("Stems · ", StringComparison.Ordinal);
+            private static string StemChildLabel(string c) => c == SoundCategorizer.Stems ? "General" : c.Substring("Stems · ".Length);
             private readonly Style? _buttonStyle;
             private readonly Button _previewBtn;
             private readonly DispatcherTimer _previewTimer;
@@ -625,16 +635,19 @@ namespace BeatSyncStudioPro
                 grid.Children.Add(_soundList);
                 root.Children.Add(grid);
                 _win.Content = root;
-                foreach (var c in _cats) _catList.Items.Add($"{SoundCategorizer.Icon(c)} {c}  ({catalog[c].Count})");
+                BuildCategoryRows();
+                _catList.MouseLeftButtonUp += CatList_MouseLeftButtonUp;
                 _catList.SelectionChanged += (s, e) =>
                 {
                     StopPreview();
                     _soundList.Items.Clear();
+                    _shown.Clear();
                     _useBtn.IsEnabled = false;
-                    if (_catList.SelectedIndex < 0) return;
-                    string cat = _cats[_catList.SelectedIndex];
-                    foreach (var ch in _catalog[cat]) _soundList.Items.Add(ch.Display);
-                    _status.Text = $"{cat}: {_catalog[cat].Count} sounds — pick one and hit Preview.";
+                    if (_catList.SelectedIndex < 0 || _catList.SelectedIndex >= _rows.Count) return;
+                    string cat = _rows[_catList.SelectedIndex];
+                    var list = ChoicesFor(cat);
+                    foreach (var ch in list) { _shown.Add(ch); _soundList.Items.Add(ch.Display); }
+                    _status.Text = $"{(cat == StemsParentKey ? "Stems" : cat)}: {list.Count} sounds — pick one and hit Preview.";
                 };
                 _soundList.SelectionChanged += (s, e) =>
                 {
@@ -676,8 +689,10 @@ namespace BeatSyncStudioPro
                     StopPreview();
                     if (DeleteHandler(ch))
                     {
-                        string cat = _cats[_catList.SelectedIndex];
-                        _catalog[cat].Remove(ch);
+                        string? home = null;
+                        foreach (var kv in _catalog) if (kv.Value.Contains(ch)) { home = kv.Key; break; }
+                        if (home != null) _catalog[home].Remove(ch);
+                        _shown.Remove(ch);
                         _soundList.Items.RemoveAt(_soundList.SelectedIndex);
                         RefreshCategoryCounts();
                         _status.Text = $"Deleted: {ch.Display}";
@@ -703,13 +718,77 @@ namespace BeatSyncStudioPro
                 else _status.Text = "No sounds found anywhere — use Browse files… to pick one from disk.";
             }
 
+            // v3.55: (re)build the category rows — flat categories as before,
+            // but the whole stems family collapses into one parent row with
+            // the per-type categories as indented children under it.
+            private void BuildCategoryRows()
+            {
+                var fam = _cats.Where(IsStemsFamily).ToList();
+                var keys = new List<string>();
+                bool emitted = false;
+                foreach (var c in _cats)
+                {
+                    if (IsStemsFamily(c))
+                    {
+                        if (emitted) continue;
+                        emitted = true;
+                        keys.Add(StemsParentKey);
+                        if (_stemsExpanded)
+                            keys.AddRange(fam.Where(fc => fc != SoundCategorizer.Stems)
+                                             .Concat(fam.Where(fc => fc == SoundCategorizer.Stems)));
+                        continue;
+                    }
+                    keys.Add(c);
+                }
+                _rows = keys;
+                _catList.Items.Clear();
+                foreach (var k in _rows) _catList.Items.Add(CategoryRowText(k));
+            }
+
+            private string CategoryRowText(string key)
+            {
+                if (key == StemsParentKey)
+                {
+                    int total = _cats.Where(IsStemsFamily).Sum(fc => _catalog.TryGetValue(fc, out var l) ? l.Count : 0);
+                    return $"{(_stemsExpanded ? "\u2796" : "\u2795")} {SoundCategorizer.Icon(SoundCategorizer.Stems)} Stems  ({total})";
+                }
+                if (IsStemsFamily(key)) return $" -- {StemChildLabel(key)}  ({_catalog[key].Count})";
+                return $"{SoundCategorizer.Icon(key)} {key}  ({_catalog[key].Count})";
+            }
+
+            private List<SoundChoice> ChoicesFor(string key)
+            {
+                if (key != StemsParentKey) return _catalog.TryGetValue(key, out var l) ? l : new List<SoundChoice>();
+                var all = new List<SoundChoice>();
+                var fam = _cats.Where(IsStemsFamily)
+                               .OrderBy(fc => fc == SoundCategorizer.Stems ? 1 : 0)
+                               .ThenBy(fc => StemChildLabel(fc), StringComparer.OrdinalIgnoreCase);
+                foreach (var fc in fam) if (_catalog.TryGetValue(fc, out var l)) all.AddRange(l);
+                return all;
+            }
+
+            // v3.55: clicking the "+ Stems" parent row folds/unfolds the
+            // sub-category rows (same as the main library list).
+            private void CatList_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+            {
+                var el = _catList.InputHitTest(e.GetPosition(_catList)) as DependencyObject;
+                var item = ItemsControl.ContainerFromElement(_catList, el) as ListBoxItem;
+                if (item == null) return;
+                int idx = _catList.ItemContainerGenerator.IndexFromContainer(item);
+                if (idx >= 0 && idx < _rows.Count && _rows[idx] == StemsParentKey)
+                {
+                    _stemsExpanded = !_stemsExpanded;
+                    string keep = _rows[Math.Max(0, Math.Min(idx, _rows.Count - 1))];
+                    BuildCategoryRows();
+                    int ni = _rows.IndexOf(keep == StemsParentKey || IsStemsFamily(keep) ? StemsParentKey : keep);
+                    if (ni >= 0) _catList.SelectedIndex = ni;
+                }
+            }
+
             private void RefreshCategoryCounts()
             {
-                for (int i = 0; i < _cats.Count && i < _catList.Items.Count; i++)
-                {
-                    string c = _cats[i];
-                    _catList.Items[i] = $"{SoundCategorizer.Icon(c)} {c}  ({_catalog[c].Count})";
-                }
+                for (int i = 0; i < _rows.Count && i < _catList.Items.Count; i++)
+                    _catList.Items[i] = CategoryRowText(_rows[i]);
             }
 
             public void ReloadCatalog(Dictionary<string, List<SoundChoice>> catalog)
@@ -726,16 +805,16 @@ namespace BeatSyncStudioPro
                     int ib = Array.IndexOf(preferred, kb); if (ib < 0) ib = 100;
                     return ia != ib ? ia.CompareTo(ib) : string.Compare(a, b, StringComparison.OrdinalIgnoreCase);
                 });
-                _catList.Items.Clear();
-                foreach (var c in _cats) _catList.Items.Add($"{SoundCategorizer.Icon(c)} {c}  ({catalog[c].Count})");
+                BuildCategoryRows();
                 _soundList.Items.Clear();
+                _shown.Clear();
                 if (_catList.Items.Count > 0) _catList.SelectedIndex = 0;
             }
 
             private SoundChoice? SelectedChoice()
             {
-                if (_catList.SelectedIndex < 0 || _soundList.SelectedIndex < 0) return null;
-                return _catalog[_cats[_catList.SelectedIndex]][_soundList.SelectedIndex];
+                if (_soundList.SelectedIndex < 0 || _soundList.SelectedIndex >= _shown.Count) return null;
+                return _shown[_soundList.SelectedIndex];
             }
 
             // v3.53: fill the tag line + cover thumbnail for the selected sound.

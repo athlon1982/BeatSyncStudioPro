@@ -166,7 +166,7 @@
                     <Image Source="/Assets/app-icon.png" Width="34" Height="34"/>
                     <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="19" FontWeight="Bold" Effect="{StaticResource GlowText}"><Run Text="BEATSYNC" Foreground="#FFFFFF"/><Run Text=" STUDIO PRO" Foreground="#1DB954"/></TextBlock>
                     <Border Background="#1B212E" BorderBrush="#C9A227" BorderThickness="1" CornerRadius="9" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="v3.54" FontSize="11" Foreground="#E8C766" FontWeight="Bold"/>
+                        <TextBlock Text="v3.55" FontSize="11" Foreground="#E8C766" FontWeight="Bold"/>
                     </Border>
                 </StackPanel>
             </Grid>
@@ -263,8 +263,8 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <ListBox x:Name="LibraryCategoryList" Grid.Row="0" SelectionChanged="LibraryCategoryList_SelectionChanged" Background="#14171E" Foreground="White" BorderBrush="#333" Margin="0,0,0,6"
-                             ToolTip="Categories — pick one and its sounds show below, just like the DJ sampler picker."/>
+                    <ListBox x:Name="LibraryCategoryList" Grid.Row="0" SelectionChanged="LibraryCategoryList_SelectionChanged" MouseLeftButtonUp="LibraryCategoryList_MouseLeftButtonUp" Background="#14171E" Foreground="White" BorderBrush="#333" Margin="0,0,0,6"
+                             ToolTip="Categories — pick one and its sounds show below, just like the DJ sampler picker. Click the + Stems row to fold/unfold the stem sub-categories."/>
                     <ListBox x:Name="LibrarySoundList" Grid.Row="1" SelectionChanged="LibrarySoundList_SelectionChanged" PreviewMouseLeftButtonDown="LibrarySoundList_PreviewMouseLeftButtonDown" PreviewMouseRightButtonDown="LibrarySoundList_PreviewMouseRightButtonDown" MouseMove="LibrarySoundList_MouseMove" MouseDoubleClick="LibrarySoundList_MouseDoubleClick" Background="#14171E" Foreground="White" BorderBrush="#333"
                              ToolTip="Click a sound to arm it, then click the timeline to place it — or drag it straight onto a track. Double-click previews it. Right-click a sound to export, rename or delete it.">
                         <ListBox.ContextMenu>
