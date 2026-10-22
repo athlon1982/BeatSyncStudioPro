@@ -29,6 +29,11 @@ namespace BeatSyncStudioPro
             lock (_lock) { _buffer = interleaved; _pos = 0; _playing = false; }
         }
 
+        public void Clear()
+        {
+            lock (_lock) { _buffer = Array.Empty<float>(); _pos = 0; _playing = false; }
+        }
+
         public void Trigger()
         {
             lock (_lock) { _pos = 0; _playing = _buffer.Length > 0; }

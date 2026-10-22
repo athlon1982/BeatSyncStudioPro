@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.40 — 📐 No-Scroll Board, Hover Help, Programmable Pads
+- **No more scrolling, anywhere:** each deck is rearranged into two-column zones (platter + waveform on the left; visual, load, stems and transport on the right; tempo/BPM/key beside hot cues/loops/gain; beat jump and the track list full width), the mixer is compacted (crossfader + cruise beside mic + companion), and the whole board is designed at 1800×1000 and scales down to fit smaller screens. Every control is on screen at once — scrollbars are gone.
+- **Hover help on everything:** sit your mouse on any knob, button, slider, pad or picker in the DJ window and a plain-English popup explains what it does (pops up fast, stays while you read).
+- **Every sampler pad is programmable:** right-click any pad — including pad 1 — for **Assign sound…**, **Rename pad…** and **Clear sound**. Names are saved (sampler-pad-names.json) and a cleared pad stays cleared instead of its built-in sound sneaking back.
+
 ## Version 3.39 — DJ Reliability Fixes (GLM Audit, Part 5)
 - **FIX 9 — Phone companion hardening:** sign-in tokens now expire after 12 hours and are all cleared when the server stops; the wrong-password lockout escalates (30s, 60s, 120s… up to 15 minutes) for repeat offenders; the companion settings are cached in memory instead of re-read from disk on every phone request; the lockout reply is no longer written while holding the auth lock; if the listener ever dies unexpectedly the companion window now reports it instead of pretending to run; and sampler pad commands from the phone are bounds-checked before they touch anything.
 

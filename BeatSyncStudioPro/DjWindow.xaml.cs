@@ -61,6 +61,7 @@ namespace BeatSyncStudioPro
         private readonly SamplerEngine _sampler = new SamplerEngine();
         private readonly Button[] _padButtons = new Button[SamplerEngine.PadCount];
         private readonly TextBlock[] _padSubs = new TextBlock[SamplerEngine.PadCount];
+        private readonly TextBlock[] _padTitles = new TextBlock[SamplerEngine.PadCount];
         private static readonly Brush PadBaseBrush = new SolidColorBrush(Color.FromRgb(0x2A, 0x30, 0x3C));
         private static readonly Brush PadFlashBrush = new SolidColorBrush(Color.FromRgb(0x1D, 0xB9, 0x54));
         private static readonly Brush PadSubBrush = new SolidColorBrush(Color.FromRgb(0x8A, 0x93, 0xA5));
@@ -136,6 +137,7 @@ namespace BeatSyncStudioPro
             _companion.StateJsonProvider = () => _companionStateJson;
             _timer.Tick += (s, e) => { _panelA.Refresh(); _panelB.Refresh(); CruiseTick(); SamplerFlashTick(); MicTick(); MixerTick(); DrainCompanion(); };
             _timer.Start();
+            TuneToolTips(this);
 
             // Never open larger than the screen's work area (scaled displays
             // were clipping the window on the right and bottom)
@@ -150,6 +152,18 @@ namespace BeatSyncStudioPro
                 Top = wa.Top + Math.Max(0, (wa.Height - ActualHeight) / 2);
             };
             Closed += (s, e) => { _timer.Stop(); _recorder.Stop(); _owner.DetachDjMixer(_recorder); _mic.Dispose(); _companion.Stop(); };
+        }
+
+        // v3.40: snappy, long-lived hover help on every element in the window.
+        private static void TuneToolTips(DependencyObject node)
+        {
+            if (node is FrameworkElement fe)
+            {
+                ToolTipService.SetInitialShowDelay(fe, 400);
+                ToolTipService.SetShowDuration(fe, 15000);
+            }
+            int count = VisualTreeHelper.GetChildrenCount(node);
+            for (int i = 0; i < count; i++) TuneToolTips(VisualTreeHelper.GetChild(node, i));
         }
 
         // ===== v3.37 concept board: channel strips + live master spectrum =====
@@ -173,8 +187,8 @@ namespace BeatSyncStudioPro
 
         private void MixerTick()
         {
-            VuAFill.Height = Math.Clamp(_panelA.TapLevel, 0f, 1f) * 372;
-            VuBFill.Height = Math.Clamp(_panelB.TapLevel, 0f, 1f) * 372;
+            VuAFill.Height = Math.Clamp(_panelA.TapLevel, 0f, 1f) * 256;
+            VuBFill.Height = Math.Clamp(_panelB.TapLevel, 0f, 1f) * 256;
             _syncingChannelUi = true;
             SyncStrip(_panelA, ChAGainKnob, ChAFader);
             SyncStrip(_panelB, ChBGainKnob, ChBFader);
@@ -458,25 +472,43 @@ namespace BeatSyncStudioPro
         private void BuildSamplerPads()
         {
             var assignments = LoadPadAssignments();
+            var names = LoadPadNames();
             for (int i = 0; i < SamplerEngine.PadCount; i++)
             {
                 int pad = i;
                 var (emoji, name, packEntry) = PadDefs[i];
-                var title = new TextBlock { Text = emoji + " " + name, FontWeight = FontWeights.Bold, FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+                string displayName = names.TryGetValue(i, out string? custom) && !string.IsNullOrWhiteSpace(custom) ? custom : name;
+                var title = new TextBlock { Text = emoji + " " + displayName, FontWeight = FontWeights.Bold, FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
                 var sub = new TextBlock { Text = "", FontSize = 9, Foreground = PadSubBrush, HorizontalAlignment = HorizontalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
                 var content = new StackPanel();
                 content.Children.Add(title);
                 content.Children.Add(sub);
                 var btn = new Button { Content = content, Height = 54, Style = (Style)TryFindResource("HwButton"), Margin = new Thickness(3), Background = PadBaseBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
+                btn.ToolTip = "Play this sound. Right-click the pad to assign a sound, rename it, or clear it — every pad is programmable.";
                 btn.Click += (s, e) => TriggerPad(pad);
-                btn.MouseRightButtonUp += (s, e) => { AssignPad(pad); e.Handled = true; };
+                var menu = new ContextMenu();
+                var miAssign = new MenuItem { Header = "🎵 Assign sound…" };
+                miAssign.Click += (s, e) => AssignPad(pad);
+                var miRename = new MenuItem { Header = "✏️ Rename pad…" };
+                miRename.Click += (s, e) => RenamePad(pad);
+                var miClear = new MenuItem { Header = "🧹 Clear sound" };
+                miClear.Click += (s, e) => ClearPad(pad);
+                menu.Items.Add(miAssign);
+                menu.Items.Add(miRename);
+                menu.Items.Add(miClear);
+                btn.ContextMenu = menu;
                 _padButtons[i] = btn;
                 _padSubs[i] = sub;
+                _padTitles[i] = title;
                 SamplerPadGrid.Children.Add(btn);
-                if (assignments.TryGetValue(i, out string? path) && !string.IsNullOrEmpty(path) && File.Exists(path))
+                if (assignments.TryGetValue(i, out string? path))
                 {
-                    try { _sampler.Slots[i].Load(SamplerEngine.DecodeBytes(File.ReadAllBytes(path), path)); sub.Text = System.IO.Path.GetFileName(path); }
-                    catch { sub.Text = "assigned file unreadable"; }
+                    if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                    {
+                        try { _sampler.Slots[i].Load(SamplerEngine.DecodeBytes(File.ReadAllBytes(path), path)); sub.Text = System.IO.Path.GetFileName(path); }
+                        catch { sub.Text = "assigned file unreadable"; }
+                    }
+                    else sub.Text = "right-click: assign a sound";
                 }
                 else if (packEntry != null)
                 {
@@ -488,7 +520,7 @@ namespace BeatSyncStudioPro
                     }
                     else sub.Text = "sound pack not found";
                 }
-                else sub.Text = i == 0 ? "right-click: assign your tag" : "right-click: assign a sound";
+                else sub.Text = "right-click: assign a sound";
             }
         }
 
@@ -556,6 +588,78 @@ namespace BeatSyncStudioPro
                 File.WriteAllText(PadAssignmentsPath, System.Text.Json.JsonSerializer.Serialize(map));
             }
             catch { }
+        }
+
+        // v3.40: every sampler pad is programmable — custom names persist next
+        // to the sound assignments (sampler-pad-names.json, pad index → name).
+        private static string PadNamesPath => System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BeatSyncStudioPro", "sampler-pad-names.json");
+
+        private static System.Collections.Generic.Dictionary<int, string> LoadPadNames()
+        {
+            try
+            {
+                if (File.Exists(PadNamesPath))
+                {
+                    var map = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<int, string>>(File.ReadAllText(PadNamesPath));
+                    if (map != null) return map;
+                }
+            }
+            catch { }
+            return new System.Collections.Generic.Dictionary<int, string>();
+        }
+
+        private static void SavePadNames(System.Collections.Generic.Dictionary<int, string> map)
+        {
+            try
+            {
+                var dir = System.IO.Path.GetDirectoryName(PadNamesPath);
+                if (dir != null) Directory.CreateDirectory(dir);
+                File.WriteAllText(PadNamesPath, System.Text.Json.JsonSerializer.Serialize(map));
+            }
+            catch { }
+        }
+
+        private void ClearPad(int pad)
+        {
+            _sampler.Slots[pad].Clear();
+            var map = LoadPadAssignments();
+            map[pad] = "";   // an empty entry means "intentionally cleared" — the built-in default must not come back
+            SavePadAssignments(map);
+            _padSubs[pad].Text = "right-click: assign a sound";
+            SetStatus($"Sampler pad {pad + 1} cleared — right-click it to assign a new sound.");
+        }
+
+        private void RenamePad(int pad)
+        {
+            var names = LoadPadNames();
+            string current = names.TryGetValue(pad, out string? c) && !string.IsNullOrWhiteSpace(c) ? c : PadDefs[pad].Name;
+            var input = new TextBox { Text = current, MinWidth = 240, Margin = new Thickness(10) };
+            var ok = new Button { Content = "Save name", IsDefault = true, Padding = new Thickness(14, 5, 14, 5), Margin = new Thickness(10, 0, 10, 10), HorizontalAlignment = HorizontalAlignment.Right };
+            var panel = new StackPanel();
+            panel.Children.Add(new TextBlock { Text = $"Name for sampler pad {pad + 1}:", Margin = new Thickness(10, 10, 10, 0), Foreground = Brushes.White });
+            panel.Children.Add(input);
+            panel.Children.Add(ok);
+            var dlg = new Window
+            {
+                Title = "Rename sampler pad",
+                Content = panel,
+                SizeToContent = SizeToContent.WidthAndHeight,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = new SolidColorBrush(Color.FromRgb(0x17, 0x1B, 0x26)),
+                Foreground = Brushes.White,
+                ResizeMode = ResizeMode.NoResize
+            };
+            ok.Click += (s, e) => { dlg.DialogResult = true; };
+            input.Loaded += (s, e) => { input.Focus(); input.SelectAll(); };
+            if (dlg.ShowDialog() != true) return;
+            string newName = input.Text.Trim();
+            if (newName.Length == 0) newName = PadDefs[pad].Name;
+            names[pad] = newName;
+            SavePadNames(names);
+            _padTitles[pad].Text = PadDefs[pad].Emoji + " " + newName;
+            SetStatus($"Sampler pad {pad + 1} renamed to \"{newName}\".");
         }
 
         private void MicButton_Click(object sender, RoutedEventArgs e)
@@ -849,12 +953,35 @@ namespace BeatSyncStudioPro
                 _title = new TextBlock { Text = $"{name} — empty", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = accent, Margin = new Thickness(0, 0, 0, 6) };
                 root.Children.Add(_title);
 
+                // v3.40 compact board: two-column zones so the whole deck fits
+                // on screen at once — no scrolling. Platter zone on the left,
+                // control zone on the right, performance rows below, then the
+                // track list full width.
+                var topGrid = new Grid { Margin = new Thickness(0, 2, 0, 0) };
+                topGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
+                topGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                var leftStack = new StackPanel();
+                var rightStack = new StackPanel { Margin = new Thickness(10, 0, 0, 0) };
+                Grid.SetColumn(rightStack, 1);
+                topGrid.Children.Add(leftStack);
+                topGrid.Children.Add(rightStack);
+                root.Children.Add(topGrid);
+                var midGrid = new Grid { Margin = new Thickness(0, 2, 0, 0) };
+                midGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                midGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                var midL = new StackPanel();
+                var midR = new StackPanel { Margin = new Thickness(10, 0, 0, 0) };
+                Grid.SetColumn(midR, 1);
+                midGrid.Children.Add(midL);
+                midGrid.Children.Add(midR);
+                root.Children.Add(midGrid);
+
                 // The platter is built at a fixed 198px — a Viewbox scales it
                 // down so the whole deck fits smaller / scaled-up screens.
-                root.Children.Add(new Viewbox
+                leftStack.Children.Add(new Viewbox
                 {
                     Child = BuildPlatter(),
-                    Height = 168,
+                    Height = 160,
                     Stretch = Stretch.Uniform,
                     HorizontalAlignment = HorizontalAlignment.Center
                 });
@@ -869,22 +996,22 @@ namespace BeatSyncStudioPro
                 _slipBtn.ToolTip = "Slip mode: while you scratch, the song keeps its place underneath. Release and you land exactly where the song would have been.";
                 _slipBtn.Click += (s, e) => SetSlip(!_deck.SlipMode);
                 scratchRow.Children.Add(_slipBtn);
-                root.Children.Add(scratchRow);
+                leftStack.Children.Add(scratchRow);
 
                 // Waveform + playhead + scrub
-                var waveGrid = new Grid { Height = 74, Background = new SolidColorBrush(Color.FromRgb(0x14, 0x17, 0x1E)) };
+                var waveGrid = new Grid { Height = 64, Background = new SolidColorBrush(Color.FromRgb(0x14, 0x17, 0x1E)) };
                 _waveImage = new Image { Stretch = Stretch.Fill };
                 waveGrid.Children.Add(_waveImage);
                 _waveCanvas = new Canvas { Background = Brushes.Transparent };
-                _playheadLine = new Line { Y1 = 0, Y2 = 74, Stroke = accent, StrokeThickness = 2 };
+                _playheadLine = new Line { Y1 = 0, Y2 = 64, Stroke = accent, StrokeThickness = 2 };
                 _waveCanvas.Children.Add(_playheadLine);
                 _waveCanvas.MouseLeftButtonDown += Wave_Mouse;
                 _waveCanvas.MouseMove += Wave_Mouse;
                 waveGrid.Children.Add(_waveCanvas);
-                root.Children.Add(waveGrid);
+                leftStack.Children.Add(waveGrid);
 
                 _timeText = new TextBlock { Text = "0:00 / 0:00", FontSize = 11, Foreground = MutedText, Margin = new Thickness(0, 4, 0, 2) };
-                root.Children.Add(_timeText);
+                leftStack.Children.Add(_timeText);
 
                 // Live visual for THIS deck's own sound: spectrum / waveform / off
                 var visRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
@@ -910,7 +1037,7 @@ namespace BeatSyncStudioPro
                 };
                 visRow.Children.Add(_visualPicker);
                 visRow.Children.Add(new TextBlock { Text = "(this deck's own sound)", Foreground = MutedText, FontSize = 9, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
-                root.Children.Add(visRow);
+                rightStack.Children.Add(visRow);
 
                 // Style row: platter (vinyl / cassette) + visual colors
                 var styleRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
@@ -951,15 +1078,15 @@ namespace BeatSyncStudioPro
                     }
                 };
                 styleRow.Children.Add(_colorPicker);
-                root.Children.Add(styleRow);
-                _visualBorder = new Border { Height = 64, Margin = new Thickness(0, 4, 0, 0), Background = new SolidColorBrush(Color.FromRgb(0x0B, 0x0D, 0x13)), CornerRadius = new CornerRadius(8) };
+                rightStack.Children.Add(styleRow);
+                _visualBorder = new Border { Height = 56, Margin = new Thickness(0, 4, 0, 0), Background = new SolidColorBrush(Color.FromRgb(0x0B, 0x0D, 0x13)), CornerRadius = new CornerRadius(8) };
                 _visualImage = new Image { Stretch = Stretch.Fill };
                 _visualBorder.Child = _visualImage;
-                root.Children.Add(_visualBorder);
+                rightStack.Children.Add(_visualBorder);
 
                 // Load row
                 var loadRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
-                _loadPicker = new ComboBox { Width = 230, VerticalAlignment = VerticalAlignment.Center };
+                _loadPicker = new ComboBox { Width = 210, VerticalAlignment = VerticalAlignment.Center };
                 _loadPicker.DropDownOpened += (s, e) => FillLoadPicker();
                 FillLoadPicker();
                 loadRow.Children.Add(_loadPicker);
@@ -971,7 +1098,7 @@ namespace BeatSyncStudioPro
                 fileBtn.Margin = new Thickness(6, 0, 0, 0);
                 fileBtn.Click += (s, e) => LoadFromFile();
                 loadRow.Children.Add(fileBtn);
-                root.Children.Add(loadRow);
+                rightStack.Children.Add(loadRow);
 
                 // Stems (v3.25): split the loaded track into 4 synced stems, toggled live
                 var stemRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
@@ -982,7 +1109,7 @@ namespace BeatSyncStudioPro
                 stemRow.Children.Add(stemLabel);
                 stemRow.Children.Add(_stemBtn);
                 stemRow.Children.Add(_stemStatus);
-                root.Children.Add(stemRow);
+                rightStack.Children.Add(stemRow);
                 _stemChipRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(72, 4, 0, 0), Visibility = Visibility.Collapsed };
                 string[] chipNames = { "\U0001F3A4 Vocals", "\U0001F941 Drums", "\U0001F3B8 Bass", "\U0001F3B9 Other" };
                 int[] chipStem = { 3, 0, 1, 2 };
@@ -1001,32 +1128,32 @@ namespace BeatSyncStudioPro
                     _stemChips[i] = b;
                     _stemChipRow.Children.Add(b);
                 }
-                root.Children.Add(_stemChipRow);
+                rightStack.Children.Add(_stemChipRow);
 
                 // Transport row
                 var transport = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 2) };
-                _playButton = MakeButton("▶ PLAY", 92);
+                _playButton = MakeButton("▶ PLAY", 84);
                 _playButton.Background = accent;
                 _playButton.Click += (s, e) => PlayPause();
                 transport.Children.Add(_playButton);
-                var cueBtn = MakeButton("CUE", 64);
+                var cueBtn = MakeButton("CUE", 56);
                 cueBtn.Margin = new Thickness(6, 0, 0, 0);
                 cueBtn.Click += (s, e) => Cue();
                 transport.Children.Add(cueBtn);
-                var syncBtn = MakeButton("SYNC", 64);
+                var syncBtn = MakeButton("SYNC", 56);
                 syncBtn.Margin = new Thickness(6, 0, 0, 0);
                 syncBtn.Click += (s, e) => SyncToOther();
                 transport.Children.Add(syncBtn);
-                var fxBtn = MakeButton("🎛️ FX", 64);
+                var fxBtn = MakeButton("🎛️ FX", 56);
                 fxBtn.Margin = new Thickness(6, 0, 0, 0);
                 fxBtn.Click += (s, e) => _window.OpenFx(_fx, _name);
                 transport.Children.Add(fxBtn);
-                var pflBtn = MakeButton("🎧 PFL", 64);
+                var pflBtn = MakeButton("🎧 PFL", 56);
                 pflBtn.Margin = new Thickness(6, 0, 0, 0);
                 pflBtn.IsEnabled = false;
                 pflBtn.ToolTip = "Headphone cueing needs a second audio output — it unlocks when the hardware is there.";
                 transport.Children.Add(pflBtn);
-                root.Children.Add(transport);
+                rightStack.Children.Add(transport);
 
                 // Tempo row
                 var tempoRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
@@ -1036,7 +1163,7 @@ namespace BeatSyncStudioPro
                 bendDown.PreviewMouseLeftButtonUp += (s, e) => _deck.Bend = 1.0;
                 bendDown.MouseLeave += (s, e) => _deck.Bend = 1.0;
                 tempoRow.Children.Add(bendDown);
-                _tempoSlider = new Slider { Minimum = -8, Maximum = 8, Value = 0, Width = 170, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 4, 0) };
+                _tempoSlider = new Slider { Minimum = -8, Maximum = 8, Value = 0, Width = 140, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 4, 0) };
                 _tempoSlider.Style = _window.TryFindResource("HwSliderH") as Style;
                 _tempoSlider.ValueChanged += (s, e) => SetTempo(_tempoSlider.Value);
                 tempoRow.Children.Add(_tempoSlider);
@@ -1050,7 +1177,7 @@ namespace BeatSyncStudioPro
                 var resetBtn = MakeButton("0%", 36);
                 resetBtn.Click += (s, e) => _tempoSlider.Value = 0;
                 tempoRow.Children.Add(resetBtn);
-                root.Children.Add(tempoRow);
+                midL.Children.Add(tempoRow);
 
                 // BPM row
                 var bpmRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
@@ -1065,7 +1192,7 @@ namespace BeatSyncStudioPro
                 bpmRow.Children.Add(tapBtn);
                 _effBpmText = new TextBlock { Text = "", FontSize = 11, Foreground = MutedText, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
                 bpmRow.Children.Add(_effBpmText);
-                root.Children.Add(bpmRow);
+                midL.Children.Add(bpmRow);
 
                 // Key row (v3.28): detected key + Camelot, key sync, wheel
                 var keyRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
@@ -1079,7 +1206,7 @@ namespace BeatSyncStudioPro
                 wheelBtn.Margin = new Thickness(6, 0, 0, 0);
                 wheelBtn.Click += (s, e) => _window.ShowCamelotWheel(this);
                 keyRow.Children.Add(wheelBtn);
-                root.Children.Add(keyRow);
+                midL.Children.Add(keyRow);
 
                 // Hot cues
                 var hotRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
@@ -1095,7 +1222,7 @@ namespace BeatSyncStudioPro
                     hotRow.Children.Add(b);
                 }
                 hotRow.Children.Add(new TextBlock { Text = "(right-click clears)", Foreground = MutedText, FontSize = 9, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) });
-                root.Children.Add(hotRow);
+                midR.Children.Add(hotRow);
 
                 // Loops
                 var loopRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
@@ -1110,7 +1237,7 @@ namespace BeatSyncStudioPro
                     _loopButtons[i] = btn;
                     loopRow.Children.Add(btn);
                 }
-                root.Children.Add(loopRow);
+                midR.Children.Add(loopRow);
 
                 // Beat jump row (v3.30): whole-beat jumps + quantize toggle
                 var jumpRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
@@ -1121,6 +1248,7 @@ namespace BeatSyncStudioPro
                     var jbtn = MakeButton(jb > 0 ? $"+{jb}" : $"{jb}", 40);
                     jbtn.Margin = new Thickness(4, 0, 0, 0);
                     jbtn.Click += (s, e) => BeatJump(beatsJump);
+                    jbtn.ToolTip = $"Beat jump: skip {(beatsJump > 0 ? "forward" : "back")} {Math.Abs(beatsJump)} beats from the playhead. Needs the BPM.";
                     jumpRow.Children.Add(jbtn);
                 }
                 _quantizeBtn = MakeButton("Quantize: ON", 96);
@@ -1142,7 +1270,7 @@ namespace BeatSyncStudioPro
                 _gainKnob = new KnobControl { Minimum = 0, Maximum = 1.25, Value = 1.0, Width = 56, Height = 56, Accent = _accent, VerticalAlignment = VerticalAlignment.Center };
                 _gainKnob.ValueChanged += (s, e) => _channelGain.Volume = (float)_gainKnob.Value;
                 gainRow.Children.Add(_gainKnob);
-                root.Children.Add(gainRow);
+                midR.Children.Add(gainRow);
 
                 // Track list for this deck: queue songs, step through them, mix on
                 var qHead = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 0) };
@@ -1152,7 +1280,7 @@ namespace BeatSyncStudioPro
                 root.Children.Add(qHead);
                 _queueList = new ListBox
                 {
-                    Height = 60,
+                    Height = 52,
                     Margin = new Thickness(0, 4, 0, 0),
                     Background = new SolidColorBrush(Color.FromRgb(0x14, 0x17, 0x1E)),
                     Foreground = Brushes.White,
@@ -1200,8 +1328,40 @@ namespace BeatSyncStudioPro
                 };
                 root.Children.Add(_autoNextBox);
 
+                // v3.40: hover help on every control in the deck.
+                _playButton.ToolTip = "Play / pause this deck.";
+                cueBtn.ToolTip = "CUE: return to the cue point, or set it where the song is paused.";
+                syncBtn.ToolTip = "SYNC: match this deck's tempo to the other deck's BPM. Needs the BPM set on both decks.";
+                fxBtn.ToolTip = "FX: this deck's EQ, delay and reverb — the full effects window (the mixer's channel knobs drive the same EQ).";
+                waveGrid.ToolTip = "Waveform: click or drag to jump to that part of the song.";
+                loadBtn.ToolTip = "Load the song picked in the list on the left onto this deck.";
+                fileBtn.ToolTip = "Browse for any WAV / MP3 file and load it onto this deck.";
+                _loadPicker.ToolTip = "Songs from your library and generated tracks — pick one, then press Load.";
+                _stemBtn.ToolTip = "Split Stems: separate this song into vocals, drums, bass and other so you can remix the parts live. The first run downloads the AI model.";
+                for (int i = 0; i < 4; i++) _stemChips[i].ToolTip = "Turn this part of the song on or off, live, while it plays.";
+                _visualPicker.ToolTip = "The live visual style for this deck's display (this deck's own sound).";
+                _platterPicker.ToolTip = "Platter style: spinning vinyl or a cassette deck.";
+                _colorPicker.ToolTip = "Color palette for this deck's visuals.";
+                bendDown.ToolTip = "Hold to nudge the tempo down for a moment (pitch bend) — for lining up the beats by ear.";
+                bendUp.ToolTip = "Hold to nudge the tempo up for a moment (pitch bend).";
+                _tempoSlider.ToolTip = "Tempo slider: speed this deck up or slow it down (-8% to +8%).";
+                resetBtn.ToolTip = "Reset the tempo to exactly 0%.";
+                _bpmBox.ToolTip = "The song's BPM (beats per minute). Type it if you know it, or use TAP. SYNC, loops and quantize need this.";
+                tapBtn.ToolTip = "Tap along to the beat (at least 4 taps) to set the BPM by ear.";
+                _keySyncBtn.ToolTip = "Key Sync: shift this song's pitch so its key matches the other deck, keeping the tempo.";
+                wheelBtn.ToolTip = "Camelot wheel: see which keys mix cleanly with this song's key.";
+                for (int i = 0; i < 4; i++) _hotButtons[i].ToolTip = $"Hot cue {i + 1}: the first press remembers this spot in the song; later presses jump straight back to it. Right-click clears it.";
+                for (int i = 0; i < 4; i++) _loopButtons[i].ToolTip = "Loop: repeat a section of the song, counted in beats (Off stops the loop). Needs the BPM.";
+                _gainKnob.ToolTip = "This deck's channel gain — the same volume as the mixer's channel gain knob and fader for this deck.";
+                _queueList.ToolTip = "This deck's track list. Double-click a song to load and play it.";
+                addBtn.ToolTip = "Add songs to this deck's track list.";
+                prevBtn.ToolTip = "Load the previous song in the track list.";
+                nextBtn.ToolTip = "Load the next song in the track list.";
+                removeBtn.ToolTip = "Remove the selected song from the track list.";
+                _autoNextBox.ToolTip = "When this song ends, automatically load and play the next one in the track list.";
+
                 ApplyHardwareStyles(root);
-                host.Child = new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+                host.Child = root;
             }
 
             /// <summary>v3.33 board skin: every button in the panel wears the

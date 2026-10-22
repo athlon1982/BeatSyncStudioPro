@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:BeatSyncStudioPro"
         Title="DJ Decks — BeatSync Studio Pro" Icon="/Assets/app.ico"
-        Width="1280" Height="980" MinWidth="1080" MinHeight="720"
+        Width="1816" Height="1032" MinWidth="900" MinHeight="560"
         Foreground="#FFFFFF" WindowStartupLocation="CenterOwner">
     <Window.Background>
         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
@@ -121,15 +121,19 @@
             </Setter>
         </Style>
     </Window.Resources>
-    <Grid>
+    <!-- v3.40: the board is designed at 1800x1000 and the Viewbox scales it
+         DOWN to fit smaller screens — everything is always on screen, the
+         window never scrolls. -->
+    <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
+    <Grid Width="1800" Height="1000">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Brand strip with the live master spectrum (v3.37 concept board) -->
-        <Border Grid.Row="0" Background="{StaticResource HwPanelBg}" CornerRadius="12" Padding="14,8" Margin="10,10,10,0" BorderBrush="#2A3446" BorderThickness="1">
+        <!-- Brand strip with the live master spectrum -->
+        <Border Grid.Row="0" Background="{StaticResource HwPanelBg}" CornerRadius="12" Padding="14,6" Margin="10,10,10,0" BorderBrush="#2A3446" BorderThickness="1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -140,15 +144,16 @@
                     <TextBlock Text="🎧 BEATSYNC STUDIO PRO" FontSize="15" FontWeight="Bold"/>
                     <TextBlock Text="DJ BOARD" Foreground="#A0A5B5" FontSize="10"/>
                 </StackPanel>
-                <Border Grid.Column="1" Margin="18,0" Background="#0B0D13" CornerRadius="8" BorderBrush="#2A3446" BorderThickness="1" Height="42" VerticalAlignment="Center">
-                    <Image x:Name="MasterSpectrumImage" Stretch="Fill" Margin="6,4"/>
+                <Border Grid.Column="1" Margin="18,0" Background="#0B0D13" CornerRadius="8" BorderBrush="#2A3446" BorderThickness="1" Height="34" VerticalAlignment="Center"
+                        ToolTip="Live spectrum of the whole mix (both decks + sampler + mic) — what the audience hears.">
+                    <Image x:Name="MasterSpectrumImage" Stretch="Fill" Margin="6,3"/>
                 </Border>
                 <TextBlock Grid.Column="2" Text="● LIVE MIX" Foreground="#1DB954" FontWeight="Bold" FontSize="11" VerticalAlignment="Center"/>
             </Grid>
         </Border>
 
         <!-- Decks + center mixer -->
-        <Grid Grid.Row="1" Margin="10">
+        <Grid Grid.Row="1" Margin="10,8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="302"/>
@@ -160,16 +165,17 @@
 
             <!-- Center mixer -->
             <Border Grid.Column="1" Background="{StaticResource HwPanelBg}" CornerRadius="12" Padding="10" Margin="10,0" BorderBrush="#2A3446" BorderThickness="1">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>
-                    <TextBlock Text="🎧 MIXER" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                    <TextBlock Text="🎧 MIXER" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                     <TextBlock Text="Master" Foreground="#A0A5B5" FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,2"/>
-                    <local:KnobControl x:Name="DjMasterKnob" Minimum="0" Maximum="1.25" Value="0.9" Width="96" Height="96" HorizontalAlignment="Center" Accent="#1DB954"/>
-                    <Button x:Name="RecordButton" Content="🔴 Record Mix" Click="RecordButton_Click" Height="38" Style="{StaticResource HwButton}" Margin="0,12,0,0"
-                            Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                    <local:KnobControl x:Name="DjMasterKnob" Minimum="0" Maximum="1.25" Value="0.9" Width="60" Height="60" HorizontalAlignment="Center" Accent="#1DB954"
+                                       ToolTip="Master volume: how loud the whole mix is. Drag up/down or scroll on it."/>
+                    <Button x:Name="RecordButton" Content="🔴 Record Mix" Click="RecordButton_Click" Height="36" Style="{StaticResource HwButton}" Margin="0,10,0,0"
+                            Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"
+                            ToolTip="Record your whole performance (both decks, sampler and mic) to a WAV file. Click again to stop and save."/>
 
-                    <!-- Channel strips (v3.37): gain + 3-band EQ knobs + fader per deck, VU columns between -->
-                    <TextBlock Text="CHANNELS" Foreground="#A0A5B5" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,16,0,4"/>
+                    <!-- Channel strips: gain + 3-band EQ knobs + fader per deck, VU columns between -->
+                    <TextBlock Text="CHANNELS" Foreground="#A0A5B5" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,12,0,4"/>
                     <Grid HorizontalAlignment="Center">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -180,85 +186,127 @@
                         <!-- CH A strip -->
                         <StackPanel Grid.Column="0" Width="78">
                             <TextBlock Text="CH A" Foreground="#1DB954" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center"/>
-                            <local:KnobControl x:Name="ChAGainKnob" Minimum="0" Maximum="1.25" Value="1" Width="56" Height="56" HorizontalAlignment="Center" Accent="#1DB954"/>
+                            <local:KnobControl x:Name="ChAGainKnob" Minimum="0" Maximum="1.25" Value="1" Width="48" Height="48" HorizontalAlignment="Center" Accent="#1DB954"
+                                                ToolTip="Deck A channel gain — the same volume as Deck A's own gain knob and this strip's fader."/>
                             <TextBlock Text="GAIN" Foreground="#A0A5B5" FontSize="9" HorizontalAlignment="Center"/>
-                            <local:KnobControl x:Name="ChAHiKnob" Minimum="-24" Maximum="24" Value="0" Width="46" Height="46" HorizontalAlignment="Center" Accent="#1DB954" Margin="0,4,0,0"/>
+                            <local:KnobControl x:Name="ChAHiKnob" Minimum="-24" Maximum="24" Value="0" Width="38" Height="38" HorizontalAlignment="Center" Accent="#1DB954" Margin="0,4,0,0"
+                                                ToolTip="Deck A treble (high EQ). Turn down to soften Deck A while you blend; it's the same EQ as Deck A's FX window."/>
                             <TextBlock Text="HI" Foreground="#A0A5B5" FontSize="9" HorizontalAlignment="Center"/>
-                            <local:KnobControl x:Name="ChAMidKnob" Minimum="-24" Maximum="24" Value="0" Width="46" Height="46" HorizontalAlignment="Center" Accent="#1DB954" Margin="0,4,0,0"/>
+                            <local:KnobControl x:Name="ChAMidKnob" Minimum="-24" Maximum="24" Value="0" Width="38" Height="38" HorizontalAlignment="Center" Accent="#1DB954" Margin="0,4,0,0"
+                                                ToolTip="Deck A midrange EQ — where most vocals and instruments live."/>
                             <TextBlock Text="MID" Foreground="#A0A5B5" FontSize="9" HorizontalAlignment="Center"/>
-                            <local:KnobControl x:Name="ChALowKnob" Minimum="-24" Maximum="24" Value="0" Width="46" Height="46" HorizontalAlignment="Center" Accent="#1DB954" Margin="0,4,0,0"/>
+                            <local:KnobControl x:Name="ChALowKnob" Minimum="-24" Maximum="24" Value="0" Width="38" Height="38" HorizontalAlignment="Center" Accent="#1DB954" Margin="0,4,0,0"
+                                                ToolTip="Deck A bass (low EQ). Classic blend move: turn the incoming deck's LOW down so the two basslines don't fight, then swap at the drop."/>
                             <TextBlock Text="LOW" Foreground="#A0A5B5" FontSize="9" HorizontalAlignment="Center"/>
-                            <Slider x:Name="ChAFader" Orientation="Vertical" Minimum="0" Maximum="1000" Value="800" Height="110" HorizontalAlignment="Center" Margin="0,6,0,0" Style="{StaticResource HwSliderV}"/>
+                            <Slider x:Name="ChAFader" Orientation="Vertical" Minimum="0" Maximum="1000" Value="800" Height="64" HorizontalAlignment="Center" Margin="0,6,0,0" Style="{StaticResource HwSliderV}"
+                                    ToolTip="Deck A channel fader — ride this to bring Deck A in or out of the mix by hand."/>
                             <TextBlock Text="FADER" Foreground="#A0A5B5" FontSize="9" HorizontalAlignment="Center" Margin="0,2,0,0"/>
                         </StackPanel>
                         <!-- VU A -->
-                        <Grid Grid.Column="1" Width="13" Height="372" Margin="5,18,2,0" VerticalAlignment="Top" ClipToBounds="True">
+                        <Grid Grid.Column="1" Width="13" Height="256" Margin="5,18,2,0" VerticalAlignment="Top" ClipToBounds="True"
+                              ToolTip="Deck A's live level. Green is healthy; pinned at the top means it's too hot — ease the gain down.">
                             <Border Background="#0A0C11" CornerRadius="4" BorderBrush="#333A4C" BorderThickness="1"/>
                             <Border x:Name="VuAFill" Background="#1DB954" CornerRadius="4" VerticalAlignment="Bottom" Height="0" Margin="1"/>
                         </Grid>
                         <!-- VU B -->
-                        <Grid Grid.Column="2" Width="13" Height="372" Margin="2,18,5,0" VerticalAlignment="Top" ClipToBounds="True">
+                        <Grid Grid.Column="2" Width="13" Height="256" Margin="2,18,5,0" VerticalAlignment="Top" ClipToBounds="True"
+                              ToolTip="Deck B's live level. Green is healthy; pinned at the top means it's too hot — ease the gain down.">
                             <Border Background="#0A0C11" CornerRadius="4" BorderBrush="#333A4C" BorderThickness="1"/>
                             <Border x:Name="VuBFill" Background="#B388FF" CornerRadius="4" VerticalAlignment="Bottom" Height="0" Margin="1"/>
                         </Grid>
                         <!-- CH B strip -->
                         <StackPanel Grid.Column="3" Width="78">
                             <TextBlock Text="CH B" Foreground="#B388FF" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center"/>
-                            <local:KnobControl x:Name="ChBGainKnob" Minimum="0" Maximum="1.25" Value="1" Width="56" Height="56" HorizontalAlignment="Center" Accent="#B388FF"/>
+                            <local:KnobControl x:Name="ChBGainKnob" Minimum="0" Maximum="1.25" Value="1" Width="48" Height="48" HorizontalAlignment="Center" Accent="#B388FF"
+                                                ToolTip="Deck B channel gain — the same volume as Deck B's own gain knob and this strip's fader."/>
                             <TextBlock Text="GAIN" Foreground="#A0A5B5" FontSize="9" HorizontalAlignment="Center"/>
-                            <local:KnobControl x:Name="ChBHiKnob" Minimum="-24" Maximum="24" Value="0" Width="46" Height="46" HorizontalAlignment="Center" Accent="#B388FF" Margin="0,4,0,0"/>
+                            <local:KnobControl x:Name="ChBHiKnob" Minimum="-24" Maximum="24" Value="0" Width="38" Height="38" HorizontalAlignment="Center" Accent="#B388FF" Margin="0,4,0,0"
+                                                ToolTip="Deck B treble (high EQ). Turn down to soften Deck B while you blend; it's the same EQ as Deck B's FX window."/>
                             <TextBlock Text="HI" Foreground="#A0A5B5" FontSize="9" HorizontalAlignment="Center"/>
-                            <local:KnobControl x:Name="ChBMidKnob" Minimum="-24" Maximum="24" Value="0" Width="46" Height="46" HorizontalAlignment="Center" Accent="#B388FF" Margin="0,4,0,0"/>
+                            <local:KnobControl x:Name="ChBMidKnob" Minimum="-24" Maximum="24" Value="0" Width="38" Height="38" HorizontalAlignment="Center" Accent="#B388FF" Margin="0,4,0,0"
+                                                ToolTip="Deck B midrange EQ — where most vocals and instruments live."/>
                             <TextBlock Text="MID" Foreground="#A0A5B5" FontSize="9" HorizontalAlignment="Center"/>
-                            <local:KnobControl x:Name="ChBLowKnob" Minimum="-24" Maximum="24" Value="0" Width="46" Height="46" HorizontalAlignment="Center" Accent="#B388FF" Margin="0,4,0,0"/>
+                            <local:KnobControl x:Name="ChBLowKnob" Minimum="-24" Maximum="24" Value="0" Width="38" Height="38" HorizontalAlignment="Center" Accent="#B388FF" Margin="0,4,0,0"
+                                                ToolTip="Deck B bass (low EQ). Classic blend move: turn the incoming deck's LOW down so the two basslines don't fight, then swap at the drop."/>
                             <TextBlock Text="LOW" Foreground="#A0A5B5" FontSize="9" HorizontalAlignment="Center"/>
-                            <Slider x:Name="ChBFader" Orientation="Vertical" Minimum="0" Maximum="1000" Value="800" Height="110" HorizontalAlignment="Center" Margin="0,6,0,0" Style="{StaticResource HwSliderV}"/>
+                            <Slider x:Name="ChBFader" Orientation="Vertical" Minimum="0" Maximum="1000" Value="800" Height="64" HorizontalAlignment="Center" Margin="0,6,0,0" Style="{StaticResource HwSliderV}"
+                                    ToolTip="Deck B channel fader — ride this to bring Deck B in or out of the mix by hand."/>
                             <TextBlock Text="FADER" Foreground="#A0A5B5" FontSize="9" HorizontalAlignment="Center" Margin="0,2,0,0"/>
                         </StackPanel>
                     </Grid>
 
-                    <TextBlock Text="Crossfader" Foreground="#A0A5B5" FontSize="11" HorizontalAlignment="Center" Margin="0,14,0,0"/>
-                    <Grid Margin="0,4,0,0">
-                        <TextBlock Text="A" Foreground="#1DB954" FontWeight="Bold" HorizontalAlignment="Left"/>
-                        <TextBlock Text="B" Foreground="#B388FF" FontWeight="Bold" HorizontalAlignment="Right"/>
+                    <!-- Lower half: crossfader + cruise (left), mic + companion (right) -->
+                    <Grid Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,5,0">
+                            <TextBlock Text="Crossfader" Foreground="#A0A5B5" FontSize="11" HorizontalAlignment="Center"/>
+                            <Grid Margin="0,2,0,0">
+                                <TextBlock Text="A" Foreground="#1DB954" FontWeight="Bold" HorizontalAlignment="Left"/>
+                                <TextBlock Text="B" Foreground="#B388FF" FontWeight="Bold" HorizontalAlignment="Right"/>
+                            </Grid>
+                            <Slider x:Name="XfadeSlider" Minimum="0" Maximum="1000" Value="500" Margin="0,2,0,4" Style="{StaticResource HwSliderH}"
+                                    ToolTip="Crossfader: left = only Deck A plays, right = only Deck B, middle = both. This is how you blend from one song into the other."/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                                <TextBlock Text="Curve" Foreground="#A0A5B5" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <ComboBox x:Name="CurvePicker" SelectedIndex="1" Width="104"
+                                          ToolTip="Crossfader curve: Smooth fades gently, Constant Power keeps the volume even through the middle (best for blending), Cut snaps hard from one deck to the other (for scratch DJs).">
+                                    <ComboBoxItem Content="Smooth"/>
+                                    <ComboBoxItem Content="Constant Power"/>
+                                    <ComboBoxItem Content="Cut"/>
+                                </ComboBox>
+                            </StackPanel>
+                            <Button x:Name="CruiseButton" Content="&#x1F6A2; CRUISE: OFF" Click="CruiseButton_Click" Height="34" Style="{StaticResource HwButton}" Margin="0,10,0,0"
+                                    Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"
+                                    ToolTip="Cruise (auto-DJ): plays through both decks' track lists by itself, crossfading at the end of each song. Load the track lists, set the fade time, and let it drive."/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,6,0,0">
+                                <TextBlock Text="Fade" Foreground="#A0A5B5" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <ComboBox x:Name="CruiseFadePicker" SelectedIndex="2" Width="104"
+                                          ToolTip="How long each Cruise crossfade lasts.">
+                                    <ComboBoxItem Content="2 seconds"/>
+                                    <ComboBoxItem Content="4 seconds"/>
+                                    <ComboBoxItem Content="8 seconds"/>
+                                    <ComboBoxItem Content="12 seconds"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0">
+                            <TextBlock Text="&#x1F3A4; MIC" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="MicDevicePicker" HorizontalAlignment="Stretch" Margin="0,0,0,4"
+                                      ToolTip="Which microphone to use. Pick it before going live."/>
+                            <Button x:Name="MicButton" Content="&#x1F3A4; MIC: OFF" Click="MicButton_Click" Height="32" Style="{StaticResource HwButton}"
+                                    Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"
+                                    ToolTip="Turn the live microphone on or off. When it's live, your voice goes out over the mix (and into Record Mix)."/>
+                            <Grid x:Name="MicMeterGrid" Margin="0,6,0,0" ToolTip="Your microphone level while you talk.">
+                                <Border Background="#14171E" Height="8" CornerRadius="4"/>
+                                <Border x:Name="MicMeterFill" Background="#1DB954" Height="8" CornerRadius="4" HorizontalAlignment="Left" Width="0"/>
+                            </Grid>
+                            <TextBlock Text="Mic level" Foreground="#A0A5B5" FontSize="11" HorizontalAlignment="Center" Margin="0,4,0,2"/>
+                            <local:KnobControl x:Name="MicLevelKnob" Minimum="0" Maximum="1.5" Value="0.9" Width="48" Height="48" HorizontalAlignment="Center" Accent="#1DB954"
+                                                ToolTip="Microphone volume in the mix. Drag up/down or scroll on it."/>
+                            <CheckBox x:Name="MicDuckBox" Content="Duck music while talking" IsChecked="True" FontSize="11" Margin="0,4,0,0" Style="{StaticResource HwToggle}"
+                                      ToolTip="Ducking: while you talk into the mic, the music automatically dips down so your voice stays on top, then comes back up when you stop."/>
+                            <Grid Margin="0,6,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Button x:Name="MicFxButton" Grid.Column="0" Content="&#x1F39B;&#xFE0F; Mic FX" Click="MicFxButton_Click" Height="28" Style="{StaticResource HwButton}" Margin="0,0,3,0"
+                                        Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                        ToolTip="Microphone effects: EQ and reverb for your voice."/>
+                                <Button x:Name="CompanionButton" Grid.Column="1" Content="&#x1F4F1; Companion" Click="CompanionButton_Click" Height="28" Style="{StaticResource HwButton}" Margin="3,0,0,0"
+                                        Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                        ToolTip="Phone Companion: control the decks from your phone over Wi-Fi or Tailscale (play/cue, crossfader, sampler, cruise, mic). Opens the companion settings and start/stop window."/>
+                            </Grid>
+                        </StackPanel>
                     </Grid>
-                    <Slider x:Name="XfadeSlider" Minimum="0" Maximum="1000" Value="500" Margin="0,2,0,4" Style="{StaticResource HwSliderH}"/>
-                    <TextBlock Text="Curve" Foreground="#A0A5B5" FontSize="11" HorizontalAlignment="Center" Margin="0,6,0,2"/>
-                    <ComboBox x:Name="CurvePicker" SelectedIndex="1" HorizontalAlignment="Center" Width="150">
-                        <ComboBoxItem Content="Smooth"/>
-                        <ComboBoxItem Content="Constant Power"/>
-                        <ComboBoxItem Content="Cut"/>
-                    </ComboBox>
-                    <Button x:Name="CruiseButton" Content="&#x1F6A2; CRUISE: OFF" Click="CruiseButton_Click" Height="34" Style="{StaticResource HwButton}" Margin="0,14,0,0"
-                            Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
-                    <TextBlock Text="Cruise fade" Foreground="#A0A5B5" FontSize="11" HorizontalAlignment="Center" Margin="0,8,0,2"/>
-                    <ComboBox x:Name="CruiseFadePicker" SelectedIndex="2" HorizontalAlignment="Center" Width="150">
-                        <ComboBoxItem Content="2 seconds"/>
-                        <ComboBoxItem Content="4 seconds"/>
-                        <ComboBoxItem Content="8 seconds"/>
-                        <ComboBoxItem Content="12 seconds"/>
-                    </ComboBox>
-                    <TextBlock Text="&#x1F3A4; MIC" FontSize="13" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,16,0,4"/>
-                    <ComboBox x:Name="MicDevicePicker" HorizontalAlignment="Stretch" Margin="0,0,0,4"/>
-                    <Button x:Name="MicButton" Content="&#x1F3A4; MIC: OFF" Click="MicButton_Click" Height="32" Style="{StaticResource HwButton}"
-                            Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
-                    <Grid x:Name="MicMeterGrid" Margin="0,6,0,0">
-                        <Border Background="#14171E" Height="8" CornerRadius="4"/>
-                        <Border x:Name="MicMeterFill" Background="#1DB954" Height="8" CornerRadius="4" HorizontalAlignment="Left" Width="0"/>
-                    </Grid>
-                    <TextBlock Text="Mic level" Foreground="#A0A5B5" FontSize="11" HorizontalAlignment="Center" Margin="0,6,0,2"/>
-                    <local:KnobControl x:Name="MicLevelKnob" Minimum="0" Maximum="1.5" Value="0.9" Width="64" Height="64" HorizontalAlignment="Center" Accent="#1DB954"/>
-                    <CheckBox x:Name="MicDuckBox" Content="Duck music while talking" IsChecked="True" FontSize="11" Margin="0,6,0,0" Style="{StaticResource HwToggle}"/>
-                    <Button x:Name="MicFxButton" Content="&#x1F39B;&#xFE0F; Mic FX (EQ / Reverb)" Click="MicFxButton_Click" Height="28" Style="{StaticResource HwButton}" Margin="0,6,0,0"
-                            Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
-                    <Button x:Name="CompanionButton" Content="&#x1F4F1; Phone Companion" Click="CompanionButton_Click" Height="28" Style="{StaticResource HwButton}" Margin="0,6,0,0"
-                            Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
                     <TextBlock x:Name="DjStatus" Text="Load a song on each deck and mix." Foreground="#A0A5B5" FontSize="11"
-                               TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,10,0,0"/>
-                    <TextBlock Text="Tip: SYNC matches Deck B to A (or A to B). Loops and hot cues need the BPM — type it or TAP it." Foreground="#666666" FontSize="10"
                                TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                    <TextBlock Text="Tip: SYNC matches Deck B to A (or A to B). Loops and hot cues need the BPM — type it or TAP it. Hover any control to see what it does." Foreground="#666666" FontSize="10"
+                               TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                 </StackPanel>
-                </ScrollViewer>
             </Border>
         </Grid>
 
@@ -269,12 +317,14 @@
                     <TextBlock Text="&#x1F39A;&#xFE0F; SAMPLER" FontSize="13" FontWeight="Bold"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <TextBlock Text="Sampler volume" Foreground="#A0A5B5" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <local:KnobControl x:Name="SamplerVolumeKnob" Minimum="0" Maximum="1.25" Value="0.9" Width="54" Height="54" VerticalAlignment="Center" Accent="#1DB954"/>
+                        <local:KnobControl x:Name="SamplerVolumeKnob" Minimum="0" Maximum="1.25" Value="0.9" Width="48" Height="48" VerticalAlignment="Center" Accent="#1DB954"
+                                            ToolTip="How loud the sampler pads are in the mix. Drag up/down or scroll on it."/>
                     </StackPanel>
                 </Grid>
                 <UniformGrid x:Name="SamplerPadGrid" Columns="8" Margin="0,6,0,0"/>
-                <TextBlock Text="Click a pad to play it - right-click any pad to assign your own sound (WAV/MP3). Pad 1 is saved for your RAD-DAD! tag." Foreground="#666666" FontSize="10" Margin="0,6,0,0"/>
+                <TextBlock Text="Click a pad to play it — right-click any pad to assign a sound, rename it, or clear it. Every pad is yours to program." Foreground="#666666" FontSize="10" Margin="0,6,0,0"/>
             </StackPanel>
         </Border>
     </Grid>
+    </Viewbox>
 </Window>
