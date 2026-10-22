@@ -3,6 +3,9 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.64 — Audit Fix 5: Create Song Slider Cleanup
+- **Cleanup (audit #5 of 6):** the Create Song window's constructor used to "sync the slider labels" by calling the slider event handler with a fake null argument — it worked only by accident. The label sync is now its own little method that both the handler and the constructor call properly. No behavior change.
+
 ## Version 3.63 — Audit Fix 4: Online Stem Split Hardening
 - **Bug fix (audit #4 of 6):** the online (cloud) stem-split path trusted its inputs too much — it dereferenced the clip and the cancel token through null-forgiving shortcuts, so opening it with no file and no clip (or a clip with no audio) could crash instead of explaining itself. It now checks first ("Nothing to split — pick a sound file or a timeline clip first") and carries one captured cancel token through the whole run.
 
