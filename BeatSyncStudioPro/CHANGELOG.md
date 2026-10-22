@@ -3,6 +3,13 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.47 — One Archive for Sounds, Right-Click Tools, Download Title
+- **FIX — the main-screen list could come up empty after importing:** the sidebar browser now reads the SAME sources as the DJ sampler picker (built-in pack, your sound-library archive, stem cache, Downloads), so every sound the picker can see also shows on the main screen. Picking an outside sound pulls it into the project library on the spot.
+- **NEW — imported sounds live in ONE compressed file:** everything you import is stored in a single `sound-library.zip` (entries sorted by category) instead of a pile of loose files — less disk clutter, and the whole app (editor library, DJ picker, sampler pads) reads straight from it. Any loose files from the old folder layout are packed in automatically and the folder is cleaned up.
+- **NEW — right-click any sound (editor library AND the DJ picker):** 📤 Export… (save a copy anywhere), ✏️ Rename… (renames it in the project and in the archive), 🗑️ Delete… (with the usual confirm).
+- **Downloads moved to the File menu** (the little ⬇ button by the search box is gone), and **while a download is running, the window's title bar shows it live**: file name, percent, speed and ETA.
+- Sampler picker window is wider, so its button row no longer cuts off the Cancel button.
+
 ## Version 3.46 — Grouped Library, ZIP Import, Saveable Mashups
 - **NEW — the main Asset Library is now a browser, just like the DJ sampler picker:** a category list on the left side of the editor (All + Drums, Guitar, Bass, Keys & Pads, Loops, Vocals, FX, Stems · Vocals/Drums/Bass/Other, 🔀 Mash-ups, Other, Video, Images — each with a count) and that category's sounds listed below it. Click a sound to arm it for the timeline, drag it straight onto a track, double-click (or ▶ Preview) to hear it first, ⏹ Stop cuts a long preview, and search filters the list. The old scrolling button-list library is gone.
 - **NEW — 📦 Import ZIP / files… (library sidebar + the sampler picker):** import whole ZIP sound packs or loose WAV/MP3 files; every sound is auto-categorized (pack folder names first, then name keywords), filed into your sound-library folder, and **duplicates are never added twice** (same name + same size = skipped; same name but a different sound is kept, numbered).

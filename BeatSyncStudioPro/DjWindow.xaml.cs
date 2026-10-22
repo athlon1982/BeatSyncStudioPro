@@ -553,6 +553,8 @@ namespace BeatSyncStudioPro
             public Action? StopPreviewHandler;
             public Func<SoundChoice, bool>? DeleteHandler;
             public Func<string?>? ImportHandler;
+            public Action<SoundChoice>? ExportHandler;
+            public Func<SoundChoice, bool>? RenameHandler;
 
             public SoundPickerWindow(Window owner, int pad, Dictionary<string, List<SoundChoice>> catalog, Style? buttonStyle = null)
             {
@@ -571,7 +573,7 @@ namespace BeatSyncStudioPro
                 _win = new Window
                 {
                     Title = $"Assign a sound — sampler pad {pad + 1}",
-                    Width = 720,
+                    Width = 880,
                     Height = 520,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     Owner = owner,
@@ -632,6 +634,7 @@ namespace BeatSyncStudioPro
                     var ch = SelectedChoice();
                     deleteBtn.IsEnabled = ch != null && DeleteHandler != null &&
                         (ch.PersistKey.StartsWith("library:", StringComparison.Ordinal) ||
+                         ch.PersistKey.StartsWith("archive:", StringComparison.Ordinal) ||
                          ch.PersistKey.StartsWith(MainWindow.SoundLibraryRoot, StringComparison.OrdinalIgnoreCase));
                 };
                 _soundList.MouseDoubleClick += (s, e) => { if (SelectedChoice() != null) Accept(); };
@@ -660,6 +663,19 @@ namespace BeatSyncStudioPro
                 };
                 _useBtn.Click += (s, e) => Accept();
                 cancelBtn.Click += (s, e) => { StopPreview(); _win.DialogResult = false; };
+                // v3.47: right-click a sound — export it, rename it, or delete it.
+                var soundMenu = new ContextMenu();
+                var miExport = new MenuItem { Header = "📤 Export sound…" };
+                miExport.Click += (s, e) => { var ch = SelectedChoice(); if (ch != null) ExportHandler?.Invoke(ch); };
+                var miRename = new MenuItem { Header = "✏️ Rename…" };
+                miRename.Click += (s, e) => { var ch = SelectedChoice(); if (ch != null) RenameHandler?.Invoke(ch); };
+                var miDelete = new MenuItem { Header = "🗑️ Delete sound…" };
+                miDelete.Click += (s, e) => { if (deleteBtn.IsEnabled) deleteBtn.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); };
+                soundMenu.Items.Add(miExport);
+                soundMenu.Items.Add(miRename);
+                soundMenu.Items.Add(new Separator());
+                soundMenu.Items.Add(miDelete);
+                _soundList.ContextMenu = soundMenu;
                 _win.Closed += (s, e) => StopPreview();
                 if (_catList.Items.Count > 0) _catList.SelectedIndex = 0;
                 else _status.Text = "No sounds found anywhere — use Browse files… to pick one from disk.";
@@ -1023,6 +1039,17 @@ namespace BeatSyncStudioPro
                         }
                         else sub.Text = "not in this project — reassign";
                     }
+                    else if (key.StartsWith("archive:", StringComparison.Ordinal))
+                    {
+                        string entryName = key.Substring(8);
+                        var ab = MainWindow.ReadLibraryArchiveEntry(entryName);
+                        if (ab != null)
+                        {
+                            try { _sampler.Slots[i].Load(SamplerEngine.DecodeBytes(ab, entryName)); sub.Text = System.IO.Path.GetFileName(entryName); loadedName = System.IO.Path.GetFileNameWithoutExtension(entryName); }
+                            catch { sub.Text = "archive sound (decode failed)"; }
+                        }
+                        else sub.Text = "not in sound library — reassign";
+                    }
                     else if (File.Exists(key))
                     {
                         try { _sampler.Slots[i].Load(SamplerEngine.DecodeBytes(File.ReadAllBytes(key), key)); sub.Text = System.IO.Path.GetFileName(key); loadedName = System.IO.Path.GetFileNameWithoutExtension(key); }
@@ -1074,6 +1101,8 @@ namespace BeatSyncStudioPro
             picker.PreviewHandler = PreviewPickerSound;
             picker.StopPreviewHandler = () => _sampler.StopPreview();
             picker.DeleteHandler = DeletePickerSound;
+            picker.ExportHandler = ExportPickerChoice;
+            picker.RenameHandler = ch => RenamePickerChoice(picker, ch);
             picker.ImportHandler = () =>
             {
                 var dialog = new OpenFileDialog
@@ -1138,14 +1167,22 @@ namespace BeatSyncStudioPro
         private bool DeletePickerSound(SoundChoice choice)
         {
             bool isLibrary = choice.PersistKey.StartsWith("library:", StringComparison.Ordinal);
-            bool isSoundLibFile = !isLibrary && choice.PersistKey.StartsWith(MainWindow.SoundLibraryRoot, StringComparison.OrdinalIgnoreCase);
-            if (!isLibrary && !isSoundLibFile) return false;
-            var ask = MessageBox.Show($"Delete '{choice.Display}'?\n\nThis removes it from the library{(isSoundLibFile ? " and deletes the file from your sound-library folder" : "")}. This can't be undone.",
+            bool isArchive = choice.PersistKey.StartsWith("archive:", StringComparison.Ordinal);
+            bool isSoundLibFile = !isLibrary && !isArchive && choice.PersistKey.StartsWith(MainWindow.SoundLibraryRoot, StringComparison.OrdinalIgnoreCase);
+            if (!isLibrary && !isArchive && !isSoundLibFile) return false;
+            var ask = MessageBox.Show($"Delete '{choice.Display}'?\n\nThis removes it from the library{(isArchive ? " and from your sound-library archive" : isSoundLibFile ? " and deletes the file from your sound-library folder" : "")}. This can't be undone.",
                 "Delete sound", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (ask != MessageBoxResult.Yes) return false;
             try
             {
                 if (isLibrary) _owner.RemoveLibraryAsset(choice.PersistKey.Substring(8));
+                if (isArchive)
+                {
+                    string entryName = choice.PersistKey.Substring(8);
+                    MainWindow.RemoveLibraryArchiveEntryExact(entryName);
+                    string fileName = System.IO.Path.GetFileName(entryName);
+                    if (_owner.ZipSounds.ContainsKey(fileName)) _owner.RemoveLibraryAsset(fileName);
+                }
                 if (isSoundLibFile)
                 {
                     string fileName = System.IO.Path.GetFileName(choice.PersistKey);
@@ -1156,6 +1193,67 @@ namespace BeatSyncStudioPro
                 return true;
             }
             catch (Exception ex) { SetStatus("Delete failed: " + ex.Message); return false; }
+        }
+
+        /// <summary>v3.47: picker right-click Export — write the sound out to a file.</summary>
+        private void ExportPickerChoice(SoundChoice choice)
+        {
+            var bytes = choice.LoadBytes();
+            if (bytes == null) { SetStatus("That sound couldn't be read for export."); return; }
+            string fileName = choice.PersistKey.StartsWith("library:", StringComparison.Ordinal)
+                ? choice.PersistKey.Substring(8)
+                : System.IO.Path.GetFileName(choice.DecodeName);
+            var dialog = new SaveFileDialog { Title = "Export sound", FileName = fileName, Filter = "Audio files|*.wav;*.mp3|All files|*.*" };
+            if (dialog.ShowDialog() != true) return;
+            try { File.WriteAllBytes(dialog.FileName, bytes); SetStatus($"Exported: {System.IO.Path.GetFileName(dialog.FileName)}"); }
+            catch (Exception ex) { SetStatus("Export failed: " + ex.Message); }
+        }
+
+        /// <summary>v3.47: picker right-click Rename — library and archive sounds.</summary>
+        private bool RenamePickerChoice(SoundPickerWindow picker, SoundChoice choice)
+        {
+            if (choice.PersistKey.StartsWith("library:", StringComparison.Ordinal))
+            {
+                string name = choice.PersistKey.Substring(8);
+                string ext = System.IO.Path.GetExtension(name);
+                var typed = MainWindow.PromptText("Rename sound", $"New name for '{name}':", System.IO.Path.GetFileNameWithoutExtension(name));
+                if (typed == null) return false;
+                string newName = typed.Trim();
+                if (newName.Length == 0) return false;
+                if (!newName.EndsWith(ext, StringComparison.OrdinalIgnoreCase)) newName += ext;
+                if (_owner.RenameLibraryAsset(name, newName) == null)
+                {
+                    MessageBox.Show($"Couldn't rename — a sound named '{newName}' already exists, or the name is invalid.", "Rename sound");
+                    return false;
+                }
+                picker.ReloadCatalog(BuildSoundCatalog());
+                SetStatus($"Renamed sound to '{newName}'.");
+                return true;
+            }
+            if (choice.PersistKey.StartsWith("archive:", StringComparison.Ordinal))
+            {
+                string entryName = choice.PersistKey.Substring(8);
+                string fileName = System.IO.Path.GetFileName(entryName);
+                string ext = System.IO.Path.GetExtension(fileName);
+                var typed = MainWindow.PromptText("Rename sound", $"New name for '{fileName}':", System.IO.Path.GetFileNameWithoutExtension(fileName));
+                if (typed == null) return false;
+                string newFile = typed.Trim();
+                if (newFile.Length == 0) return false;
+                if (!newFile.EndsWith(ext, StringComparison.OrdinalIgnoreCase)) newFile += ext;
+                bool ok = _owner.ZipSounds.ContainsKey(fileName)
+                    ? _owner.RenameLibraryAsset(fileName, newFile) != null
+                    : MainWindow.RenameLibraryArchiveEntryExact(entryName, newFile);
+                if (!ok)
+                {
+                    MessageBox.Show($"Couldn't rename — a sound named '{newFile}' already exists, or the name is invalid.", "Rename sound");
+                    return false;
+                }
+                picker.ReloadCatalog(BuildSoundCatalog());
+                SetStatus($"Renamed sound to '{newFile}'.");
+                return true;
+            }
+            MessageBox.Show("That sound lives outside the library (built-in pack / a loose file), so it keeps its original name. Sounds you've imported can be renamed.", "Rename sound");
+            return false;
         }
 
         /// <summary>v3.45: every assignable sound in one sorted catalog —
@@ -1230,6 +1328,15 @@ namespace BeatSyncStudioPro
                             display = fn.Substring(0, p) + " — " + char.ToUpperInvariant(stemWord[0]) + stemWord.Substring(1);
                             stemCat = SoundCategorizer.StemCategory(stemWord);   // v3.46: stems filed per type, not one pile
                         }
+                        else if (fn.ToLowerInvariant() is "vocals" or "drums" or "bass" or "other")
+                        {
+                            // Plain-named stem files inside a per-song folder: file it by type too.
+                            string parent = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(file) ?? "");
+                            int dash = parent.LastIndexOf('-');
+                            if (dash > 0 && parent.Substring(dash + 1).All(char.IsDigit)) parent = parent.Substring(0, dash);
+                            display = (parent.Length > 0 ? parent + " — " : "") + char.ToUpperInvariant(fn[0]) + fn.Substring(1).ToLowerInvariant();
+                            stemCat = SoundCategorizer.StemCategory(fn);
+                        }
                         if (!seenStems.Add(display)) continue;
                         string path = file;
                         Add(stemCat, new SoundChoice
@@ -1266,29 +1373,20 @@ namespace BeatSyncStudioPro
                 }
             }
             catch { /* downloads folder unreadable — fine */ }
-            // 5) The imported sound-library folder (v3.46) — category = its subfolder
+            // 5) The sound-library archive (v3.47) — every imported sound lives in ONE zip
             try
             {
-                string libRoot = MainWindow.SoundLibraryRoot;
-                if (Directory.Exists(libRoot))
+                foreach (var (entryName, cat, fileName) in MainWindow.LibraryArchiveEntries())
                 {
-                    foreach (var dir in Directory.EnumerateDirectories(libRoot))
+                    string captured = entryName;
+                    Add(cat, new SoundChoice
                     {
-                        string cat = System.IO.Path.GetFileName(dir);
-                        foreach (var file in Directory.EnumerateFiles(dir, "*.*", SearchOption.AllDirectories)
-                                     .Where(f => f.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase)))
-                        {
-                            string path = file;
-                            Add(cat, new SoundChoice
-                            {
-                                Display = System.IO.Path.GetFileNameWithoutExtension(file),
-                                DecodeName = file,
-                                PersistKey = file,
-                                SubLabel = System.IO.Path.GetFileName(file),
-                                LoadBytes = () => File.Exists(path) ? File.ReadAllBytes(path) : null
-                            });
-                        }
-                    }
+                        Display = System.IO.Path.GetFileNameWithoutExtension(fileName),
+                        DecodeName = fileName,
+                        PersistKey = "archive:" + entryName,
+                        SubLabel = fileName,
+                        LoadBytes = () => MainWindow.ReadLibraryArchiveEntry(captured)
+                    });
                 }
             }
             catch { /* sound library unreadable — fine */ }

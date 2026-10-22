@@ -220,6 +220,10 @@ namespace BeatSyncStudioPro
             // v3.44: stems land in the library under "Stems" whenever a split finishes
             StemSeparator.StemsAvailable += OnStemsAvailable;
             RefreshLibraryBrowser();
+            // v3.47: downloads show in the title bar (name, %, speed, ETA) while they run.
+            var titleTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
+            titleTimer.Tick += (s, e) => UpdateDownloadTitle();
+            titleTimer.Start();
         }
 
         /// <summary>v3.44: file a set of split stems into the asset library under
@@ -254,6 +258,7 @@ namespace BeatSyncStudioPro
                 }
                 catch { /* one bad stem file must not block the others */ }
             }
+            _externalsBuilt = false;   // new stems just landed in the cache — rescan next refresh
         }
 
         private void UpdateVolumeDisplay()
@@ -2597,14 +2602,38 @@ namespace BeatSyncStudioPro
             _ => SoundCategorizer.Icon(category)
         };
 
-        // ===== v3.46 sidebar browser: category list + sound list, the same
-        // shape as the DJ sampler picker (Michael's ask — it replaces the old
-        // button-list library). The asset dictionaries stay the source of truth. =====
+        // ===== v3.46/v3.47 sidebar browser: category list + sound list, the same
+        // shape as the DJ sampler picker (it replaces the old button-list library).
+        // Rows come from the project's asset dictionaries PLUS the same outside
+        // sources the picker reads (built-in pack, the compressed sound-library
+        // archive, stem cache, Downloads) — picking an outside sound pulls it
+        // into the project library on the spot. =====
+        private sealed class ExternalSound
+        {
+            public string Key = "";
+            public string Display = "";
+            public string FileName = "";
+            public string Category = "";
+            public Func<byte[]?> Load = () => null;
+        }
+
+        private sealed class BrowserEntry
+        {
+            public string Key = "";          // library asset name, or "ext:" + ExternalSound.Key
+            public string Display = "";
+            public string Category = "";
+            public ExternalSound? Ext;
+        }
+
         private readonly List<string> _browserCategories = new();
         private readonly List<string> _soundListNames = new();
         private bool _refreshingLibrary;
         private Point _libDragStart;
         private string? _libDragName;
+        private List<ExternalSound> _externals = new();
+        private bool _externalsBuilt;
+        private readonly HashSet<string> _hiddenExternals = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, string> _materializedFrom = new();
 
         private void AddAssetButtonToGroup(Button btn) => RefreshLibraryBrowser();
 
@@ -2618,6 +2647,7 @@ namespace BeatSyncStudioPro
             SoundCategories.Remove(name);
             VideoAssets.Remove(name);
             ImageAssets.Remove(name);
+            _materializedFrom.Remove(name);
             if (draggingSoundName == name) draggingSoundName = null;
             RefreshLibraryBrowser();
         }
@@ -2628,15 +2658,150 @@ namespace BeatSyncStudioPro
             return i >= 0 && i < _browserCategories.Count ? _browserCategories[i] : "";
         }
 
+        private void BuildExternalCatalog()
+        {
+            _externals = new List<ExternalSound>();
+            _externalsBuilt = true;
+            var seen = new HashSet<(string, string)>();
+            void Add(ExternalSound e)
+            {
+                if (!seen.Add((e.Category, e.Display.ToLowerInvariant()))) return;
+                _externals.Add(e);
+            }
+            // 1) Built-in sound pack (same source as the DJ picker)
+            try
+            {
+                string pack = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "soundpack.zip");
+                if (File.Exists(pack))
+                {
+                    using var zip = ZipFile.OpenRead(pack);
+                    foreach (var entry in zip.Entries.Where(en => en.Name.EndsWith(".wav", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        string cat = entry.FullName.Contains('/') ? entry.FullName.Substring(0, entry.FullName.IndexOf('/')) : "Sounds";
+                        if (cat == "Keys") cat = SoundCategorizer.Keys;
+                        string entryName = entry.FullName;
+                        Add(new ExternalSound
+                        {
+                            Key = "pack:" + entryName,
+                            Display = System.IO.Path.GetFileNameWithoutExtension(entry.Name),
+                            FileName = entry.Name,
+                            Category = cat,
+                            Load = () => SamplerEngine.ReadPackEntry(entryName)
+                        });
+                    }
+                }
+            }
+            catch { }
+            // 2) The compressed sound-library archive (v3.47 — imports live in ONE zip)
+            try
+            {
+                EnsureSoundLibraryArchive();
+                foreach (var (entryName, cat, fileName) in LibraryArchiveEntries())
+                {
+                    string captured = entryName;
+                    Add(new ExternalSound
+                    {
+                        Key = "archive:" + entryName,
+                        Display = System.IO.Path.GetFileNameWithoutExtension(fileName),
+                        FileName = fileName,
+                        Category = cat,
+                        Load = () => ReadLibraryArchiveEntry(captured)
+                    });
+                }
+            }
+            catch { }
+            // 3) Stem cache files on disk, filed per stem type
+            try
+            {
+                string stemsRoot = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BeatSyncStudioPro", "stems");
+                if (Directory.Exists(stemsRoot))
+                {
+                    foreach (var file in Directory.EnumerateFiles(stemsRoot, "*.wav", SearchOption.AllDirectories))
+                    {
+                        string fn = System.IO.Path.GetFileNameWithoutExtension(file);
+                        string display = fn;
+                        string cat = SoundCategorizer.Stems;
+                        int p = fn.LastIndexOf(" (", StringComparison.Ordinal);
+                        if (p > 0 && fn.EndsWith(")"))
+                        {
+                            string stemWord = fn.Substring(p + 2, fn.Length - p - 4);
+                            display = fn.Substring(0, p) + " — " + char.ToUpperInvariant(stemWord[0]) + stemWord.Substring(1);
+                            cat = SoundCategorizer.StemCategory(stemWord);
+                        }
+                        else if (fn.ToLowerInvariant() is "vocals" or "drums" or "bass" or "other")
+                        {
+                            string parent = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(file) ?? "");
+                            int dash = parent.LastIndexOf('-');
+                            if (dash > 0 && parent.Substring(dash + 1).All(char.IsDigit)) parent = parent.Substring(0, dash);
+                            display = (parent.Length > 0 ? parent + " — " : "") + char.ToUpperInvariant(fn[0]) + fn.Substring(1).ToLowerInvariant();
+                            cat = SoundCategorizer.StemCategory(fn);
+                        }
+                        string path = file;
+                        Add(new ExternalSound
+                        {
+                            Key = "file:" + path,
+                            Display = display,
+                            FileName = display + ".wav",
+                            Category = cat,
+                            Load = () => File.Exists(path) ? File.ReadAllBytes(path) : null
+                        });
+                    }
+                }
+            }
+            catch { }
+            // 4) Downloads folder
+            try
+            {
+                string dl = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+                if (Directory.Exists(dl))
+                {
+                    foreach (var file in Directory.EnumerateFiles(dl, "*.*", SearchOption.TopDirectoryOnly)
+                                 .Where(f => f.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        string path = file;
+                        Add(new ExternalSound
+                        {
+                            Key = "file:" + path,
+                            Display = System.IO.Path.GetFileNameWithoutExtension(file),
+                            FileName = System.IO.Path.GetFileName(file),
+                            Category = "Downloads",
+                            Load = () => File.Exists(path) ? File.ReadAllBytes(path) : null
+                        });
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private List<BrowserEntry> MergedEntries()
+        {
+            if (!_externalsBuilt) BuildExternalCatalog();
+            var entries = new List<BrowserEntry>();
+            var seen = new HashSet<(string, string)>();
+            void AddLib(string name, string cat)
+            {
+                if (!seen.Add((cat, System.IO.Path.GetFileNameWithoutExtension(name).ToLowerInvariant()))) return;
+                entries.Add(new BrowserEntry { Key = name, Display = name, Category = cat });
+            }
+            foreach (var name in ZipSounds.Keys) AddLib(name, CategoryForAsset(name));
+            foreach (var name in VideoAssets.Keys) AddLib(name, "Video");
+            foreach (var name in ImageAssets.Keys) AddLib(name, "Images");
+            foreach (var ext in _externals)
+            {
+                if (_hiddenExternals.Contains(ext.Key)) continue;
+                if (!seen.Add((ext.Category, ext.Display.ToLowerInvariant()))) continue;
+                entries.Add(new BrowserEntry { Key = "ext:" + ext.Key, Display = ext.Display, Category = ext.Category, Ext = ext });
+            }
+            return entries;
+        }
+
         private void RefreshLibraryBrowser()
         {
             if (LibraryCategoryList == null || LibrarySoundList == null) return;
             string keepCat = SelectedBrowserCategory();
+            var entries = MergedEntries();
             var counts = new Dictionary<string, int>();
-            void Bump(string c) { counts[c] = counts.TryGetValue(c, out var n) ? n + 1 : 1; }
-            foreach (var name in ZipSounds.Keys) Bump(CategoryForAsset(name));
-            foreach (var name in VideoAssets.Keys) Bump("Video");
-            foreach (var name in ImageAssets.Keys) Bump("Images");
+            foreach (var e in entries) counts[e.Category] = counts.TryGetValue(e.Category, out var n) ? n + 1 : 1;
             var cats = counts.Keys.ToList();
             cats.Sort((a, b) =>
             {
@@ -2648,36 +2813,33 @@ namespace BeatSyncStudioPro
             _browserCategories.Add("");
             _browserCategories.AddRange(cats);
             LibraryCategoryList.Items.Clear();
-            int total = ZipSounds.Count + VideoAssets.Count + ImageAssets.Count;
-            LibraryCategoryList.Items.Add($"\U0001F5C2\uFE0F All  ({total})");
+            LibraryCategoryList.Items.Add($"\U0001F5C2\uFE0F All  ({entries.Count})");
             foreach (var c in cats) LibraryCategoryList.Items.Add($"{GroupIcon(c)} {c}  ({counts[c]})");
             int sel = _browserCategories.IndexOf(keepCat);
             LibraryCategoryList.SelectedIndex = sel >= 0 ? sel : 0;
             _refreshingLibrary = false;
-            RefillSoundList();
+            RefillSoundList(entries);
         }
 
-        private void RefillSoundList()
+        private void RefillSoundList(List<BrowserEntry>? entries = null)
         {
             if (LibrarySoundList == null) return;
+            entries ??= MergedEntries();
             string cat = SelectedBrowserCategory();
             string query = LibrarySearchBox?.Text?.Trim() ?? "";
-            var names = new List<string>();
-            void Consider(string name)
-            {
-                if ((cat == "" || CategoryForAsset(name) == cat) &&
-                    (query.Length == 0 || name.Contains(query, StringComparison.OrdinalIgnoreCase)))
-                    names.Add(name);
-            }
-            foreach (var n in ZipSounds.Keys) Consider(n);
-            foreach (var n in VideoAssets.Keys) Consider(n);
-            foreach (var n in ImageAssets.Keys) Consider(n);
-            names.Sort((a, b) => string.Compare(a, b, StringComparison.OrdinalIgnoreCase));
+            var rows = entries
+                .Where(e => (cat == "" || e.Category == cat) &&
+                            (query.Length == 0 || e.Display.Contains(query, StringComparison.OrdinalIgnoreCase)))
+                .OrderBy(e => e.Display, StringComparer.OrdinalIgnoreCase)
+                .ToList();
             _refreshingLibrary = true;
             _soundListNames.Clear();
-            _soundListNames.AddRange(names);
             LibrarySoundList.Items.Clear();
-            foreach (var n in names) LibrarySoundList.Items.Add($"{GroupIcon(CategoryForAsset(n))} {n}");
+            foreach (var e in rows)
+            {
+                _soundListNames.Add(e.Key);
+                LibrarySoundList.Items.Add($"{GroupIcon(e.Category)} {e.Display}");
+            }
             _refreshingLibrary = false;
         }
 
@@ -2692,8 +2854,10 @@ namespace BeatSyncStudioPro
         private void LibrarySoundList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_refreshingLibrary) return;
-            var n = SelectedSoundName();
-            if (n != null) draggingSoundName = n;   // click-to-place, same as the old buttons
+            var key = SelectedSoundName();
+            if (key == null) return;
+            var name = ResolveAssetKey(key);   // outside sounds join the project library when picked
+            if (name != null) draggingSoundName = name;   // click-to-place, same as the old buttons
         }
 
         private string? SelectedSoundName()
@@ -2711,10 +2875,40 @@ namespace BeatSyncStudioPro
             return idx >= 0 && idx < _soundListNames.Count ? _soundListNames[idx] : null;
         }
 
+        /// <summary>Turn a browser row key into a real library asset name,
+        /// pulling outside sounds into the project library on first use.</summary>
+        private string? ResolveAssetKey(string key)
+        {
+            if (!key.StartsWith("ext:", StringComparison.Ordinal)) return key;
+            var ext = _externals.Find(x => "ext:" + x.Key == key);
+            return ext == null ? null : MaterializeExternal(ext);
+        }
+
+        private string? MaterializeExternal(ExternalSound ext)
+        {
+            try
+            {
+                var bytes = ext.Load();
+                if (bytes == null) return null;
+                string finalName = AddToLibraryOnly(bytes, ext.FileName, ext.Category);
+                _materializedFrom[finalName] = ext.Key;
+                return finalName;
+            }
+            catch { return null; }
+        }
+
         private void LibrarySoundList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             _libDragStart = e.GetPosition(null);
             _libDragName = SoundNameFromPoint(e.GetPosition(LibrarySoundList));
+        }
+
+        private void LibrarySoundList_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // Right-click acts on the row under the mouse, not the old selection.
+            var el = LibrarySoundList.InputHitTest(e.GetPosition(LibrarySoundList)) as DependencyObject;
+            var item = ItemsControl.ContainerFromElement(LibrarySoundList, el) as ListBoxItem;
+            if (item != null) LibrarySoundList.SelectedIndex = LibrarySoundList.ItemContainerGenerator.IndexFromContainer(item);
         }
 
         private void LibrarySoundList_MouseMove(object sender, MouseEventArgs e)
@@ -2723,8 +2917,10 @@ namespace BeatSyncStudioPro
             Point pos = e.GetPosition(null);
             if (Math.Abs(pos.X - _libDragStart.X) <= SystemParameters.MinimumHorizontalDragDistance &&
                 Math.Abs(pos.Y - _libDragStart.Y) <= SystemParameters.MinimumVerticalDragDistance) return;
-            string name = _libDragName;
+            string key = _libDragName;
             _libDragName = null;
+            var name = ResolveAssetKey(key);
+            if (name == null) return;
             draggingSoundName = name;
             var result = DragDrop.DoDragDrop(LibrarySoundList, new DataObject(DataFormats.StringFormat, name), DragDropEffects.Copy);
             if (result == DragDropEffects.None && draggingSoundName == name) draggingSoundName = null;
@@ -2732,22 +2928,186 @@ namespace BeatSyncStudioPro
 
         private void LibrarySoundList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            var n = SoundNameFromPoint(e.GetPosition(LibrarySoundList)) ?? SelectedSoundName();
-            if (n != null && ZipSounds.ContainsKey(n)) PreviewLibrarySound(n);
+            var key = SoundNameFromPoint(e.GetPosition(LibrarySoundList)) ?? SelectedSoundName();
+            if (key == null) return;
+            var name = ResolveAssetKey(key);
+            if (name != null && ZipSounds.ContainsKey(name)) PreviewLibrarySound(name);
         }
 
         private void BtnLibraryPreview_Click(object sender, RoutedEventArgs e)
         {
-            var n = SelectedSoundName();
-            if (n != null) PreviewLibrarySound(n);
+            var key = SelectedSoundName();
+            if (key == null) return;
+            var name = ResolveAssetKey(key);
+            if (name != null) PreviewLibrarySound(name);
         }
 
         private void BtnLibraryStop_Click(object sender, RoutedEventArgs e) => StopLibraryPreview();
 
         private void BtnLibraryDelete_Click(object sender, RoutedEventArgs e)
         {
-            var n = SelectedSoundName();
-            if (n != null) DeleteLibraryAsset(n);
+            var key = SelectedSoundName();
+            if (key != null) DeleteSound(key);
+        }
+
+        private void BtnLibraryExport_Click(object sender, RoutedEventArgs e)
+        {
+            var key = SelectedSoundName();
+            if (key != null) ExportSound(key);
+        }
+
+        private void BtnLibraryRename_Click(object sender, RoutedEventArgs e)
+        {
+            var key = SelectedSoundName();
+            if (key != null) RenameSound(key);
+        }
+
+        private void DeleteSound(string key)
+        {
+            if (key.StartsWith("ext:", StringComparison.Ordinal))
+            {
+                var ext = _externals.Find(x => "ext:" + x.Key == key);
+                if (ext == null) return;
+                if (ext.Key.StartsWith("archive:", StringComparison.Ordinal))
+                {
+                    var ask = MessageBox.Show($"Delete '{ext.Display}' permanently?\n\nIt's removed from your sound-library archive and this project. This can't be undone.",
+                        "Delete sound", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                    if (ask != MessageBoxResult.Yes) return;
+                    RemoveLibraryArchiveEntryExact(ext.Key.Substring(8));
+                    if (ZipSounds.ContainsKey(ext.FileName)) RemoveLibraryAsset(ext.FileName);
+                }
+                else if (ext.Key.StartsWith("pack:", StringComparison.Ordinal))
+                {
+                    var ask = MessageBox.Show($"Hide '{ext.Display}' from the list?\n\nIt's part of the built-in sound pack, so the pack keeps its copy — hiding just clears it from view for now.",
+                        "Hide sound", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                    if (ask != MessageBoxResult.Yes) return;
+                }
+                else
+                {
+                    var ask = MessageBox.Show($"Remove '{ext.Display}' from the list?\n\nThe file itself stays where it is (Downloads / stem cache) — this only clears it from view for now.",
+                        "Remove sound", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                    if (ask != MessageBoxResult.Yes) return;
+                }
+                _hiddenExternals.Add(ext.Key);
+                RefreshLibraryBrowser();
+                return;
+            }
+            DeleteLibraryAsset(key);
+            if (_materializedFrom.TryGetValue(key, out var src)) _hiddenExternals.Add(src);
+        }
+
+        private void ExportSound(string key)
+        {
+            byte[]? bytes = null;
+            string fileName;
+            if (key.StartsWith("ext:", StringComparison.Ordinal))
+            {
+                var ext = _externals.Find(x => "ext:" + x.Key == key);
+                if (ext == null) return;
+                bytes = ext.Load();
+                fileName = ext.FileName;
+            }
+            else if (ZipSounds.TryGetValue(key, out var zb)) { bytes = zb; fileName = key; }
+            else if (VideoAssets.TryGetValue(key, out var vp)) { try { bytes = File.ReadAllBytes(vp); } catch { } fileName = key; }
+            else if (ImageAssets.TryGetValue(key, out var ip)) { try { bytes = File.ReadAllBytes(ip); } catch { } fileName = key; }
+            else return;
+            if (bytes == null) { MessageBox.Show("That sound couldn't be read for export.", "Export sound"); return; }
+            var dialog = new SaveFileDialog { Title = "Export sound", FileName = fileName, Filter = "Audio / media files|*.wav;*.mp3;*.mp4;*.png;*.jpg|All files|*.*" };
+            if (dialog.ShowDialog() != true) return;
+            try { File.WriteAllBytes(dialog.FileName, bytes); }
+            catch (Exception ex) { MessageBox.Show("Export failed: " + ex.Message, "Export sound"); }
+        }
+
+        private void RenameSound(string key)
+        {
+            string name = key;
+            if (key.StartsWith("ext:", StringComparison.Ordinal))
+            {
+                var resolved = ResolveAssetKey(key);
+                if (resolved == null) return;
+                name = resolved;
+            }
+            if (ZipSounds.ContainsKey(name))
+            {
+                string ext = System.IO.Path.GetExtension(name);
+                string initial = System.IO.Path.GetFileNameWithoutExtension(name);
+                var typed = PromptText("Rename sound", $"New name for '{name}':", initial);
+                if (typed == null) return;
+                string newName = typed.Trim();
+                if (newName.Length == 0 || newName == initial) return;
+                if (!newName.EndsWith(ext, StringComparison.OrdinalIgnoreCase)) newName += ext;
+                if (RenameLibraryAsset(name, newName) == null)
+                    MessageBox.Show($"Couldn't rename — a sound named '{newName}' already exists, or the name is invalid.", "Rename sound");
+            }
+            else if (VideoAssets.TryGetValue(name, out var vp) || ImageAssets.TryGetValue(name, out vp))
+            {
+                bool isVideo = VideoAssets.ContainsKey(name);
+                string ext = System.IO.Path.GetExtension(name);
+                string initial = System.IO.Path.GetFileNameWithoutExtension(name);
+                var typed = PromptText("Rename", $"New name for '{name}':", initial);
+                if (typed == null) return;
+                string newName = typed.Trim();
+                if (newName.Length == 0 || newName == initial) return;
+                if (!newName.EndsWith(ext, StringComparison.OrdinalIgnoreCase)) newName += ext;
+                if (VideoAssets.ContainsKey(newName) || ImageAssets.ContainsKey(newName) || ZipSounds.ContainsKey(newName))
+                {
+                    MessageBox.Show($"A library item named '{newName}' already exists.", "Rename");
+                    return;
+                }
+                if (isVideo) { VideoAssets.Remove(name); VideoAssets[newName] = vp; }
+                else { ImageAssets.Remove(name); ImageAssets[newName] = vp; }
+                RefreshLibraryBrowser();
+            }
+        }
+
+        /// <summary>Rename a library sound everywhere it lives: project library,
+        /// its category record, and its entry in the sound-library archive.</summary>
+        public string? RenameLibraryAsset(string oldName, string newName)
+        {
+            newName = (newName ?? "").Trim();
+            if (newName.Length == 0 || newName == oldName) return null;
+            if (!ZipSounds.TryGetValue(oldName, out var bytes)) return null;
+            if (ZipSounds.ContainsKey(newName)) return null;
+            ZipSounds.Remove(oldName);
+            ZipSounds[newName] = bytes;
+            if (SoundCategories.TryGetValue(oldName, out var cat))
+            {
+                SoundCategories.Remove(oldName);
+                SoundCategories[newName] = cat;
+            }
+            if (_materializedFrom.TryGetValue(oldName, out var src))
+            {
+                _materializedFrom.Remove(oldName);
+                _materializedFrom[newName] = src;
+            }
+            RenameLibraryArchiveEntryForFile(oldName, newName, bytes);
+            if (draggingSoundName == oldName) draggingSoundName = newName;
+            RefreshLibraryBrowser();
+            return newName;
+        }
+
+        /// <summary>Small text prompt dialog (rename etc.). Returns null on cancel.</summary>
+        public static string? PromptText(string title, string message, string initial)
+        {
+            var input = new TextBox { Text = initial, MinWidth = 260, Margin = new Thickness(10) };
+            var ok = new Button { Content = "OK", IsDefault = true, Padding = new Thickness(14, 5, 14, 5), Margin = new Thickness(10, 0, 10, 10), HorizontalAlignment = HorizontalAlignment.Right };
+            var panel = new StackPanel();
+            panel.Children.Add(new TextBlock { Text = message, Margin = new Thickness(10, 10, 10, 0), Foreground = Brushes.White, TextWrapping = TextWrapping.Wrap, MaxWidth = 340 });
+            panel.Children.Add(input);
+            panel.Children.Add(ok);
+            var dlg = new Window
+            {
+                Title = title,
+                Content = panel,
+                SizeToContent = SizeToContent.WidthAndHeight,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Background = new SolidColorBrush(Color.FromRgb(0x17, 0x1B, 0x26)),
+                Foreground = Brushes.White,
+                ResizeMode = ResizeMode.NoResize
+            };
+            ok.Click += (s, e) => { dlg.DialogResult = true; };
+            input.Loaded += (s, e) => { input.Focus(); input.SelectAll(); };
+            return dlg.ShowDialog() == true ? input.Text : null;
         }
 
         private WaveOutEvent? _libPreviewOut;
@@ -2774,11 +3134,12 @@ namespace BeatSyncStudioPro
 
         private void DeleteLibraryAsset(string name)
         {
-            var ask = MessageBox.Show($"Delete '{name}' from the library?\n\nSounds that live in your imported sound-library folder are deleted from disk too. This can't be undone.",
+            var ask = MessageBox.Show($"Delete '{name}' from the library?\n\nIf it's in your sound-library archive, it's removed from there too. This can't be undone.",
                 "Delete sound", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (ask != MessageBoxResult.Yes) return;
             RemoveLibraryAsset(name);
-            // If the sound came from the imported sound-library folder, remove the file as well.
+            RemoveLibraryArchiveEntryForFile(name);
+            // Legacy loose files from the short-lived folder layout (pre-archive).
             try
             {
                 string root = SoundLibraryRoot;
@@ -2789,11 +3150,166 @@ namespace BeatSyncStudioPro
                 }
             }
             catch { /* the library entry is gone either way */ }
+            RefreshLibraryBrowser();
         }
 
-        // ===== v3.46: importing sounds (ZIP packs + loose files), auto-categorized, no duplicates =====
+        // ===== Sound-library archive (v3.47): imported sounds live in ONE
+        // compressed file the whole app reads — %AppData%/BeatSyncStudioPro/sound-library.zip
+        // with entries "<Category>/<filename>". Loose files from the old folder
+        // layout are packed in once and removed. =====
         public static string SoundLibraryRoot => System.IO.Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BeatSyncStudioPro", "sound-library");
+
+        public static string SoundLibraryArchivePath => System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BeatSyncStudioPro", "sound-library.zip");
+
+        private static bool _archiveReady;
+
+        public static void EnsureSoundLibraryArchive()
+        {
+            if (_archiveReady) return;
+            _archiveReady = true;
+            try
+            {
+                string root = SoundLibraryRoot;
+                if (!Directory.Exists(root)) return;
+                var loose = Directory.EnumerateFiles(root, "*.*", SearchOption.AllDirectories)
+                    .Where(f => f.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (loose.Count == 0) return;
+                using var zip = ZipFile.Open(SoundLibraryArchivePath, ZipArchiveMode.Update);
+                foreach (var file in loose)
+                {
+                    string dirName = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(file) ?? "");
+                    if (dirName.Length == 0 || dirName == "sound-library") dirName = SoundCategorizer.Infer(file);
+                    string entryName = dirName + "/" + System.IO.Path.GetFileName(file);
+                    long len = new FileInfo(file).Length;
+                    var existing = zip.GetEntry(entryName);
+                    if (existing != null && existing.Length == len) { try { File.Delete(file); } catch { } continue; }
+                    existing?.Delete();
+                    var entry = zip.CreateEntry(entryName, CompressionLevel.Optimal);
+                    using var es = entry.Open();
+                    using var fs = File.OpenRead(file);
+                    fs.CopyTo(es);
+                    try { File.Delete(file); } catch { }
+                }
+            }
+            catch { /* archive trouble must never block the app */ }
+            try
+            {
+                string root = SoundLibraryRoot;
+                if (Directory.Exists(root) && !Directory.EnumerateFiles(root, "*.*", SearchOption.AllDirectories).Any())
+                    Directory.Delete(root, true);
+            }
+            catch { }
+        }
+
+        /// <summary>(entryName, category, fileName) for every audio entry in the archive.</summary>
+        public static List<(string EntryName, string Category, string FileName)> LibraryArchiveEntries()
+        {
+            var list = new List<(string, string, string)>();
+            try
+            {
+                EnsureSoundLibraryArchive();
+                if (!File.Exists(SoundLibraryArchivePath)) return list;
+                using var zip = ZipFile.OpenRead(SoundLibraryArchivePath);
+                foreach (var entry in zip.Entries)
+                {
+                    if (entry.Name.Length == 0) continue;
+                    string ext = System.IO.Path.GetExtension(entry.Name).ToLowerInvariant();
+                    if (ext != ".wav" && ext != ".mp3") continue;
+                    string full = entry.FullName.Replace('\\', '/');
+                    string cat = full.Contains('/') ? full.Substring(0, full.IndexOf('/')) : SoundCategorizer.Infer(entry.Name);
+                    list.Add((entry.FullName, cat, entry.Name));
+                }
+            }
+            catch { }
+            return list;
+        }
+
+        public static byte[]? ReadLibraryArchiveEntry(string entryName)
+        {
+            try
+            {
+                if (!File.Exists(SoundLibraryArchivePath)) return null;
+                using var zip = ZipFile.OpenRead(SoundLibraryArchivePath);
+                var entry = zip.GetEntry(entryName);
+                if (entry == null) return null;
+                using var es = entry.Open();
+                using var ms = new MemoryStream();
+                es.CopyTo(ms);
+                return ms.ToArray();
+            }
+            catch { return null; }
+        }
+
+        private static void WriteLibraryArchiveEntry(string category, string fileName, byte[] bytes)
+        {
+            EnsureSoundLibraryArchive();
+            using var zip = ZipFile.Open(SoundLibraryArchivePath, ZipArchiveMode.Update);
+            string entryName = category + "/" + fileName;
+            zip.GetEntry(entryName)?.Delete();
+            var entry = zip.CreateEntry(entryName, CompressionLevel.Optimal);
+            using var es = entry.Open();
+            es.Write(bytes, 0, bytes.Length);
+        }
+
+        /// <summary>Rename one archive entry in place (same category folder, new file name).</summary>
+        public static bool RenameLibraryArchiveEntryExact(string entryName, string newFileName)
+        {
+            try
+            {
+                var bytes = ReadLibraryArchiveEntry(entryName);
+                if (bytes == null) return false;
+                string full = entryName.Replace('\\', '/');
+                string cat = full.Contains('/') ? full.Substring(0, full.IndexOf('/')) : "Other";
+                RemoveLibraryArchiveEntryExact(entryName);
+                WriteLibraryArchiveEntry(cat, newFileName, bytes);
+                return true;
+            }
+            catch { return false; }
+        }
+
+        public static void RemoveLibraryArchiveEntryExact(string entryName)
+        {
+            try
+            {
+                if (!File.Exists(SoundLibraryArchivePath)) return;
+                using var zip = ZipFile.Open(SoundLibraryArchivePath, ZipArchiveMode.Update);
+                zip.GetEntry(entryName)?.Delete();
+            }
+            catch { }
+        }
+
+        private static void RemoveLibraryArchiveEntryForFile(string fileName)
+        {
+            try
+            {
+                if (!File.Exists(SoundLibraryArchivePath)) return;
+                using var zip = ZipFile.Open(SoundLibraryArchivePath, ZipArchiveMode.Update);
+                var hits = zip.Entries.Where(en => en.Name == fileName).ToList();
+                foreach (var h in hits) h.Delete();
+            }
+            catch { }
+        }
+
+        private static void RenameLibraryArchiveEntryForFile(string oldName, string newName, byte[] bytes)
+        {
+            try
+            {
+                if (!File.Exists(SoundLibraryArchivePath)) return;
+                using var zip = ZipFile.Open(SoundLibraryArchivePath, ZipArchiveMode.Update);
+                var hit = zip.Entries.FirstOrDefault(en => en.Name == oldName);
+                if (hit == null) return;
+                string full = hit.FullName.Replace('\\', '/');
+                string cat = full.Contains('/') ? full.Substring(0, full.IndexOf('/')) : "Other";
+                hit.Delete();
+                var entry = zip.CreateEntry(cat + "/" + newName, CompressionLevel.Optimal);
+                using var es = entry.Open();
+                es.Write(bytes, 0, bytes.Length);
+            }
+            catch { }
+        }
 
         private static readonly string[] ImportAudioExtensions = { ".wav", ".mp3" };
 
@@ -2813,9 +3329,9 @@ namespace BeatSyncStudioPro
         }
 
         /// <summary>Import ZIP archives and/or loose audio files: every sound is
-        /// categorized (folder hint, else keyword inference), written into the
-        /// sound-library folder, and added to the project library. A sound whose
-        /// name + size already exists is skipped — never duplicated.</summary>
+        /// categorized (folder hint, else keyword inference), stored in the ONE
+        /// compressed sound-library archive, and added to the project library.
+        /// A sound whose name + size already exists is skipped — never duplicated.</summary>
         public (int Added, int Skipped) ImportSoundArchives(IEnumerable<string> paths)
         {
             int added = 0, skipped = 0;
@@ -2844,34 +3360,62 @@ namespace BeatSyncStudioPro
                 }
                 catch { skipped++; }
             }
+            // Snapshot what's already in the archive (name → sizes) for the dedup check.
+            var archived = new Dictionary<string, List<long>>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                if (File.Exists(SoundLibraryArchivePath))
+                {
+                    using var zip = ZipFile.OpenRead(SoundLibraryArchivePath);
+                    foreach (var en in zip.Entries)
+                    {
+                        if (!archived.TryGetValue(en.Name, out var l)) { l = new List<long>(); archived[en.Name] = l; }
+                        l.Add(en.Length);
+                    }
+                }
+            }
+            catch { }
             foreach (var (displayName, category, bytes) in pending)
             {
                 string name = displayName;
-                // Never duplicate: same name + same size already in the library or on disk = skip.
                 if (ZipSounds.TryGetValue(name, out var existing) && existing.Length == bytes.Length) { skipped++; continue; }
-                string catDir = System.IO.Path.Combine(SoundLibraryRoot, category);
-                string diskPath = System.IO.Path.Combine(catDir, name);
-                if (File.Exists(diskPath) && new FileInfo(diskPath).Length == bytes.Length) { skipped++; continue; }
-                if (ZipSounds.ContainsKey(name) || File.Exists(diskPath))
+                if (archived.TryGetValue(name, out var sizes) && sizes.Contains(bytes.Length)) { skipped++; continue; }
+                if (ZipSounds.ContainsKey(name) || archived.ContainsKey(name))
                 {
-                    // Same name, different sound — keep both, tagged apart (not a duplicate).
                     string baseName = System.IO.Path.GetFileNameWithoutExtension(name);
                     string ext = System.IO.Path.GetExtension(name);
                     int n = 2;
-                    while (ZipSounds.ContainsKey($"{baseName} ({n}){ext}") || File.Exists(System.IO.Path.Combine(catDir, $"{baseName} ({n}){ext}"))) n++;
+                    while (ZipSounds.ContainsKey($"{baseName} ({n}){ext}") || archived.ContainsKey($"{baseName} ({n}){ext}")) n++;
                     name = $"{baseName} ({n}){ext}";
-                    diskPath = System.IO.Path.Combine(catDir, name);
                 }
                 try
                 {
-                    Directory.CreateDirectory(catDir);
-                    File.WriteAllBytes(diskPath, bytes);
+                    WriteLibraryArchiveEntry(category, name, bytes);
+                    if (!archived.TryGetValue(name, out var l2)) { l2 = new List<long>(); archived[name] = l2; }
+                    l2.Add(bytes.Length);
                     AddToLibraryOnly(bytes, name, category);
                     added++;
                 }
                 catch { skipped++; }
             }
+            _externalsBuilt = false;
+            RefreshLibraryBrowser();
             return (added, skipped);
+        }
+
+        // ===== Title-bar download indicator: while anything is downloading,
+        // the window title carries its name, percent, speed and ETA. =====
+        private void UpdateDownloadTitle()
+        {
+            try
+            {
+                var active = DownloadManager.Items.Where(i => i.State == "Downloading" || i.State == "Paused").ToList();
+                if (active.Count == 0) { Title = "BeatSync Studio Pro"; return; }
+                var first = active[0];
+                Title = $"BeatSync Studio Pro — ⬇ {first.Name} {first.Percent:0}% · {first.Detail}" +
+                        (active.Count > 1 ? $"  (+{active.Count - 1} more downloading)" : "");
+            }
+            catch { }
         }
 
         private void BtnImportSounds_Click(object sender, RoutedEventArgs e)
