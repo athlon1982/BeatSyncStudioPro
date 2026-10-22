@@ -3,6 +3,9 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.39 — DJ Reliability Fixes (GLM Audit, Part 5)
+- **FIX 9 — Phone companion hardening:** sign-in tokens now expire after 12 hours and are all cleared when the server stops; the wrong-password lockout escalates (30s, 60s, 120s… up to 15 minutes) for repeat offenders; the companion settings are cached in memory instead of re-read from disk on every phone request; the lockout reply is no longer written while holding the auth lock; if the listener ever dies unexpectedly the companion window now reports it instead of pretending to run; and sampler pad commands from the phone are bounds-checked before they touch anything.
+
 ## Version 3.38 — DJ Reliability Fixes (GLM Audit, Part 4)
 - **FIX 7 — Cruise no longer freezes the app:** auto-DJ track loads (file read + decode) now run off the UI thread and are applied when ready, with a generation guard so turning cruise off mid-load can't resurrect it. Broken files in the queue are skipped silently instead of popping a dialog mid-set. Manual loads behave exactly as before.
 - **FIX 8 — Slip cancel:** turning Slip mode OFF while holding a scratch now cancels the pending slip jump — releasing the record just keeps playing from where you are instead of teleporting to where the track "would have been".

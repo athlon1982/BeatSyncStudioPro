@@ -63,15 +63,25 @@ namespace BeatSyncStudioPro
 
         private TcpListener? _listener;
         private CancellationTokenSource? _cts;
-        private readonly HashSet<string> _tokens = new HashSet<string>();
-        private readonly Dictionary<string, (int Fails, DateTime LockedUntil)> _authFails = new Dictionary<string, (int, DateTime)>();
+        private Settings? _settingsCache;
+        private readonly Dictionary<string, DateTime> _tokens = new Dictionary<string, DateTime>();
+        private readonly Dictionary<string, (int Fails, DateTime LockedUntil, int Strikes)> _authFails = new Dictionary<string, (int, DateTime, int)>();
         private readonly object _authLock = new object();
 
         public bool IsRunning => _listener != null;
         public int Port { get; private set; }
         public string? LastError { get; private set; }
-        public bool PasswordRequired => LoadSettings().HashB64 != null;
+        public bool PasswordRequired => CachedSettings().HashB64 != null;
         public int SessionCount { get { lock (_authLock) return _tokens.Count; } }
+
+        private Settings CachedSettings()
+        {
+            lock (_authLock)
+            {
+                _settingsCache ??= LoadSettings();
+                return _settingsCache;
+            }
+        }
 
         public event Action<string>? CommandReceived;
         public Func<string>? StateJsonProvider;
@@ -94,12 +104,12 @@ namespace BeatSyncStudioPro
                 s.HashB64 = Convert.ToBase64String(hash);
             }
             SaveSettings(s);
-            lock (_authLock) _tokens.Clear();   // changing the password signs every phone out
+            lock (_authLock) { _settingsCache = s; _tokens.Clear(); }   // changing the password signs every phone out
         }
 
         private bool CheckPassword(string password)
         {
-            var s = LoadSettings();
+            var s = CachedSettings();
             if (s.HashB64 == null || s.SaltB64 == null) return true;
             byte[] salt = Convert.FromBase64String(s.SaltB64);
             byte[] expected = Convert.FromBase64String(s.HashB64);
@@ -111,7 +121,12 @@ namespace BeatSyncStudioPro
         {
             if (!PasswordRequired) return true;
             if (string.IsNullOrEmpty(token)) return false;
-            lock (_authLock) return _tokens.Contains(token);
+            lock (_authLock)
+            {
+                if (!_tokens.TryGetValue(token!, out var expiry)) return false;
+                if (expiry <= DateTime.UtcNow) { _tokens.Remove(token!); return false; }
+                return true;
+            }
         }
 
         // ---------- lifecycle ----------
@@ -141,6 +156,9 @@ namespace BeatSyncStudioPro
             try { _cts?.Cancel(); } catch { }
             try { _listener?.Stop(); } catch { }
             _listener = null;
+            lock (_authLock) { _tokens.Clear(); _authFails.Clear(); }
+            try { _cts?.Dispose(); } catch { }
+            _cts = null;
         }
 
         private async Task AcceptLoop(CancellationToken token)
@@ -149,7 +167,15 @@ namespace BeatSyncStudioPro
             {
                 TcpClient client;
                 try { client = await _listener.AcceptTcpClientAsync(token); }
-                catch { break; }
+                catch (Exception ex)
+                {
+                    if (!token.IsCancellationRequested)
+                    {
+                        LastError = "Companion listener stopped: " + ex.Message;
+                        _listener = null;
+                    }
+                    break;
+                }
                 _ = Task.Run(() => HandleClient(client));
             }
         }
@@ -206,14 +232,16 @@ namespace BeatSyncStudioPro
 
         private void HandleAuth(NetworkStream stream, string body, string remoteIp)
         {
+            int lockedSecs = 0;
             lock (_authLock)
             {
                 if (_authFails.TryGetValue(remoteIp, out var rec) && rec.LockedUntil > DateTime.UtcNow)
-                {
-                    int secs = (int)(rec.LockedUntil - DateTime.UtcNow).TotalSeconds + 1;
-                    Respond(stream, 429, "application/json", $"{{\"error\":\"locked\",\"seconds\":{secs}}}");
-                    return;
-                }
+                    lockedSecs = (int)(rec.LockedUntil - DateTime.UtcNow).TotalSeconds + 1;
+            }
+            if (lockedSecs > 0)
+            {
+                Respond(stream, 429, "application/json", $"{{\"error\":\"locked\",\"seconds\":{lockedSecs}}}");
+                return;
             }
             string password = "";
             try
@@ -225,16 +253,22 @@ namespace BeatSyncStudioPro
             if (CheckPassword(password))
             {
                 string token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-                lock (_authLock) { _tokens.Add(token); _authFails.Remove(remoteIp); }
+                lock (_authLock) { _tokens[token] = DateTime.UtcNow.AddHours(12); _authFails.Remove(remoteIp); }
                 Respond(stream, 200, "application/json", $"{{\"token\":\"{token}\"}}");
             }
             else
             {
                 lock (_authLock)
                 {
-                    (int Fails, DateTime LockedUntil) rec = _authFails.TryGetValue(remoteIp, out var r) ? r : (0, DateTime.MinValue);
+                    (int Fails, DateTime LockedUntil, int Strikes) rec = _authFails.TryGetValue(remoteIp, out var r) ? r : (0, DateTime.MinValue, 0);
                     rec.Fails++;
-                    if (rec.Fails >= 5) { rec.LockedUntil = DateTime.UtcNow.AddSeconds(30); rec.Fails = 0; }
+                    if (rec.Fails >= 5)
+                    {
+                        rec.Strikes++;
+                        int lockSeconds = Math.Min(30 * (1 << Math.Min(rec.Strikes - 1, 5)), 900);
+                        rec.LockedUntil = DateTime.UtcNow.AddSeconds(lockSeconds);
+                        rec.Fails = 0;
+                    }
                     _authFails[remoteIp] = rec;
                 }
                 Respond(stream, 401, "application/json", "{\"error\":\"wrong password\"}");

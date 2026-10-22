@@ -494,6 +494,7 @@ namespace BeatSyncStudioPro
 
         private void TriggerPad(int pad)
         {
+            if (pad < 0 || pad >= SamplerEngine.PadCount) return;
             if (!_sampler.Slots[pad].HasSound)
             {
                 SetStatus($"Sampler pad {pad + 1} has no sound yet - right-click it to assign one.");
