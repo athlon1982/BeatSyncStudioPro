@@ -18,6 +18,7 @@ namespace BeatSyncStudioPro
         public const string Loops = "Loops";
         public const string Vocals = "Vocals";
         public const string Fx = "FX";
+        public const string Stems = "Stems";
         public const string Other = "Other";
 
         public static readonly string[] All = { Drums, Guitar, Bass, Keys, Loops, Vocals, Fx, Other };
@@ -31,6 +32,7 @@ namespace BeatSyncStudioPro
             Loops => "🔁",
             Vocals => "🎤",
             Fx => "✨",
+            Stems => "🧬",
             _ => "🎵"
         };
 

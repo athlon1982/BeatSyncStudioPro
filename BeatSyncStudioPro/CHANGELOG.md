@@ -3,6 +3,9 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.44 — Stems Land in the Library
+- **NEW — 🧬 Stems category in the editor's asset library:** whenever a stem split finishes — in the editor's stem splitter OR on a DJ deck — the four stems (vocals / drums / bass / other) are automatically filed in the main window's Asset Library under a new **Stems** category, named like "Song — Vocals", ready to drag onto the timeline like any other sound. Cached stems loaded on a deck are filed too, and re-splitting the same song doesn't create duplicates.
+
 ## Version 3.43 — 🎤 MASHUP A+B + Progress Windows
 - **Why mixes sounded bad, fixed properly:** two FULL songs at once is always lyrics-over-lyrics. New **🎤 Mashup** button (mixer, next to MIX A+B): Deck A plays **vocals only**, Deck B plays **the beat only** (drums + bass + other), tempo- and key-synced and started together — an actual remix. If a song's stems aren't split yet, it splits them first (with the usual model download prompt the first time ever) and everything is cached for next time.
 - **Progress windows:** 🎲 Best Pair and 🎤 Mashup now open a live progress window — a progress bar plus a step-by-step log (each song's BPM and key as it's analyzed, the winning pair, stem splits, and the final setup) instead of just the little status line.

@@ -216,6 +216,34 @@ namespace BeatSyncStudioPro
                 if (StartScreenEnabled && TimelineBlocks.Count == 0) OpenStartScreen();
             };
             MasterVideoPlayer.MediaOpened += MasterVideoPlayer_MediaOpened;
+
+            // v3.44: stems land in the library under "Stems" whenever a split finishes
+            StemSeparator.StemsAvailable += OnStemsAvailable;
+        }
+
+        /// <summary>v3.44: file a set of split stems into the asset library under
+        /// the "Stems" category so they can be dragged onto the timeline like any
+        /// other sound. Duplicates (same song re-split or cache-loaded) are skipped.</summary>
+        private void OnStemsAvailable(string folder, string baseName)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => OnStemsAvailable(folder, baseName)));
+                return;
+            }
+            foreach (var stem in StemSeparator.StemNames)
+            {
+                string nice = char.ToUpperInvariant(stem[0]) + stem.Substring(1);
+                string display = $"{baseName} — {nice}.wav";
+                if (ZipSounds.ContainsKey(display)) continue;
+                string path = System.IO.Path.Combine(folder, $"{baseName} ({stem}).wav");
+                try
+                {
+                    if (!File.Exists(path)) continue;
+                    AddToLibraryOnly(File.ReadAllBytes(path), display, SoundCategorizer.Stems);
+                }
+                catch { /* one bad stem file must not block the others */ }
+            }
         }
 
         private void UpdateVolumeDisplay()
@@ -2541,7 +2569,7 @@ namespace BeatSyncStudioPro
             string selected = (LibraryCategoryBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
             string[] known = { "All Sounds", SoundCategorizer.Drums, SoundCategorizer.Guitar, SoundCategorizer.Bass,
                 SoundCategorizer.Keys, SoundCategorizer.Loops, SoundCategorizer.Vocals, SoundCategorizer.Fx,
-                SoundCategorizer.Other, "Video", "Images" };
+                SoundCategorizer.Stems, SoundCategorizer.Other, "Video", "Images" };
             string filter = known.FirstOrDefault(k => selected.Contains(k)) ?? "";
             string query = LibrarySearchBox?.Text?.Trim() ?? "";
             foreach (var child in ListContainer.Children)

@@ -2418,6 +2418,7 @@ namespace BeatSyncStudioPro
                     bool ok = await Task.Run(() => _deck.LoadStemsFromFolder(folder, baseName));
                     if (gen != _stemGeneration) return;
                     ShowStemChips(ok, ok ? "stems ready (cached)" : "");
+                    if (ok) StemSeparator.NotifyStemsAvailable(folder, baseName);
                 }
                 catch
                 {
@@ -2438,6 +2439,7 @@ namespace BeatSyncStudioPro
                     try { okc = await Task.Run(() => _deck.LoadStemsFromFolder(folder, baseName)); }
                     catch { okc = false; }
                     ShowStemChips(okc, okc ? "stems ready (cached)" : "cached stems failed to load");
+                    if (okc) StemSeparator.NotifyStemsAvailable(folder, baseName);
                     return;
                 }
                 string modelDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BeatSyncStudioPro", "models");

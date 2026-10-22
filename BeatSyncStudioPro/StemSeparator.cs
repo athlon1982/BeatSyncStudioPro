@@ -170,7 +170,19 @@ namespace BeatSyncStudioPro
                     WaveFileWriter.CreateWaveFile16(path, new ArraySampleProvider(interleaved));
                 }
                 progress?.Report(1.0);
+                NotifyStemsAvailable(outFolder, baseName);
             }, token);
+        }
+
+        /// <summary>v3.44: raised whenever a full set of stems exists on disk
+        /// (fresh split, or cached stems loaded in the DJ decks) so the editor
+        /// library can file them under "Stems". Args: folder, baseName.</summary>
+        public static event Action<string, string>? StemsAvailable;
+
+        public static void NotifyStemsAvailable(string folder, string baseName)
+        {
+            try { StemsAvailable?.Invoke(folder, baseName); }
+            catch { /* the library hook must never break a split */ }
         }
 
         private static double Weight(int i, int len, bool isFirst, bool isLast, int overlap)
