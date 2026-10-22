@@ -78,8 +78,8 @@ namespace BeatSyncStudioPro
         public double SnapX(double x)
         {
             if (!SnapToBeatEnabled || ProjectBpm <= 0) return x;
-            double periodPx = 60.0 / ProjectBpm * 100.0;
-            double offsetPx = BeatOffsetSeconds * 100.0;
+            double periodPx = 60.0 / ProjectBpm * FixedBlock.PixelsPerSecond;
+            double offsetPx = BeatOffsetSeconds * FixedBlock.PixelsPerSecond;
             double n = Math.Round((x - offsetPx) / periodPx);
             double snapped = offsetPx + n * periodPx;
             return Math.Abs(snapped - x) <= 8 ? snapped : x;
@@ -92,7 +92,7 @@ namespace BeatSyncStudioPro
             double period = 60.0 / bpm;
             double k = Math.Ceiling((block.SourceStartSeconds - fileOffset) / period - 1e-6);
             double beatFile = fileOffset + k * period;
-            double offsetTimeline = block.StartX / 100.0 + (beatFile - block.SourceStartSeconds) / Math.Max(0.01, block.Speed);
+            double offsetTimeline = block.StartX / FixedBlock.PixelsPerSecond + (beatFile - block.SourceStartSeconds) / Math.Max(0.01, block.Speed);
             double cycle = 4 * period; // normalize while preserving the downbeat phase
             offsetTimeline = ((offsetTimeline % cycle) + cycle) % cycle;
             return (bpm, offsetTimeline, confidence);
@@ -192,6 +192,7 @@ namespace BeatSyncStudioPro
         private Rectangle? _loopBrace;
         private double _lastTimelineHeight = 450;
         private int _rulerDrawnSeconds = 25;
+        private double _rulerDrawnPps = 100;
         private CancellationTokenSource? playbackCancelToken;
         private string? draggingSoundName = null;
         private Point dragStartPoint;
@@ -288,23 +289,98 @@ namespace BeatSyncStudioPro
             }
         }
 
+        /// <summary>
+        /// Draw the time ruler at the current zoom. The tick step adapts: whole
+        /// seconds when zoomed out, splitting into halves / quarters / tenths
+        /// of a second as you zoom in, so the gap between 1s and 2s breaks
+        /// down into fractions (1.25s, 1.5s, …) instead of staying blank.
+        /// </summary>
         private void RenderTimeRulerHeaders()
         {
             if (RulerTicksCanvas == null) return;
             RulerTicksCanvas.Children.Clear();
-            int totalSeconds = Math.Max(25, (int)Math.Ceiling(TimelineLengthPx / 100.0));
-            _rulerDrawnSeconds = totalSeconds;
-            for (int sec = 0; sec <= totalSeconds; sec++)
+            double pps = FixedBlock.PixelsPerSecond;
+            double totalSeconds = Math.Max(25, Math.Ceiling(TimelineLengthPx / pps));
+            _rulerDrawnSeconds = (int)Math.Ceiling(totalSeconds);
+            _rulerDrawnPps = pps;
+
+            double[] steps = { 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60 };
+            double step = steps[steps.Length - 1];
+            foreach (var s in steps)
             {
-                double xPos = sec * 100;
-                Line tickLine = new Line { X1 = xPos, Y1 = 20, X2 = xPos, Y2 = 40, Stroke = (Brush)new BrushConverter().ConvertFromString("#A0A5B5")!, StrokeThickness = 1 };
+                if (s * pps >= 80) { step = s; break; }
+            }
+
+            var minorBrush = (Brush)new BrushConverter().ConvertFromString("#6B7690")!;
+            var majorBrush = (Brush)new BrushConverter().ConvertFromString("#A0A5B5")!;
+            int tickCount = (int)Math.Ceiling(totalSeconds / step);
+            for (int i = 0; i <= tickCount; i++)
+            {
+                double t = i * step;
+                double xPos = t * pps;
+                bool wholeSecond = Math.Abs(t - Math.Round(t)) < 1e-6;
+                Line tickLine = new Line
+                {
+                    X1 = xPos, Y1 = wholeSecond ? 18 : 28, X2 = xPos, Y2 = 40,
+                    Stroke = wholeSecond ? majorBrush : minorBrush, StrokeThickness = 1
+                };
                 RulerTicksCanvas.Children.Add(tickLine);
 
-                TextBlock txtTime = new TextBlock { Text = sec < 60 ? $"{sec:D2}s" : FmtTime(sec), Foreground = (Brush)new BrushConverter().ConvertFromString("#A0A5B5")!, FontWeight = FontWeights.Bold, FontSize = 9 };
+                string label;
+                if (t >= 60) label = FmtTime(t);
+                else if (step < 1) label = t.ToString("0.00").TrimEnd('0').TrimEnd('.') + "s";
+                else label = $"{(int)t:D2}s";
+                TextBlock txtTime = new TextBlock { Text = label, Foreground = majorBrush, FontWeight = FontWeights.Bold, FontSize = 9 };
                 Canvas.SetLeft(txtTime, xPos - 12);
                 Canvas.SetTop(txtTime, 2);
                 RulerTicksCanvas.Children.Add(txtTime);
             }
+        }
+
+        /// <summary>Mouse-wheel zoom for the timeline, anchored at the cursor:
+        /// the moment under the mouse stays under the mouse while everything
+        /// around it stretches or shrinks.</summary>
+        private void TimelineScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            double oldPps = FixedBlock.PixelsPerSecond;
+            double factor = Math.Pow(1.25, e.Delta / 120.0);
+            double newPps = Math.Clamp(oldPps * factor, 10, 1000);
+            if (Math.Abs(newPps - oldPps) < 0.01) { e.Handled = true; return; }
+
+            double anchorSeconds = e.GetPosition(TimelineCanvas).X / oldPps;
+            double mouseViewportX = e.GetPosition(TimelineScrollViewer).X;
+            ApplyTimelineZoom(newPps);
+            double newAnchorX = anchorSeconds * newPps;
+            Dispatcher.BeginInvoke(new Action(() =>
+                TimelineScrollViewer.ScrollToHorizontalOffset(Math.Max(0, newAnchorX - mouseViewportX))));
+            e.Handled = true;
+        }
+
+        /// <summary>Rescale every clip, the loop region and the playhead to a
+        /// new pixels-per-second zoom and redraw the timeline.</summary>
+        private void ApplyTimelineZoom(double newPps)
+        {
+            double oldPps = FixedBlock.PixelsPerSecond;
+            if (Math.Abs(newPps - oldPps) < 0.001) return;
+            double ratio = newPps / oldPps;
+            FixedBlock.PixelsPerSecond = newPps;
+
+            foreach (var b in TimelineBlocks)
+            {
+                b.StartX *= ratio;
+                // Recompute width from the clip's true length so repeated
+                // zooms don't accumulate rounding drift (image clips keep
+                // their LengthSeconds from placement, so this holds for them).
+                b.Width = Math.Max(4, b.LengthSeconds * newPps);
+                b.UpdateCanvasPosition();
+            }
+            if (LoopStartX.HasValue) LoopStartX = LoopStartX.Value * ratio;
+            if (LoopEndX.HasValue) LoopEndX = LoopEndX.Value * ratio;
+            _currentPlayX *= ratio;
+
+            RenderStudioGridLanes();
+            UpdateLoopButtons();
+            if (ZoomLabel != null) ZoomLabel.Text = $"🔍 {newPps:0}%";
         }
 
         private void TimelineScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
@@ -356,14 +432,14 @@ namespace BeatSyncStudioPro
             double end = 0;
             foreach (var b in TimelineBlocks)
             {
-                double w = double.IsNaN(b.Width) ? b.LengthSeconds * 100 : b.Width;
+                double w = double.IsNaN(b.Width) ? b.LengthSeconds * FixedBlock.PixelsPerSecond : b.Width;
                 end = Math.Max(end, b.StartX + w);
             }
             return end;
         }
 
         /// <summary>The timeline is at least 25 seconds wide and grows to fit the content.</summary>
-        private double TimelineLengthPx => Math.Max(2500, GetContentEndX() + 500);
+        private double TimelineLengthPx => Math.Max(25 * FixedBlock.PixelsPerSecond, GetContentEndX() + 5 * FixedBlock.PixelsPerSecond);
 
         private static string FmtTime(double seconds)
         {
@@ -375,7 +451,26 @@ namespace BeatSyncStudioPro
         private void UpdateTimeDisplay(double currentSeconds)
         {
             if (TimeDisplay != null)
-                TimeDisplay.Text = $"{FmtTime(currentSeconds)} / {FmtTime(GetContentEndX() / 100.0)}";
+                TimeDisplay.Text = $"{FmtTime(currentSeconds)} / {FmtTime(GetContentEndX() / FixedBlock.PixelsPerSecond)}";
+        }
+
+        /// <summary>
+        /// The video preview box only earns its space while a video clip is
+        /// actually on the timeline. With no video clip it collapses away and
+        /// the timeline takes the whole workspace height; adding a video clip
+        /// brings it straight back.
+        /// </summary>
+        private void UpdateVideoPreviewVisibility()
+        {
+            if (VideoPreviewBorder == null || VideoPreviewRow == null) return;
+            bool hasVideo = TimelineBlocks.Any(b => b.IsVideo);
+            VideoPreviewBorder.Visibility = hasVideo ? Visibility.Visible : Visibility.Collapsed;
+            VideoPreviewRow.Height = hasVideo ? new GridLength(3, GridUnitType.Star) : new GridLength(0);
+            VideoPreviewRow.MinHeight = hasVideo ? 140 : 0;
+            if (!hasVideo && MasterVideoPlayer != null)
+            {
+                try { MasterVideoPlayer.Pause(); } catch { }
+            }
         }
 
         /// <summary>Position/show the A–B loop band + top brace from LoopStartX/LoopEndX.</summary>
@@ -420,8 +515,10 @@ namespace BeatSyncStudioPro
             TimelineCanvas.Width = tlWidth;
             if (WaveformOverlayCanvas != null) WaveformOverlayCanvas.Width = tlWidth;
             if (TimelineHost != null) TimelineHost.Width = tlWidth;
-            if (tlWidth / 100 > _rulerDrawnSeconds) RenderTimeRulerHeaders();
+            if (tlWidth / FixedBlock.PixelsPerSecond > _rulerDrawnSeconds || Math.Abs(FixedBlock.PixelsPerSecond - _rulerDrawnPps) > 0.01)
+                RenderTimeRulerHeaders();
             UpdateTimeDisplay(0);
+            UpdateVideoPreviewVisibility();
 
             _lastTimelineHeight = timelineHeight;
 
@@ -478,8 +575,8 @@ namespace BeatSyncStudioPro
             // Beat grid lines (under the clips; every 4th line is a brighter downbeat)
             if (ProjectBpm > 0)
             {
-                double periodPx = 60.0 / ProjectBpm * 100.0;
-                double offsetPx = BeatOffsetSeconds * 100.0;
+                double periodPx = 60.0 / ProjectBpm * FixedBlock.PixelsPerSecond;
+                double offsetPx = BeatOffsetSeconds * FixedBlock.PixelsPerSecond;
                 var beatBrush = new SolidColorBrush(Color.FromArgb(50, 0xFF, 0xC8, 0x3D));
                 var downbeatBrush = new SolidColorBrush(Color.FromArgb(95, 0xFF, 0xC8, 0x3D));
                 int beatIndex = 0;
@@ -893,7 +990,7 @@ namespace BeatSyncStudioPro
                 }
 
                 // Add to VIDEO track (AudioTrackCount)
-                FixedBlock vblock = new FixedBlock(this, TimelineCanvas, AudioTrackCount, draggingSoundName, clickPoint.X, Array.Empty<byte>(), "mp4", 280, true);
+                FixedBlock vblock = new FixedBlock(this, TimelineCanvas, AudioTrackCount, draggingSoundName, clickPoint.X, Array.Empty<byte>(), "mp4", 280 * FixedBlock.PixelsPerSecond / 100.0, true);
                 TimelineBlocks.Add(vblock);
                 RenderStudioGridLanes();
             }
@@ -902,7 +999,7 @@ namespace BeatSyncStudioPro
             {
                 if (trackId >= 0 && trackId < AudioTrackCount)
                 {
-                    FixedBlock iblock = new FixedBlock(this, TimelineCanvas, trackId, draggingSoundName, clickPoint.X, Array.Empty<byte>(), "image", 120, false);
+                    FixedBlock iblock = new FixedBlock(this, TimelineCanvas, trackId, draggingSoundName, clickPoint.X, Array.Empty<byte>(), "image", 120 * FixedBlock.PixelsPerSecond / 100.0, false);
                     TimelineBlocks.Add(iblock);
                 }
             }
@@ -1285,8 +1382,8 @@ namespace BeatSyncStudioPro
         /// <summary>Set the A–B loop from timeline seconds and show it (transcript click-to-loop).</summary>
         public void SetLoopRange(double startSec, double endSec)
         {
-            LoopStartX = Math.Max(0, startSec * 100);
-            LoopEndX = Math.Max(LoopStartX.Value + 10, endSec * 100);
+            LoopStartX = Math.Max(0, startSec * FixedBlock.PixelsPerSecond);
+            LoopEndX = Math.Max(LoopStartX.Value + 0.1 * FixedBlock.PixelsPerSecond, endSec * FixedBlock.PixelsPerSecond);
             LoopEnabled = true;
             UpdateLoopButtons();
             TimelineScrollViewer.ScrollToHorizontalOffset(Math.Max(0, LoopStartX.Value - 200));
@@ -1561,8 +1658,8 @@ namespace BeatSyncStudioPro
         private void UpdateLoopButtons()
         {
             RefreshLoopVisual();
-            if (SetABtn != null) SetABtn.Content = LoopStartX.HasValue ? $"A · {FmtTime(LoopStartX.Value / 100.0)}" : "Set A";
-            if (SetBBtn != null) SetBBtn.Content = LoopEndX.HasValue ? $"B · {FmtTime(LoopEndX.Value / 100.0)}" : "Set B";
+            if (SetABtn != null) SetABtn.Content = LoopStartX.HasValue ? $"A · {FmtTime(LoopStartX.Value / FixedBlock.PixelsPerSecond)}" : "Set A";
+            if (SetBBtn != null) SetBBtn.Content = LoopEndX.HasValue ? $"B · {FmtTime(LoopEndX.Value / FixedBlock.PixelsPerSecond)}" : "Set B";
             if (LoopToggleBtn != null)
             {
                 LoopToggleBtn.Content = LoopEnabled ? "🔁 Loop ON" : "🔁 Loop";
@@ -1655,7 +1752,7 @@ namespace BeatSyncStudioPro
             if (AutoCrossfadeEnabled)
             {
                 var audioBlocks = TimelineBlocks.Where(x => x.IsAudio).ToList();
-                var lanes = audioBlocks.Select(x => (x.LaneIndex, x.StartX / 100.0, x.LengthSeconds)).ToList();
+                var lanes = audioBlocks.Select(x => (x.LaneIndex, x.StartX / FixedBlock.PixelsPerSecond, x.LengthSeconds)).ToList();
                 for (int i = 0; i < audioBlocks.Count; i++)
                 {
                     if (audioBlocks[i].LengthSeconds > 0.2)
@@ -1669,12 +1766,12 @@ namespace BeatSyncStudioPro
                 if (block.SoundType == "image" || block.RawBytes == null) continue;
                 int chain = block.IsVideoAudio ? AudioTrackCount : Math.Clamp(block.TrackId, 0, AudioTrackCount - 1);
                 double length = block.LengthSeconds > 0 ? block.LengthSeconds
-                    : (double.IsNaN(block.Width) ? 0 : block.Width / 100.0);
+                    : (double.IsNaN(block.Width) ? 0 : block.Width / FixedBlock.PixelsPerSecond);
                 var clip = new ExportClip
                 {
                     RawBytes = block.RawBytes,
                     SoundType = block.SoundType,
-                    StartSeconds = block.StartX / 100.0,
+                    StartSeconds = block.StartX / FixedBlock.PixelsPerSecond,
                     Speed = block.Speed,
                     SourceStartSeconds = block.SourceStartSeconds,
                     LengthSeconds = block.LengthSeconds,
@@ -1695,7 +1792,7 @@ namespace BeatSyncStudioPro
                     clip.FadeOutSeconds = fades.Fout;
                 }
                 job.Clips.Add(clip);
-                total = Math.Max(total, block.StartX / 100.0 + length);
+                total = Math.Max(total, block.StartX / FixedBlock.PixelsPerSecond + length);
             }
 
             // The video's own soundtrack joins the mix when it has not been
@@ -1704,20 +1801,20 @@ namespace BeatSyncStudioPro
             if (VideoPath != null && videoBlock != null && !VideoAudioSeparated)
             {
                 double vlen = videoBlock.LengthSeconds > 0 ? videoBlock.LengthSeconds
-                    : (double.IsNaN(videoBlock.Width) ? 0 : videoBlock.Width / 100.0);
+                    : (double.IsNaN(videoBlock.Width) ? 0 : videoBlock.Width / FixedBlock.PixelsPerSecond);
                 if (vlen > 0)
                 {
                     job.Clips.Add(new ExportClip
                     {
                         FilePath = VideoPath,
-                        StartSeconds = videoBlock.StartX / 100.0,
+                        StartSeconds = videoBlock.StartX / FixedBlock.PixelsPerSecond,
                         Speed = VideoSpeed,
                         SourceStartSeconds = 0,
                         LengthSeconds = vlen,
                         Volume = MasterVolume,
                         ChainIndex = AudioTrackCount
                     });
-                    total = Math.Max(total, videoBlock.StartX / 100.0 + vlen);
+                    total = Math.Max(total, videoBlock.StartX / FixedBlock.PixelsPerSecond + vlen);
                 }
             }
 
@@ -1745,7 +1842,7 @@ namespace BeatSyncStudioPro
 
             while (isPlayingTimeline && !token.IsCancellationRequested)
             {
-                double currentX = ((_playStopwatch?.ElapsedMilliseconds ?? 0) * 100) / 1000.0 - originOffsetX;
+                double currentX = ((_playStopwatch?.ElapsedMilliseconds ?? 0) / 1000.0) * FixedBlock.PixelsPerSecond - originOffsetX;
                 _currentPlayX = currentX;
 
                 // A–B loop: at B, jump the clock back to A and re-arm the
@@ -1762,13 +1859,13 @@ namespace BeatSyncStudioPro
                     foreach (var b in rearmed) playedBlocks.Remove(b);
                 }
 
-                if (currentX > GetContentEndX() + 200) break;
+                if (currentX > GetContentEndX() + 2 * FixedBlock.PixelsPerSecond) break;
 
                 Dispatcher.Invoke(() =>
                 {
                     if (didWrap && MasterVideoPlayer?.Source != null && LoopStartX.HasValue)
                     {
-                        try { MasterVideoPlayer.Position = TimeSpan.FromSeconds(LoopStartX.Value / 100.0); } catch { }
+                        try { MasterVideoPlayer.Position = TimeSpan.FromSeconds(LoopStartX.Value / FixedBlock.PixelsPerSecond); } catch { }
                     }
                     if (playhead != null)
                     {
@@ -1776,7 +1873,7 @@ namespace BeatSyncStudioPro
                         playhead.X2 = currentX;
                     }
                     if (playheadHandle != null) Canvas.SetLeft(playheadHandle, currentX - 6);
-                    UpdateTimeDisplay(currentX / 100.0);
+                    UpdateTimeDisplay(currentX / FixedBlock.PixelsPerSecond);
 
                     // Follow the playhead so the song stays in view while it plays
                     if (TimelineScrollViewer != null)
@@ -1825,7 +1922,7 @@ namespace BeatSyncStudioPro
                 // sound, and the window's audible length shrinks by the shift
                 // either way so the clip still ends on its boundary.
                 double shiftSec = block.NudgeMs / 1000.0;
-                double extraSkip = Math.Max(0, -(block.StartX / 100.0 + shiftSec));
+                double extraSkip = Math.Max(0, -(block.StartX / FixedBlock.PixelsPerSecond + shiftSec));
                 double audibleLen = block.LengthSeconds > 0
                     ? Math.Max(0.05, block.LengthSeconds - Math.Abs(shiftSec))
                     : Math.Max(0.05, block.FileDurationSeconds / Math.Max(0.01, block.Speed));
@@ -1874,7 +1971,7 @@ namespace BeatSyncStudioPro
                     int idx = audioBlocks.IndexOf(block);
                     if (idx >= 0)
                     {
-                        var lanes = audioBlocks.Select(x => (x.LaneIndex, x.StartX / 100.0, x.LengthSeconds)).ToList();
+                        var lanes = audioBlocks.Select(x => (x.LaneIndex, x.StartX / FixedBlock.PixelsPerSecond, x.LengthSeconds)).ToList();
                         var (fin, fout) = ClipAudio.ComputeFades(lanes, idx);
                         if (fin > 0.005 || fout > 0.005)
                             provider = new AutoFadeSampleProvider(provider, fin, fout, audibleLen);
@@ -1918,7 +2015,7 @@ namespace BeatSyncStudioPro
         {
             double duration = block.LengthSeconds > 0
                 ? Math.Max(0.1, block.LengthSeconds - Math.Abs(block.NudgeMs) / 1000.0)
-                : Math.Max(0.1, block.Width / 100.0);
+                : Math.Max(0.1, block.Width / FixedBlock.PixelsPerSecond);
             var dlg = new EnvelopeWindow(block.Filename, duration, block.VolumePoints) { Owner = this };
             if (dlg.ShowDialog() == true)
             {
@@ -2171,8 +2268,10 @@ namespace BeatSyncStudioPro
                     {
                         b.Filename,
                         b.TrackId,
-                        b.StartX,
-                        b.Width,
+                        // Project files always store geometry at the canonical
+                        // 100 px/s scale, whatever the current zoom is.
+                        StartX = b.StartX * 100.0 / FixedBlock.PixelsPerSecond,
+                        Width = b.Width * 100.0 / FixedBlock.PixelsPerSecond,
                         b.Volume,
                         b.SoundType,
                         b.IsVideo,
@@ -2408,6 +2507,10 @@ namespace BeatSyncStudioPro
                             int trackId = b.TryGetProperty("TrackId", out var t) ? t.GetInt32() : 0;
                             double startX = b.TryGetProperty("StartX", out var sx) ? sx.GetDouble() : 0;
                             double width = b.TryGetProperty("Width", out var w) ? w.GetDouble() : 0;
+                            // Saved geometry is canonical 100 px/s — scale it to the current zoom.
+                            double loadScale = FixedBlock.PixelsPerSecond / 100.0;
+                            startX *= loadScale;
+                            width *= loadScale;
                             double volume = b.TryGetProperty("Volume", out var v) ? v.GetDouble() : 1.0;
                             string soundType = b.TryGetProperty("SoundType", out var st) ? (st.GetString() ?? "") : "";
                             bool isVideo = b.TryGetProperty("IsVideo", out var iv) && iv.GetBoolean();
@@ -2435,7 +2538,7 @@ namespace BeatSyncStudioPro
                             if (isVideo)
                             {
                                 var block = new FixedBlock(this, TimelineCanvas, trackId, filename, startX,
-                                    Array.Empty<byte>(), soundType, width > 0 ? width : 280, true);
+                                    Array.Empty<byte>(), soundType, width > 0 ? width : 280 * loadScale, true);
                                 if (length > 0) block.LengthSeconds = length;
                                 TimelineBlocks.Add(block);
 
@@ -2730,7 +2833,7 @@ namespace BeatSyncStudioPro
                         int p = fn.LastIndexOf(" (", StringComparison.Ordinal);
                         if (p > 0 && fn.EndsWith(")"))
                         {
-                            string stemWord = fn.Substring(p + 2, fn.Length - p - 4);
+                            string stemWord = fn.Substring(p + 2, fn.Length - p - 3);
                             display = fn.Substring(0, p) + " — " + char.ToUpperInvariant(stemWord[0]) + stemWord.Substring(1);
                             cat = SoundCategorizer.StemCategory(stemWord);
                         }
@@ -2742,6 +2845,10 @@ namespace BeatSyncStudioPro
                             display = (parent.Length > 0 ? parent + " — " : "") + char.ToUpperInvariant(fn[0]) + fn.Substring(1).ToLowerInvariant();
                             cat = SoundCategorizer.StemCategory(fn);
                         }
+                        // Safety net: if the name parse still landed on plain
+                        // "Stems", the (separately verified) refine pass gets
+                        // the last word from the real file name.
+                        if (cat == SoundCategorizer.Stems) cat = SoundCategorizer.RefineStemCategory(cat, file);
                         string path = file;
                         Add(new ExternalSound
                         {

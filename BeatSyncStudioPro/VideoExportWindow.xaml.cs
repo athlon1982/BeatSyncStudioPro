@@ -58,7 +58,7 @@ namespace BeatSyncStudioPro
                 var renderProgress = new Progress<double>(p => SetProgress(0.15 + p * 0.45, "Rendering your mix… (this is the audio engine, mastering included)"));
                 await Task.Run(() => ExportRenderer.Render(_job, tempWav, renderProgress, _cts.Token));
 
-                double startOffset = _videoBlock.StartX / 100.0;
+                double startOffset = _videoBlock.StartX / FixedBlock.PixelsPerSecond;
                 double videoLen = _videoBlock.LengthSeconds > 0 ? _videoBlock.LengthSeconds : 60;
                 var muxProgress = new Progress<double>(p => SetProgress(0.6 + p * 0.4, "Encoding the MP4… (H.264 video + your mix)"));
                 string encoderLabel = await FfmpegTool.MuxAsync(

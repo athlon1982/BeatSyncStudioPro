@@ -13,11 +13,15 @@ namespace BeatSyncStudioPro
     /// Clips can be dragged around the timeline, stretched/shrunk by their right
     /// edge (which changes an audio clip's playback speed so the sound fits the
     /// new length), and right-clicked for per-clip volume / speed controls.
-    /// Timeline scale is fixed: 100 pixels = 1 second, lanes are 50px tall.
+    /// Timeline scale is the zoom: PixelsPerSecond is 100 at 100% zoom and
+    /// changes when the user wheel-zooms the timeline (clip geometry is stored
+    /// in display pixels at the CURRENT scale; project files save geometry
+    /// normalized to 100 px/s). Lanes are 50px tall.
     /// </summary>
     public class FixedBlock
     {
-        public const double PixelsPerSecond = 100.0;
+        /// <summary>Current timeline zoom scale (pixels per second). 100 = 100%.</summary>
+        public static double PixelsPerSecond { get; set; } = 100.0;
         public const double LaneHeight = 50.0;
 
         private const double BlockHeight = 40.0;
@@ -65,7 +69,7 @@ namespace BeatSyncStudioPro
         public int NudgeMs { get; set; }
 
         /// <summary>Where the clip's audio actually starts on the timeline once the nudge is applied (pixels).</summary>
-        public double EffectiveStartX => StartX + NudgeMs * 0.1;
+        public double EffectiveStartX => StartX + NudgeMs * PixelsPerSecond / 1000.0;
 
         public string SoundType { get; set; }
         public bool IsVideo { get; set; }

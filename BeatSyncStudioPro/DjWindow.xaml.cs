@@ -1341,7 +1341,7 @@ namespace BeatSyncStudioPro
                         int p = fn.LastIndexOf(" (", StringComparison.Ordinal);
                         if (p > 0 && fn.EndsWith(")"))
                         {
-                            string stemWord = fn.Substring(p + 2, fn.Length - p - 4);
+                            string stemWord = fn.Substring(p + 2, fn.Length - p - 3);
                             display = fn.Substring(0, p) + " — " + char.ToUpperInvariant(stemWord[0]) + stemWord.Substring(1);
                             stemCat = SoundCategorizer.StemCategory(stemWord);   // v3.46: stems filed per type, not one pile
                         }

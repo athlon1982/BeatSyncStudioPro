@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.50 — Timeline Zoom, Roomier Timeline, Stems Sub-Categories Fixed
+- **Mouse-wheel timeline zoom:** roll the wheel over the timeline to zoom in and out (10%–1000%), anchored at the cursor so the moment under the mouse stays put. The ruler adapts as you zoom: whole seconds when zoomed out, splitting into halves, quarters and tenths of a second when zoomed in (1.25s, 1.5s, 1.75s…), with longer ticks on the whole seconds. A zoom readout sits in the timeline header. Clips, beat grid, loop region, playhead, playback, export and transcript timing all follow the zoom; project files still save at the standard scale, so zooming never corrupts a saved project.
+- **The video preview box hides itself:** when no video clip is on the timeline, the big empty player above the timeline goes away and the timeline takes the full workspace height. Add a video clip and the player comes right back.
+- **FIX — stems really are sub-categorized now:** a one-character parsing bug clipped the stem type out of cached file names ("(bass)" was read as "bas"), so every stem quietly fell back into the one flat "Stems" pile in the sidebar and the DJ picker. Fixed in both places, with a second-chance refine pass behind it: stems now file under Stems · Bass / Stems · Drums / Stems · Other / Stems · Vocals, right below Stems, and their names read in full ("… — Bass", not "… — Bas").
+
 ## Version 3.49 — Menu Readability Fixes
 - **FIX — AI Lab dropdown text was black-on-dark:** the selected value in every closed dropdown (Provider, Model, Make, video model, Keys & Compute pickers) rendered in the stock black because the dropdown's inner button broke the text-color chain. The selection text now inherits the app's white properly.
 - **FIX — timeline clip menu could open half-clipped:** the clip right-click menu is now anchored to the clip and opens underneath it, fully inside the window, and its volume/speed slider rows are a bit narrower so the whole menu fits comfortably.

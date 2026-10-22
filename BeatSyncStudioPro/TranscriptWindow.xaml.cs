@@ -160,8 +160,8 @@ namespace BeatSyncStudioPro
         {
             if (SegmentList.SelectedItem is not TranscriptSegment seg) return;
             var block = seg.Block;
-            double startSec = block.StartX / 100.0 + (seg.Start.TotalSeconds - block.SourceStartSeconds) / Math.Max(0.01, block.Speed);
-            double endSec = block.StartX / 100.0 + (seg.End.TotalSeconds - block.SourceStartSeconds) / Math.Max(0.01, block.Speed);
+            double startSec = block.StartX / FixedBlock.PixelsPerSecond + (seg.Start.TotalSeconds - block.SourceStartSeconds) / Math.Max(0.01, block.Speed);
+            double endSec = block.StartX / FixedBlock.PixelsPerSecond + (seg.End.TotalSeconds - block.SourceStartSeconds) / Math.Max(0.01, block.Speed);
             if (endSec <= startSec) endSec = startSec + 1;
             _owner.SetLoopRange(startSec, endSec);
             StatusText.Text = $"Loop set to {startSec:0.0}s – {endSec:0.0}s on the timeline — press Play to hear just that line.";

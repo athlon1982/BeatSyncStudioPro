@@ -166,7 +166,7 @@
                     <Image Source="/Assets/app-icon.png" Width="34" Height="34"/>
                     <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="19" FontWeight="Bold" Effect="{StaticResource GlowText}"><Run Text="BEATSYNC" Foreground="#FFFFFF"/><Run Text=" STUDIO PRO" Foreground="#1DB954"/></TextBlock>
                     <Border Background="#1B212E" BorderBrush="#C9A227" BorderThickness="1" CornerRadius="9" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="v3.49" FontSize="11" Foreground="#E8C766" FontWeight="Bold"/>
+                        <TextBlock Text="v3.50" FontSize="11" Foreground="#E8C766" FontWeight="Bold"/>
                     </Border>
                 </StackPanel>
             </Grid>
@@ -243,7 +243,7 @@
                     <Border Background="#1DB954" Height="2" Width="46" HorizontalAlignment="Left" CornerRadius="1" Margin="0,5,0,0"/>
                 </StackPanel>
 
-                <!-- Search + import + downloads (v3.49: the library itself is grouped by collapsible categories) -->
+                <!-- Search + import + downloads (v3.50: the library itself is grouped by collapsible categories) -->
                 <StackPanel Grid.Row="1" Orientation="Vertical" Margin="0,0,0,8">
                     <Button Content="📦 Import ZIP / files…" Click="BtnImportSounds_Click" Padding="10,6" Margin="0,0,0,6" Background="{StaticResource GreenGrad}" Foreground="White" Height="32"
                             ToolTip="Import ZIP sound packs or loose WAV/MP3 files — they're auto-sorted into the category groups below, and duplicates are skipped."/>
@@ -259,7 +259,7 @@
                     <Button Content="🎵 Quick Audio" Click="BtnImportAudioOrZip_Click" Padding="10,8" Background="{StaticResource GreenGrad}" Foreground="White" Height="36" Effect="{StaticResource GlowGreen}"/>
                 </StackPanel>
 
-                <!-- v3.49 sidebar browser: categories on top, that category's sounds below (sampler-picker style) -->
+                <!-- v3.50 sidebar browser: categories on top, that category's sounds below (sampler-picker style) -->
                 <Grid Grid.Row="3" Margin="0,10,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="168"/>
@@ -290,14 +290,15 @@
         <!-- MAIN SEQUENCER WORKSPACE -->
         <Grid Grid.Row="2" Grid.Column="1" Margin="5,10,10,10">
             <Grid.RowDefinitions>
-                <RowDefinition Height="3*" MinHeight="140"/>
+                <RowDefinition x:Name="VideoPreviewRow" Height="3*" MinHeight="140"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="4*" MinHeight="240"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- Video preview -->
-            <Border Grid.Row="0" Background="#07090D" CornerRadius="10" Margin="10,5" BorderBrush="{StaticResource VideoFrame}" BorderThickness="1.5" Effect="{StaticResource GlowViolet}">
+            <!-- Video preview (auto-hides when no video clip is on the timeline,
+                 so the timeline gets the room) -->
+            <Border x:Name="VideoPreviewBorder" Grid.Row="0" Background="#07090D" CornerRadius="10" Margin="10,5" BorderBrush="{StaticResource VideoFrame}" BorderThickness="1.5" Effect="{StaticResource GlowViolet}">
                 <Grid>
                     <MediaElement x:Name="MasterVideoPlayer" LoadedBehavior="Manual" UnloadedBehavior="Stop" Stretch="Uniform"/>
                     <TextBlock Text="📹 No Video Loaded" Foreground="#93A0BC" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="18" FontWeight="Bold" x:Name="NoVideoLabel"/>
@@ -312,6 +313,7 @@
                         <Border Background="#1DB954" Height="2" Width="40" CornerRadius="1" Margin="12,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <TextBlock x:Name="ZoomLabel" Text="🔍 100%" VerticalAlignment="Center" Foreground="#A0A5B5" FontFamily="Consolas" FontSize="12" Margin="0,0,10,0" ToolTip="Timeline zoom. Roll the mouse wheel over the timeline to zoom in/out — the ruler splits into fractions of a second as you zoom in."/>
                         <Button Content="🎬 Add Video" Click="BtnAddVideoToTimeline_Click" Padding="10,6" Margin="0,0,8,0" Background="{StaticResource VioletGrad}" Foreground="White" Height="36"/>
                         <Button Content="➕ Add Audio Track" Click="BtnAddTrack_Click" Padding="10,6" Margin="0,0,8,0" Background="{StaticResource GreenGrad}" Foreground="White" Height="36"/>
                         <Button Content="➖ Remove Audio Track" Click="BtnRemoveTrack_Click" Padding="10,6" Margin="0,0,8,0" Background="{StaticResource RedGrad}" Foreground="White" Height="36"/>
@@ -351,7 +353,7 @@
                     <StackPanel x:Name="HeadersSidebar" Width="140" HorizontalAlignment="Left" Background="#12161F"/>
 
                     <!-- Scrollable timeline: clips and waveforms share one host so they scroll together -->
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Margin="140,0,0,0" x:Name="TimelineScrollViewer" ScrollChanged="TimelineScrollViewer_ScrollChanged">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Margin="140,0,0,0" x:Name="TimelineScrollViewer" ScrollChanged="TimelineScrollViewer_ScrollChanged" PreviewMouseWheel="TimelineScrollViewer_PreviewMouseWheel">
                         <Grid x:Name="TimelineHost" Width="2500" Height="450">
                             <Canvas x:Name="TimelineCanvas" Width="2500" Height="450" Background="#10141C" MouseLeftButtonUp="TimelineCanvas_MouseLeftButtonUp" AllowDrop="True" DragOver="TimelineCanvas_DragOver" Drop="TimelineCanvas_Drop"/>
                             <Canvas x:Name="WaveformOverlayCanvas" Width="2500" Height="450" IsHitTestVisible="False" Background="Transparent"/>
