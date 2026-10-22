@@ -368,7 +368,15 @@ namespace BeatSyncStudioPro
 
         private ContextMenu BuildContextMenu()
         {
-            var menu = new ContextMenu();
+            // Dark popup to match the app theme — the default ContextMenu frame
+            // is white, which left the (white) themed item text unreadable.
+            var menu = new ContextMenu
+            {
+                Background = new SolidColorBrush(Color.FromRgb(0x1B, 0x21, 0x2E)),
+                Foreground = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x2A, 0x34, 0x46)),
+                BorderThickness = new Thickness(1)
+            };
 
             var header = new MenuItem
             {
@@ -518,6 +526,19 @@ namespace BeatSyncStudioPro
             var removeItem = new MenuItem { Header = "🗑️ Remove clip" };
             removeItem.Click += (s, e) => _owner.RemoveBlock(this);
             menu.Items.Add(removeItem);
+
+            // Every item and slider label gets an explicit light foreground so
+            // nothing renders white-on-white regardless of theme inheritance.
+            foreach (var item in menu.Items)
+            {
+                if (item is MenuItem mi)
+                {
+                    mi.Foreground = Brushes.White;
+                    if (mi.Header is StackPanel panel)
+                        foreach (var child in panel.Children)
+                            if (child is TextBlock tb) tb.Foreground = Brushes.White;
+                }
+            }
 
             return menu;
         }

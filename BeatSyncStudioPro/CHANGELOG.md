@@ -3,6 +3,12 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.48 — Stems Get Their Own Sub-Categories Everywhere
+- **FIX — dropdowns were white-on-white too:** every ComboBox in the app (AI Lab model pickers, DJ board, everywhere) now uses one proper dark dropdown style — dark box, white text, dark popup list with a green selected row.
+- **FIX — timeline clip right-click menu was white-on-white:** the clip menu popup is now properly dark with light text throughout (items and the volume/speed slider labels), and the library's right-click menu got the same treatment.
+- **Preview is one toggle button now** (DJ sampler picker + editor library): press ▶ Preview and it becomes ⏹ Stop while the sound plays; press it again to cut the sound, or it flips back to Preview on its own when the sound ends. (Preview itself now runs through the sampler engine — the same output as the pads — instead of a separate player that could stay silent.)
+- **Stems are sorted by type, no exceptions:** any sound sitting in the plain "Stems" bucket — older splits, stems imported from a ZIP, stems saved in a project before sub-categories existed — is now filed by what it actually is: **Stems · Vocals / Stems · Drums / Stems · Bass / Stems · Other**, in both the editor library and the DJ sampler picker. The type is read from the file name ("(vocals)" suffixes, bare stem names, "Song — Vocals" tails), so nothing needs re-splitting.
+
 ## Version 3.47 — One Archive for Sounds, Right-Click Tools, Download Title
 - **FIX — the main-screen list could come up empty after importing:** the sidebar browser now reads the SAME sources as the DJ sampler picker (built-in pack, your sound-library archive, stem cache, Downloads), so every sound the picker can see also shows on the main screen. Picking an outside sound pulls it into the project library on the spot.
 - **NEW — imported sounds live in ONE compressed file:** everything you import is stored in a single `sound-library.zip` (entries sorted by category) instead of a pile of loose files — less disk clutter, and the whole app (editor library, DJ picker, sampler pads) reads straight from it. Any loose files from the old folder layout are packed in automatically and the folder is cleaned up.

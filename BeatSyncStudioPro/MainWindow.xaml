@@ -166,7 +166,7 @@
                     <Image Source="/Assets/app-icon.png" Width="34" Height="34"/>
                     <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="19" FontWeight="Bold" Effect="{StaticResource GlowText}"><Run Text="BEATSYNC" Foreground="#FFFFFF"/><Run Text=" STUDIO PRO" Foreground="#1DB954"/></TextBlock>
                     <Border Background="#1B212E" BorderBrush="#C9A227" BorderThickness="1" CornerRadius="9" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="v3.47" FontSize="11" Foreground="#E8C766" FontWeight="Bold"/>
+                        <TextBlock Text="v3.48" FontSize="11" Foreground="#E8C766" FontWeight="Bold"/>
                     </Border>
                 </StackPanel>
             </Grid>
@@ -243,7 +243,7 @@
                     <Border Background="#1DB954" Height="2" Width="46" HorizontalAlignment="Left" CornerRadius="1" Margin="0,5,0,0"/>
                 </StackPanel>
 
-                <!-- Search + import + downloads (v3.47: the library itself is grouped by collapsible categories) -->
+                <!-- Search + import + downloads (v3.48: the library itself is grouped by collapsible categories) -->
                 <StackPanel Grid.Row="1" Orientation="Vertical" Margin="0,0,0,8">
                     <Button Content="📦 Import ZIP / files…" Click="BtnImportSounds_Click" Padding="10,6" Margin="0,0,0,6" Background="{StaticResource GreenGrad}" Foreground="White" Height="32"
                             ToolTip="Import ZIP sound packs or loose WAV/MP3 files — they're auto-sorted into the category groups below, and duplicates are skipped."/>
@@ -259,7 +259,7 @@
                     <Button Content="🎵 Quick Audio" Click="BtnImportAudioOrZip_Click" Padding="10,8" Background="{StaticResource GreenGrad}" Foreground="White" Height="36" Effect="{StaticResource GlowGreen}"/>
                 </StackPanel>
 
-                <!-- v3.47 sidebar browser: categories on top, that category's sounds below (sampler-picker style) -->
+                <!-- v3.48 sidebar browser: categories on top, that category's sounds below (sampler-picker style) -->
                 <Grid Grid.Row="3" Margin="0,10,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="168"/>
@@ -271,17 +271,16 @@
                     <ListBox x:Name="LibrarySoundList" Grid.Row="1" SelectionChanged="LibrarySoundList_SelectionChanged" PreviewMouseLeftButtonDown="LibrarySoundList_PreviewMouseLeftButtonDown" PreviewMouseRightButtonDown="LibrarySoundList_PreviewMouseRightButtonDown" MouseMove="LibrarySoundList_MouseMove" MouseDoubleClick="LibrarySoundList_MouseDoubleClick" Background="#14171E" Foreground="White" BorderBrush="#333"
                              ToolTip="Click a sound to arm it, then click the timeline to place it — or drag it straight onto a track. Double-click previews it. Right-click a sound to export, rename or delete it.">
                         <ListBox.ContextMenu>
-                            <ContextMenu>
-                                <MenuItem Header="📤 Export sound…" Click="BtnLibraryExport_Click"/>
-                                <MenuItem Header="✏️ Rename…" Click="BtnLibraryRename_Click"/>
+                            <ContextMenu Background="#1B212E" Foreground="White" BorderBrush="#2A3446">
+                                <MenuItem Header="📤 Export sound…" Click="BtnLibraryExport_Click" Foreground="White"/>
+                                <MenuItem Header="✏️ Rename…" Click="BtnLibraryRename_Click" Foreground="White"/>
                                 <Separator/>
-                                <MenuItem Header="🗑️ Delete sound…" Click="BtnLibraryDelete_Click"/>
+                                <MenuItem Header="🗑️ Delete sound…" Click="BtnLibraryDelete_Click" Foreground="White"/>
                             </ContextMenu>
                         </ListBox.ContextMenu>
                     </ListBox>
                     <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,6,0,0">
-                        <Button Content="▶ Preview" Click="BtnLibraryPreview_Click" Padding="10,5" Margin="0,0,6,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Preview the selected sound (double-clicking it works too)."/>
-                        <Button Content="⏹ Stop" Click="BtnLibraryStop_Click" Padding="10,5" Margin="0,0,6,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Stop the preview — handy for long sounds."/>
+                        <Button x:Name="LibraryPreviewButton" Content="▶ Preview" Click="BtnLibraryPreview_Click" Padding="10,5" Margin="0,0,6,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Preview the selected sound (double-clicking it works too). While it plays this button becomes Stop; it flips back when the sound ends."/>
                         <Button Content="🗑️ Delete" Click="BtnLibraryDelete_Click" Padding="10,5" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Delete the selected sound (asks first)."/>
                     </StackPanel>
                 </Grid>

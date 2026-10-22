@@ -450,14 +450,7 @@ namespace BeatSyncStudioPro
                 });
                 var bytes = File.ReadAllBytes(result.FinalTemp);
                 string savedName = _owner.AddToLibraryOnly(bytes, result.Desired, SoundCategorizer.Mashups);
-                try
-                {
-                    string diskDir = System.IO.Path.Combine(MainWindow.SoundLibraryRoot, SoundCategorizer.Mashups);
-                    Directory.CreateDirectory(diskDir);
-                    string diskPath = System.IO.Path.Combine(diskDir, savedName);
-                    if (!File.Exists(diskPath) || new FileInfo(diskPath).Length != bytes.Length)
-                        File.WriteAllBytes(diskPath, bytes);
-                }
+                try { _owner.StoreInSoundLibraryArchive(SoundCategorizer.Mashups, savedName, bytes); }
                 catch { /* the library copy is saved either way */ }
                 SetStatus($"💾 Mashup saved to the library under 🔀 Mash-ups: '{savedName}' ({result.Seconds:0}s). Drag it onto the timeline like any other sound!");
             }
@@ -547,10 +540,13 @@ namespace BeatSyncStudioPro
             private Dictionary<string, List<SoundChoice>> _catalog;
             private List<string> _cats;
             private readonly Style? _buttonStyle;
+            private readonly Button _previewBtn;
+            private readonly DispatcherTimer _previewTimer;
 
             public SoundChoice? Result { get; private set; }
             public Func<SoundChoice, string?>? PreviewHandler;
             public Action? StopPreviewHandler;
+            public Func<bool>? PreviewPlayingHandler;
             public Func<SoundChoice, bool>? DeleteHandler;
             public Func<string?>? ImportHandler;
             public Action<SoundChoice>? ExportHandler;
@@ -592,14 +588,13 @@ namespace BeatSyncStudioPro
                 var btnRow = new StackPanel { Orientation = Orientation.Horizontal };
                 bottom.Children.Add(btnRow);
                 var previewBtn = new Button { Content = "▶ Preview", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 8, 0), Style = _buttonStyle };
-                var stopBtn = new Button { Content = "⏹ Stop", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 8, 0), Style = _buttonStyle };
+                _previewBtn = previewBtn;
                 var browseBtn = new Button { Content = "📁 Browse files…", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 8, 0), Style = _buttonStyle };
                 var importBtn = new Button { Content = "📦 Import ZIP…", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 8, 0), Style = _buttonStyle };
                 var deleteBtn = new Button { Content = "🗑️ Delete", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 0, 8, 0), Style = _buttonStyle, IsEnabled = false };
                 _useBtn = new Button { Content = "✓ Use this sound", Padding = new Thickness(14, 6, 14, 6), FontWeight = FontWeights.Bold, Background = new SolidColorBrush(Color.FromRgb(0x1D, 0xB9, 0x54)), Foreground = Brushes.White, BorderThickness = new Thickness(0), IsEnabled = false, Style = _buttonStyle };
                 var cancelBtn = new Button { Content = "Cancel", Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(8, 0, 0, 0), Style = _buttonStyle };
                 btnRow.Children.Add(previewBtn);
-                btnRow.Children.Add(stopBtn);
                 btnRow.Children.Add(browseBtn);
                 btnRow.Children.Add(importBtn);
                 btnRow.Children.Add(deleteBtn);
@@ -638,8 +633,21 @@ namespace BeatSyncStudioPro
                          ch.PersistKey.StartsWith(MainWindow.SoundLibraryRoot, StringComparison.OrdinalIgnoreCase));
                 };
                 _soundList.MouseDoubleClick += (s, e) => { if (SelectedChoice() != null) Accept(); };
-                previewBtn.Click += (s, e) => Preview();
-                stopBtn.Click += (s, e) => StopPreview();
+                previewBtn.Click += (s, e) =>
+                {
+                    // One toggle button: Preview becomes Stop while the sound
+                    // plays, and flips back when it ends or is pressed again.
+                    if ((string)_previewBtn.Content == "⏹ Stop") StopPreview();
+                    else Preview();
+                };
+                _previewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+                _previewTimer.Tick += (s, e) =>
+                {
+                    if ((string)_previewBtn.Content == "⏹ Stop" && PreviewPlayingHandler != null && !PreviewPlayingHandler())
+                        _previewBtn.Content = "▶ Preview";
+                };
+                _previewTimer.Start();
+                _win.Closed += (s, e) => _previewTimer.Stop();
                 browseBtn.Click += (s, e) => Browse();
                 importBtn.Click += (s, e) =>
                 {
@@ -723,12 +731,19 @@ namespace BeatSyncStudioPro
                 if (ch == null) { _status.Text = "Pick a sound first."; return; }
                 if (PreviewHandler == null) { _status.Text = "Preview isn't available here."; return; }
                 var err = PreviewHandler(ch);
-                _status.Text = err == null
-                    ? $"▶ Previewing: {ch.Display} — hit ⏹ Stop if it runs long."
-                    : "Preview failed: " + err;
+                if (err == null)
+                {
+                    _previewBtn.Content = "⏹ Stop";
+                    _status.Text = $"▶ Previewing: {ch.Display} — the Preview button is now Stop if it runs long.";
+                }
+                else _status.Text = "Preview failed: " + err;
             }
 
-            private void StopPreview() => StopPreviewHandler?.Invoke();
+            private void StopPreview()
+            {
+                StopPreviewHandler?.Invoke();
+                if (_previewBtn != null) _previewBtn.Content = "▶ Preview";
+            }
 
             private void Browse()
             {
@@ -1100,6 +1115,7 @@ namespace BeatSyncStudioPro
             var picker = new SoundPickerWindow(this, pad, BuildSoundCatalog(), (Style)TryFindResource("HwButton"));
             picker.PreviewHandler = PreviewPickerSound;
             picker.StopPreviewHandler = () => _sampler.StopPreview();
+            picker.PreviewPlayingHandler = () => _sampler.PreviewIsPlaying;
             picker.DeleteHandler = DeletePickerSound;
             picker.ExportHandler = ExportPickerChoice;
             picker.RenameHandler = ch => RenamePickerChoice(picker, ch);
@@ -1299,6 +1315,7 @@ namespace BeatSyncStudioPro
             foreach (var (name, bytes) in _owner.ZipSounds)
             {
                 string cat = _owner.SoundCategories.TryGetValue(name, out var c) ? c : SoundCategorizer.Infer(name);
+                cat = SoundCategorizer.RefineStemCategory(cat, name);
                 var captured = bytes;
                 Add(cat, new SoundChoice
                 {

@@ -822,8 +822,14 @@ namespace BeatSyncStudioPro
             };
 
             // v3.46: right-click any library entry to delete it (with a confirm).
-            var menu = new ContextMenu();
-            var miDelete = new MenuItem { Header = "🗑️ Delete sound…" };
+            var menu = new ContextMenu
+            {
+                Background = new SolidColorBrush(Color.FromRgb(0x1B, 0x21, 0x2E)),
+                Foreground = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x2A, 0x34, 0x46)),
+                BorderThickness = new Thickness(1)
+            };
+            var miDelete = new MenuItem { Header = "🗑️ Delete sound…", Foreground = Brushes.White };
             miDelete.Click += (s, e) => DeleteLibraryAsset(assetName);
             menu.Items.Add(miDelete);
             btn.ContextMenu = menu;
@@ -2591,8 +2597,8 @@ namespace BeatSyncStudioPro
         {
             if (VideoAssets.ContainsKey(name)) return "Video";
             if (ImageAssets.ContainsKey(name)) return "Images";
-            if (SoundCategories.TryGetValue(name, out var c)) return c;
-            return SoundCategorizer.Infer(name);
+            if (SoundCategories.TryGetValue(name, out var c)) return SoundCategorizer.RefineStemCategory(c, name);
+            return SoundCategorizer.RefineStemCategory(SoundCategorizer.Infer(name), name);
         }
 
         private static string GroupIcon(string category) => category switch
@@ -2936,13 +2942,13 @@ namespace BeatSyncStudioPro
 
         private void BtnLibraryPreview_Click(object sender, RoutedEventArgs e)
         {
+            // Toggle: while a preview is sounding, this button is Stop.
+            if (_libPreviewOut != null) { StopLibraryPreview(); return; }
             var key = SelectedSoundName();
             if (key == null) return;
             var name = ResolveAssetKey(key);
             if (name != null) PreviewLibrarySound(name);
         }
-
-        private void BtnLibraryStop_Click(object sender, RoutedEventArgs e) => StopLibraryPreview();
 
         private void BtnLibraryDelete_Click(object sender, RoutedEventArgs e)
         {
@@ -3121,7 +3127,18 @@ namespace BeatSyncStudioPro
                 var samples = SamplerEngine.DecodeBytes(bytes, name);
                 _libPreviewOut = new WaveOutEvent();
                 _libPreviewOut.Init(new SampleToWaveProvider(new ArraySampleProvider(samples)));
+                var thisPlayer = _libPreviewOut;
+                thisPlayer.PlaybackStopped += (s, e) =>
+                {
+                    // Sound finished naturally: the button flips back to Preview.
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        if (ReferenceEquals(_libPreviewOut, thisPlayer) && LibraryPreviewButton != null)
+                            LibraryPreviewButton.Content = "▶ Preview";
+                    }));
+                };
                 _libPreviewOut.Play();
+                if (LibraryPreviewButton != null) LibraryPreviewButton.Content = "⏹ Stop";
             }
             catch { StopLibraryPreview(); }
         }
@@ -3130,6 +3147,7 @@ namespace BeatSyncStudioPro
         {
             try { _libPreviewOut?.Stop(); _libPreviewOut?.Dispose(); } catch { }
             _libPreviewOut = null;
+            if (LibraryPreviewButton != null) LibraryPreviewButton.Content = "▶ Preview";
         }
 
         private void DeleteLibraryAsset(string name)
@@ -3220,6 +3238,7 @@ namespace BeatSyncStudioPro
                     if (ext != ".wav" && ext != ".mp3") continue;
                     string full = entry.FullName.Replace('\\', '/');
                     string cat = full.Contains('/') ? full.Substring(0, full.IndexOf('/')) : SoundCategorizer.Infer(entry.Name);
+                    cat = SoundCategorizer.RefineStemCategory(cat, entry.Name);
                     list.Add((entry.FullName, cat, entry.Name));
                 }
             }
@@ -3241,6 +3260,13 @@ namespace BeatSyncStudioPro
                 return ms.ToArray();
             }
             catch { return null; }
+        }
+
+        /// <summary>Store a sound in the sound-library archive (used by Mashup save).</summary>
+        public void StoreInSoundLibraryArchive(string category, string fileName, byte[] bytes)
+        {
+            WriteLibraryArchiveEntry(category, fileName, bytes);
+            _externalsBuilt = false;
         }
 
         private static void WriteLibraryArchiveEntry(string category, string fileName, byte[] bytes)
@@ -3324,7 +3350,7 @@ namespace BeatSyncStudioPro
             if (f.Contains("loop")) return SoundCategorizer.Loops;
             if (f.Contains("vocal") || f.Contains("vox") || f.Contains("voice")) return SoundCategorizer.Vocals;
             if (f.Contains("fx") || f.Contains("sfx") || f.Contains("sound effect")) return SoundCategorizer.Fx;
-            if (f.Contains("stem")) return SoundCategorizer.Stems;
+            if (f.Contains("stem")) return SoundCategorizer.RefineStemCategory(SoundCategorizer.Stems, fullName);
             return SoundCategorizer.Infer(fullName);
         }
 

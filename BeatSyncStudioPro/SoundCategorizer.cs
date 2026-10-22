@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 
 namespace BeatSyncStudioPro
 {
@@ -65,6 +66,35 @@ namespace BeatSyncStudioPro
             if (Has("piano", "pad ", "keys", "organ", "rhodes", "synth", "chord")) return Keys;
             if (Has("pluck", "banjo", "mandolin", "fiddle", "violin", "strings")) return Guitar;
             return Other;
+        }
+
+        /// <summary>If a sound sits in the generic Stems bucket, file it under its
+        /// stem type instead (from "(vocals)"-style suffixes, a bare stem file
+        /// name, or a "Song — Vocals" tail). Anything else keeps its category.</summary>
+        public static string RefineStemCategory(string category, string fileName)
+        {
+            if (category != Stems) return category;
+            string fn = Path.GetFileNameWithoutExtension(fileName ?? "").Trim().ToLowerInvariant();
+            if (fn.Length == 0) return category;
+            if (fn is "vocals" or "drums" or "bass" or "other") return StemCategory(fn);
+            int p = fn.LastIndexOf('(');
+            if (p >= 0 && fn.EndsWith(")"))
+            {
+                string w = fn.Substring(p + 1, fn.Length - p - 2).Trim();
+                string c = StemCategory(w);
+                if (c != Stems) return c;
+            }
+            foreach (var sep in new[] { " — ", " - ", "_" })
+            {
+                int i = fn.LastIndexOf(sep, StringComparison.Ordinal);
+                if (i >= 0)
+                {
+                    string tail = fn.Substring(i + sep.Length).Trim();
+                    string c = StemCategory(tail);
+                    if (c != Stems) return c;
+                }
+            }
+            return category;
         }
 
         /// <summary>Maps a sound-pack folder name onto a canonical category.</summary>
