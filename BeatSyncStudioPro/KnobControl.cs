@@ -23,6 +23,8 @@ namespace BeatSyncStudioPro
         public static readonly DependencyProperty AccentProperty = DependencyProperty.Register(
             nameof(Accent), typeof(Brush), typeof(KnobControl),
             new FrameworkPropertyMetadata(new SolidColorBrush(Color.FromRgb(0x1D, 0xB9, 0x54)), FrameworkPropertyMetadataOptions.AffectsRender));
+        public static readonly DependencyProperty DefaultValueProperty = DependencyProperty.Register(
+            nameof(DefaultValue), typeof(double), typeof(KnobControl), new FrameworkPropertyMetadata(0.0));
 
         public event EventHandler<double>? ValueChanged;
 
@@ -30,6 +32,7 @@ namespace BeatSyncStudioPro
         public double Minimum { get => (double)GetValue(MinimumProperty); set => SetValue(MinimumProperty, value); }
         public double Maximum { get => (double)GetValue(MaximumProperty); set => SetValue(MaximumProperty, value); }
         public Brush Accent { get => (Brush)GetValue(AccentProperty); set => SetValue(AccentProperty, value); }
+        public double DefaultValue { get => (double)GetValue(DefaultValueProperty); set => SetValue(DefaultValueProperty, value); }
 
         private static void OnValueChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
@@ -51,6 +54,14 @@ namespace BeatSyncStudioPro
         protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
         {
             base.OnMouseLeftButtonDown(e);
+            if (e.ClickCount == 2)
+            {
+                // Double-click resets the knob to its default (v3.41).
+                Value = Math.Clamp(DefaultValue, Minimum, Maximum);
+                _dragging = false;
+                e.Handled = true;
+                return;
+            }
             _dragging = true;
             _dragStart = e.GetPosition(this);
             _dragValue = Value;

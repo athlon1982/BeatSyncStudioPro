@@ -303,6 +303,67 @@ namespace BeatSyncStudioPro
             else StartCruise();
         }
 
+        private void ChAReset_Click(object sender, RoutedEventArgs e) => ResetChannelStrip(ChAGainKnob, ChAHiKnob, ChAMidKnob, ChALowKnob, ChAFader, "A");
+        private void ChBReset_Click(object sender, RoutedEventArgs e) => ResetChannelStrip(ChBGainKnob, ChBHiKnob, ChBMidKnob, ChBLowKnob, ChBFader, "B");
+
+        private void ResetChannelStrip(KnobControl gain, KnobControl hi, KnobControl mid, KnobControl low, Slider fader, string which)
+        {
+            gain.Value = 1.0;
+            hi.Value = 0;
+            mid.Value = 0;
+            low.Value = 0;
+            fader.Value = 800;
+            SetStatus($"Mixer: channel {which} reset — gain 1.0, EQ flat, fader at unity.");
+        }
+
+        // ===== v3.41: MIX A+B — one button sets up and plays a two-deck mix =====
+        private bool _mixBusy;
+
+        private async void MixButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_mixBusy) return;
+            if (!_panelA.HasTrack || !_panelB.HasTrack)
+            {
+                SetStatus("\U0001F500 MIX A+B needs a track loaded on BOTH decks first.");
+                return;
+            }
+            _mixBusy = true;
+            MixButton.IsEnabled = false;
+            try
+            {
+                if (_cruiseOn) TurnCruiseOff("\U0001F500 Cruise off — MIX A+B took over.");
+                SetStatus("\U0001F500 MIX A+B: working out the BPMs…");
+                bool bpmA = await _panelA.EnsureBpmAsync();
+                bool bpmB = await _panelB.EnsureBpmAsync();
+                if (!bpmA || !bpmB)
+                {
+                    SetStatus($"\U0001F500 MIX A+B stopped — no BPM for {(!bpmA ? "Deck A" : "Deck B")} (auto-detect couldn't find one). Type it in or TAP it, then press MIX A+B again.");
+                    return;
+                }
+                // Key detection runs by itself after each load; give it a moment to land.
+                for (int i = 0; i < 60 && (!_panelA.KeyReady || !_panelB.KeyReady); i++)
+                    await Task.Delay(200);
+                bool synced = _panelB.TrySyncTempoTo(_deckA.EffectiveBpm, out string how);
+                bool keySynced = await _panelB.EnsureKeySyncedAsync();
+                CurvePicker.SelectedIndex = 1;   // Constant Power
+                XfadeSlider.Value = 500;          // both decks fully up
+                _panelA.MixStopAndRewindToCue();
+                _panelB.MixStopAndRewindToCue();
+                _panelA.MixPlay();
+                _panelB.MixPlay();
+                string tempoNote = synced
+                    ? (how.Length == 0 ? $"Deck B tempo matched to {_deckA.EffectiveBpm:0.0} BPM" : $"Deck B matched at {how} ({_deckB.Bpm:0} → {_deckA.EffectiveBpm:0.0} BPM)")
+                    : $"⚠ BPMs too far apart to tempo-match ({_deckA.Bpm:0} vs {_deckB.Bpm:0}) — playing unmatched";
+                string keyNote = keySynced ? "keys in sync" : (_panelA.KeyReady && _panelB.KeyReady ? "keys left as-is" : "key not detected — no key sync");
+                SetStatus($"\U0001F500 MIXING A+B: {tempoNote} • {keyNote} • crossfader centered. Ride the channel faders + EQ to blend!");
+            }
+            finally
+            {
+                _mixBusy = false;
+                MixButton.IsEnabled = true;
+            }
+        }
+
         private async void StartCruise()
         {
             _cruisePlaylist.Clear();
@@ -1267,7 +1328,7 @@ namespace BeatSyncStudioPro
                 // Gain
                 var gainRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
                 gainRow.Children.Add(new TextBlock { Text = "Gain", Foreground = MutedText, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Width = 48 });
-                _gainKnob = new KnobControl { Minimum = 0, Maximum = 1.25, Value = 1.0, Width = 56, Height = 56, Accent = _accent, VerticalAlignment = VerticalAlignment.Center };
+                _gainKnob = new KnobControl { Minimum = 0, Maximum = 1.25, Value = 1.0, DefaultValue = 1.0, Width = 56, Height = 56, Accent = _accent, VerticalAlignment = VerticalAlignment.Center };
                 _gainKnob.ValueChanged += (s, e) => _channelGain.Volume = (float)_gainKnob.Value;
                 gainRow.Children.Add(_gainKnob);
                 midR.Children.Add(gainRow);
@@ -1352,7 +1413,7 @@ namespace BeatSyncStudioPro
                 wheelBtn.ToolTip = "Camelot wheel: see which keys mix cleanly with this song's key.";
                 for (int i = 0; i < 4; i++) _hotButtons[i].ToolTip = $"Hot cue {i + 1}: the first press remembers this spot in the song; later presses jump straight back to it. Right-click clears it.";
                 for (int i = 0; i < 4; i++) _loopButtons[i].ToolTip = "Loop: repeat a section of the song, counted in beats (Off stops the loop). Needs the BPM.";
-                _gainKnob.ToolTip = "This deck's channel gain — the same volume as the mixer's channel gain knob and fader for this deck.";
+                _gainKnob.ToolTip = "This deck's channel gain — the same volume as the mixer's channel gain knob and fader for this deck. Double-click any knob to reset it.";
                 _queueList.ToolTip = "This deck's track list. Double-click a song to load and play it.";
                 addBtn.ToolTip = "Add songs to this deck's track list.";
                 prevBtn.ToolTip = "Load the previous song in the track list.";
@@ -2013,6 +2074,8 @@ namespace BeatSyncStudioPro
 
             private void FinishLoad(byte[] bytes, string name)
             {
+                _lastBytes = bytes;
+                _lastName = name;
                 _tempoSlider.Value = 0;
                 _bpmBox.Text = "";
                 _title.Text = $"{_name} — {_deck.Title}";
@@ -2291,6 +2354,76 @@ namespace BeatSyncStudioPro
             internal double DeckTotalSeconds => _deck.TotalSeconds;
             internal string KeyDisplayText => DetectedKey == null ? "" : $"{KeyDetector.KeyNameFor(EffectivePitchClass, DetectedKey.IsMinor)} - {EffectiveCamelot}";
 
+            // ===== v3.41: MIX A+B support =====
+            private byte[]? _lastBytes;
+            private string _lastName = "";
+
+            internal bool HasTrack => _deck.IsLoaded;
+            internal bool KeyReady => DetectedKey != null;
+
+            internal void SetBpmUi(double bpm)
+            {
+                _deck.Bpm = bpm;
+                _bpmBox.Text = $"{bpm:0}";
+            }
+
+            internal async Task<bool> EnsureBpmAsync()
+            {
+                if (_deck.Bpm > 0) return true;
+                if (_lastBytes == null) return false;
+                var bytes = _lastBytes;
+                string type = System.IO.Path.GetExtension(_lastName).TrimStart('.').ToLowerInvariant();
+                var (bpm, _, _) = await Task.Run(() => BeatDetector.Detect(bytes, type));
+                if (bpm >= 50 && bpm <= 200) { SetBpmUi(Math.Round(bpm * 2) / 2); return true; }
+                return false;
+            }
+
+            /// <summary>FIX 10 + MIX A+B: match this deck's tempo to a target
+            /// BPM honestly — straight if within ±8%, half/double-time if that
+            /// lands in range, otherwise refuse (false) instead of silently
+            /// clamping and claiming success.</summary>
+            internal bool TrySyncTempoTo(double targetBpm, out string how)
+            {
+                how = "";
+                if (_deck.Bpm <= 0 || targetBpm <= 0) return false;
+                double raw = targetBpm / _deck.Bpm;
+                double chosen = raw;
+                if (raw < 0.92 || raw > 1.08)
+                {
+                    if (raw * 2 >= 0.92 && raw * 2 <= 1.08) { chosen = raw * 2; how = "double-time"; }
+                    else if (raw / 2 >= 0.92 && raw / 2 <= 1.08) { chosen = raw / 2; how = "half-time"; }
+                    else return false;
+                }
+                _tempoSlider.Value = (chosen - 1) * 100;
+                return true;
+            }
+
+            internal async Task<bool> EnsureKeySyncedAsync()
+            {
+                if (KeyShiftSemitones != 0) return true;
+                if (DetectedKey == null) return false;
+                var otherPanel = _window.OtherPanel(this);
+                if (otherPanel.DetectedKey == null) return false;
+                int dd = KeyDetector.Mod12(otherPanel.EffectivePitchClass - DetectedKey.PitchClass);
+                int shift = dd > 6 ? dd - 12 : dd;
+                if (shift == 0) return true;
+                await ToggleKeySyncAsync();
+                return KeyShiftSemitones != 0;
+            }
+
+            internal void MixStopAndRewindToCue()
+            {
+                _deck.IsPlaying = false;
+                _deck.PositionSeconds = Math.Min(_deck.CueSeconds, Math.Max(0, _deck.TotalSeconds - 0.05));
+            }
+
+            internal void MixPlay()
+            {
+                if (!_deck.IsLoaded) return;
+                _deck.IsPlaying = true;
+                _window._owner.EnsureOutputRunning();
+            }
+
             internal void SyncForCruise()
             {
                 if (_deck.Bpm > 0 && _other().EffectiveBpm > 0) SyncToOther();
@@ -2376,10 +2509,16 @@ namespace BeatSyncStudioPro
                     _window.SetStatus("SYNC needs a BPM on both decks — type it or TAP it in.");
                     return;
                 }
-                double needed = otherDeck.EffectiveBpm / _deck.Bpm;
-                needed = Math.Clamp(needed, 0.92, 1.08);
-                _tempoSlider.Value = (needed - 1) * 100;
-                _window.SetStatus($"{_name}: synced to {otherDeck.EffectiveBpm:0.0} BPM.");
+                if (TrySyncTempoTo(otherDeck.EffectiveBpm, out string how))
+                {
+                    _window.SetStatus(how.Length == 0
+                        ? $"{_name}: synced to {otherDeck.EffectiveBpm:0.0} BPM."
+                        : $"{_name}: synced to {otherDeck.EffectiveBpm:0.0} BPM at {how} — the two BPMs are far apart, so this deck plays at {(how == "half-time" ? "half" : "double")} the beat rate.");
+                }
+                else
+                {
+                    _window.SetStatus($"{_name}: can't honestly sync — {_deck.Bpm:0} vs {otherDeck.EffectiveBpm:0.0} BPM is beyond the ±8% tempo range, even at half/double time. Tempo left alone.");
+                }
             }
 
             private void SetTempo(double percent)

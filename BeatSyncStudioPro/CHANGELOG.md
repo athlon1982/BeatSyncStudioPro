@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.41 — 🔀 MIX A+B, Knob Reset, Honest SYNC
+- **NEW — 🔀 MIX A+B button** (top of the mixer): load a track on each deck, press it once, and it sets the whole mix up for you — auto-detects any missing BPM (the same beat detector as the editor's beat grid), matches Deck B's tempo to Deck A, key-syncs Deck B to Deck A, centers the crossfader on the Constant Power curve, and starts **both decks together** from their cue points. The status line tells you exactly what it did.
+- **Knob reset:** double-click any knob in the DJ window to snap it back to its default (gain 1.0, EQ flat, master/mic/sampler 0.9), and each channel strip has a **↺ Reset** button that resets the whole strip (gain + EQ + fader) at once.
+- **FIX 10 — SYNC tells the truth now:** if two BPMs are too far apart for the ±8% tempo range, SYNC tries half/double-time matching and says so; if even that doesn't fit, it leaves the tempo alone and tells you, instead of silently clamping and claiming success.
+
 ## Version 3.40 — 📐 No-Scroll Board, Hover Help, Programmable Pads
 - **No more scrolling, anywhere:** each deck is rearranged into two-column zones (platter + waveform on the left; visual, load, stems and transport on the right; tempo/BPM/key beside hot cues/loops/gain; beat jump and the track list full width), the mixer is compacted (crossfader + cruise beside mic + companion), and the whole board is designed at 1800×1000 and scales down to fit smaller screens. Every control is on screen at once — scrollbars are gone.
 - **Hover help on everything:** sit your mouse on any knob, button, slider, pad or picker in the DJ window and a plain-English popup explains what it does (pops up fast, stays while you read).

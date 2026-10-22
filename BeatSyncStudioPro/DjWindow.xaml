@@ -168,11 +168,14 @@
                 <StackPanel>
                     <TextBlock Text="🎧 MIXER" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                     <TextBlock Text="Master" Foreground="#A0A5B5" FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,2"/>
-                    <local:KnobControl x:Name="DjMasterKnob" Minimum="0" Maximum="1.25" Value="0.9" Width="60" Height="60" HorizontalAlignment="Center" Accent="#1DB954"
-                                       ToolTip="Master volume: how loud the whole mix is. Drag up/down or scroll on it."/>
+                    <local:KnobControl x:Name="DjMasterKnob" Minimum="0" Maximum="1.25" Value="0.9" DefaultValue="0.9" Width="60" Height="60" HorizontalAlignment="Center" Accent="#1DB954"
+                                       ToolTip="Master volume: how loud the whole mix is. Drag up/down or scroll on it. Double-click resets it."/>
                     <Button x:Name="RecordButton" Content="🔴 Record Mix" Click="RecordButton_Click" Height="36" Style="{StaticResource HwButton}" Margin="0,10,0,0"
                             Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"
                             ToolTip="Record your whole performance (both decks, sampler and mic) to a WAV file. Click again to stop and save."/>
+                    <Button x:Name="MixButton" Content="🔀 MIX A+B" Click="MixButton_Click" Height="40" Style="{StaticResource HwButton}" Margin="0,8,0,0"
+                            Background="#1DB954" Foreground="White" FontWeight="Bold" FontSize="14" BorderThickness="0" Cursor="Hand"
+                            ToolTip="MIX A+B: one press sets up a two-deck mix — it detects any missing BPMs, matches Deck B's tempo to Deck A (half/double-time when they're far apart), key-syncs B to A, centers the crossfader, and starts both decks together from their cue points."/>
 
                     <!-- Channel strips: gain + 3-band EQ knobs + fader per deck, VU columns between -->
                     <TextBlock Text="CHANNELS" Foreground="#A0A5B5" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,12,0,4"/>
@@ -186,21 +189,23 @@
                         <!-- CH A strip -->
                         <StackPanel Grid.Column="0" Width="78">
                             <TextBlock Text="CH A" Foreground="#1DB954" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center"/>
-                            <local:KnobControl x:Name="ChAGainKnob" Minimum="0" Maximum="1.25" Value="1" Width="48" Height="48" HorizontalAlignment="Center" Accent="#1DB954"
-                                                ToolTip="Deck A channel gain — the same volume as Deck A's own gain knob and this strip's fader."/>
+                            <local:KnobControl x:Name="ChAGainKnob" Minimum="0" Maximum="1.25" Value="1" DefaultValue="1" Width="48" Height="48" HorizontalAlignment="Center" Accent="#1DB954"
+                                                ToolTip="Deck A channel gain — the same volume as Deck A's own gain knob and this strip's fader. Double-click resets it."/>
                             <TextBlock Text="GAIN" Foreground="#A0A5B5" FontSize="9" HorizontalAlignment="Center"/>
-                            <local:KnobControl x:Name="ChAHiKnob" Minimum="-24" Maximum="24" Value="0" Width="38" Height="38" HorizontalAlignment="Center" Accent="#1DB954" Margin="0,4,0,0"
+                            <local:KnobControl x:Name="ChAHiKnob" Minimum="-24" Maximum="24" Value="0" DefaultValue="0" Width="38" Height="38" HorizontalAlignment="Center" Accent="#1DB954" Margin="0,4,0,0"
                                                 ToolTip="Deck A treble (high EQ). Turn down to soften Deck A while you blend; it's the same EQ as Deck A's FX window."/>
                             <TextBlock Text="HI" Foreground="#A0A5B5" FontSize="9" HorizontalAlignment="Center"/>
-                            <local:KnobControl x:Name="ChAMidKnob" Minimum="-24" Maximum="24" Value="0" Width="38" Height="38" HorizontalAlignment="Center" Accent="#1DB954" Margin="0,4,0,0"
+                            <local:KnobControl x:Name="ChAMidKnob" Minimum="-24" Maximum="24" Value="0" DefaultValue="0" Width="38" Height="38" HorizontalAlignment="Center" Accent="#1DB954" Margin="0,4,0,0"
                                                 ToolTip="Deck A midrange EQ — where most vocals and instruments live."/>
                             <TextBlock Text="MID" Foreground="#A0A5B5" FontSize="9" HorizontalAlignment="Center"/>
-                            <local:KnobControl x:Name="ChALowKnob" Minimum="-24" Maximum="24" Value="0" Width="38" Height="38" HorizontalAlignment="Center" Accent="#1DB954" Margin="0,4,0,0"
+                            <local:KnobControl x:Name="ChALowKnob" Minimum="-24" Maximum="24" Value="0" DefaultValue="0" Width="38" Height="38" HorizontalAlignment="Center" Accent="#1DB954" Margin="0,4,0,0"
                                                 ToolTip="Deck A bass (low EQ). Classic blend move: turn the incoming deck's LOW down so the two basslines don't fight, then swap at the drop."/>
                             <TextBlock Text="LOW" Foreground="#A0A5B5" FontSize="9" HorizontalAlignment="Center"/>
                             <Slider x:Name="ChAFader" Orientation="Vertical" Minimum="0" Maximum="1000" Value="800" Height="64" HorizontalAlignment="Center" Margin="0,6,0,0" Style="{StaticResource HwSliderV}"
                                     ToolTip="Deck A channel fader — ride this to bring Deck A in or out of the mix by hand."/>
                             <TextBlock Text="FADER" Foreground="#A0A5B5" FontSize="9" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                            <Button x:Name="ChAResetBtn" Content="↺ Reset" Height="22" FontSize="10" Style="{StaticResource HwButton}" Margin="0,6,0,0" Click="ChAReset_Click"
+                                    ToolTip="Reset this whole channel strip: gain back to 1.0, EQ flat, fader back to unity. (You can also double-click any single knob to reset just that knob.)"/>
                         </StackPanel>
                         <!-- VU A -->
                         <Grid Grid.Column="1" Width="13" Height="256" Margin="5,18,2,0" VerticalAlignment="Top" ClipToBounds="True"
@@ -217,21 +222,23 @@
                         <!-- CH B strip -->
                         <StackPanel Grid.Column="3" Width="78">
                             <TextBlock Text="CH B" Foreground="#B388FF" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center"/>
-                            <local:KnobControl x:Name="ChBGainKnob" Minimum="0" Maximum="1.25" Value="1" Width="48" Height="48" HorizontalAlignment="Center" Accent="#B388FF"
-                                                ToolTip="Deck B channel gain — the same volume as Deck B's own gain knob and this strip's fader."/>
+                            <local:KnobControl x:Name="ChBGainKnob" Minimum="0" Maximum="1.25" Value="1" DefaultValue="1" Width="48" Height="48" HorizontalAlignment="Center" Accent="#B388FF"
+                                                ToolTip="Deck B channel gain — the same volume as Deck B's own gain knob and this strip's fader. Double-click resets it."/>
                             <TextBlock Text="GAIN" Foreground="#A0A5B5" FontSize="9" HorizontalAlignment="Center"/>
-                            <local:KnobControl x:Name="ChBHiKnob" Minimum="-24" Maximum="24" Value="0" Width="38" Height="38" HorizontalAlignment="Center" Accent="#B388FF" Margin="0,4,0,0"
+                            <local:KnobControl x:Name="ChBHiKnob" Minimum="-24" Maximum="24" Value="0" DefaultValue="0" Width="38" Height="38" HorizontalAlignment="Center" Accent="#B388FF" Margin="0,4,0,0"
                                                 ToolTip="Deck B treble (high EQ). Turn down to soften Deck B while you blend; it's the same EQ as Deck B's FX window."/>
                             <TextBlock Text="HI" Foreground="#A0A5B5" FontSize="9" HorizontalAlignment="Center"/>
-                            <local:KnobControl x:Name="ChBMidKnob" Minimum="-24" Maximum="24" Value="0" Width="38" Height="38" HorizontalAlignment="Center" Accent="#B388FF" Margin="0,4,0,0"
+                            <local:KnobControl x:Name="ChBMidKnob" Minimum="-24" Maximum="24" Value="0" DefaultValue="0" Width="38" Height="38" HorizontalAlignment="Center" Accent="#B388FF" Margin="0,4,0,0"
                                                 ToolTip="Deck B midrange EQ — where most vocals and instruments live."/>
                             <TextBlock Text="MID" Foreground="#A0A5B5" FontSize="9" HorizontalAlignment="Center"/>
-                            <local:KnobControl x:Name="ChBLowKnob" Minimum="-24" Maximum="24" Value="0" Width="38" Height="38" HorizontalAlignment="Center" Accent="#B388FF" Margin="0,4,0,0"
+                            <local:KnobControl x:Name="ChBLowKnob" Minimum="-24" Maximum="24" Value="0" DefaultValue="0" Width="38" Height="38" HorizontalAlignment="Center" Accent="#B388FF" Margin="0,4,0,0"
                                                 ToolTip="Deck B bass (low EQ). Classic blend move: turn the incoming deck's LOW down so the two basslines don't fight, then swap at the drop."/>
                             <TextBlock Text="LOW" Foreground="#A0A5B5" FontSize="9" HorizontalAlignment="Center"/>
                             <Slider x:Name="ChBFader" Orientation="Vertical" Minimum="0" Maximum="1000" Value="800" Height="64" HorizontalAlignment="Center" Margin="0,6,0,0" Style="{StaticResource HwSliderV}"
                                     ToolTip="Deck B channel fader — ride this to bring Deck B in or out of the mix by hand."/>
                             <TextBlock Text="FADER" Foreground="#A0A5B5" FontSize="9" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                            <Button x:Name="ChBResetBtn" Content="↺ Reset" Height="22" FontSize="10" Style="{StaticResource HwButton}" Margin="0,6,0,0" Click="ChBReset_Click"
+                                    ToolTip="Reset this whole channel strip: gain back to 1.0, EQ flat, fader back to unity. (You can also double-click any single knob to reset just that knob.)"/>
                         </StackPanel>
                     </Grid>
 
@@ -284,8 +291,8 @@
                                 <Border x:Name="MicMeterFill" Background="#1DB954" Height="8" CornerRadius="4" HorizontalAlignment="Left" Width="0"/>
                             </Grid>
                             <TextBlock Text="Mic level" Foreground="#A0A5B5" FontSize="11" HorizontalAlignment="Center" Margin="0,4,0,2"/>
-                            <local:KnobControl x:Name="MicLevelKnob" Minimum="0" Maximum="1.5" Value="0.9" Width="48" Height="48" HorizontalAlignment="Center" Accent="#1DB954"
-                                                ToolTip="Microphone volume in the mix. Drag up/down or scroll on it."/>
+                            <local:KnobControl x:Name="MicLevelKnob" Minimum="0" Maximum="1.5" Value="0.9" DefaultValue="0.9" Width="48" Height="48" HorizontalAlignment="Center" Accent="#1DB954"
+                                                ToolTip="Microphone volume in the mix. Drag up/down or scroll on it. Double-click resets it."/>
                             <CheckBox x:Name="MicDuckBox" Content="Duck music while talking" IsChecked="True" FontSize="11" Margin="0,4,0,0" Style="{StaticResource HwToggle}"
                                       ToolTip="Ducking: while you talk into the mic, the music automatically dips down so your voice stays on top, then comes back up when you stop."/>
                             <Grid Margin="0,6,0,0">
@@ -317,8 +324,8 @@
                     <TextBlock Text="&#x1F39A;&#xFE0F; SAMPLER" FontSize="13" FontWeight="Bold"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <TextBlock Text="Sampler volume" Foreground="#A0A5B5" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <local:KnobControl x:Name="SamplerVolumeKnob" Minimum="0" Maximum="1.25" Value="0.9" Width="48" Height="48" VerticalAlignment="Center" Accent="#1DB954"
-                                            ToolTip="How loud the sampler pads are in the mix. Drag up/down or scroll on it."/>
+                        <local:KnobControl x:Name="SamplerVolumeKnob" Minimum="0" Maximum="1.25" Value="0.9" DefaultValue="0.9" Width="48" Height="48" VerticalAlignment="Center" Accent="#1DB954"
+                                            ToolTip="How loud the sampler pads are in the mix. Drag up/down or scroll on it. Double-click resets it."/>
                     </StackPanel>
                 </Grid>
                 <UniformGrid x:Name="SamplerPadGrid" Columns="8" Margin="0,6,0,0"/>
