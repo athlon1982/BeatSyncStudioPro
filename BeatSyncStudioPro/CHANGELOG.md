@@ -3,6 +3,12 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.37 — 🎛️ The Concept Board Layout
+- **The DJ window is rebuilt to the approved concept layout** — the floor plan this time, not just the paint: a brand strip across the top with a **live master spectrum**, decks left and right, a real center mixer, and the sampler as a full-width bar along the bottom.
+- **NEW — Channel strips in the mixer:** CH A and CH B strips with a **gain knob**, **HI / MID / LOW EQ knobs** (wired to each deck's real EQ — the same one the FX popup edits) and a **channel fader**, with live **VU meter columns** between them. The strip gain, strip fader and each deck's own gain knob are three surfaces on the same volume and stay in sync.
+- **Everything from before is still here** — platters that scratch, slip, stems, key sync + Camelot, hot cues, loops, beat jump + quantize, track lists, cruise, sampler pads, live mic + ducking, phone companion, Record Mix. Nothing was cut; it all moved into the board layout.
+- Decks and mixer now scroll internally, so the sampler bar and brand strip stay pinned on screen at any window size.
+
 ## Version 3.36 — 🛠️ DJ Reliability Fixes (GLM Audit, Part 3)
 - **FIXED — Recording can no longer kill the audio:** Writing the mix recording to disk now happens on a background writer thread. The audio path only queues a copy of each block — no disk I/O on the audio thread, and a disk failure (full drive, removed stick) quietly ends the recording instead of taking the whole output down mid-set.
 - **FIXED — Waveform passes no longer stall playback:** Computing deck peaks and channel splits (for waveforms and stem splitting) used to hold the deck's audio lock for a whole-song pass, glitching the playing deck. They now snapshot the audio and compute lock-free.

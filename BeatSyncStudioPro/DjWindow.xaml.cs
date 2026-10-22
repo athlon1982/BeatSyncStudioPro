@@ -35,6 +35,11 @@ namespace BeatSyncStudioPro
         private readonly VolumeSampleProvider _xfadeB;
         private readonly VolumeSampleProvider _masterGain;
         private readonly RecordingSampleProvider _recorder;
+        private readonly AudioTapSampleProvider _masterTap;
+        private readonly DrawingVisual _masterVisual = new DrawingVisual();
+        private bool _syncingChannelUi;
+        private static readonly Brush SpectrumBgBrush = new SolidColorBrush(Color.FromRgb(0x0B, 0x0D, 0x13));
+        private static readonly Brush[] SpectrumBrushes = BuildSpectrumBrushes();
         private readonly DeckPanel _panelA;
         private readonly DeckPanel _panelB;
         private readonly DispatcherTimer _timer;
@@ -102,7 +107,8 @@ namespace BeatSyncStudioPro
             finalMix.AddMixerInput(_masterGain);
             _micGain = new VolumeSampleProvider(ClipFxChain.Apply(_mic, _mic.Fx)) { Volume = 0f };
             finalMix.AddMixerInput(_micGain);
-            _recorder = new RecordingSampleProvider(finalMix);
+            _masterTap = new AudioTapSampleProvider(finalMix);
+            _recorder = new RecordingSampleProvider(_masterTap);
             _owner.AttachDjMixer(_recorder);
             djMaster.AddMixerInput(_sampler.Output);
             SamplerVolumeKnob.ValueChanged += (s, e) => _sampler.Output.Volume = (float)SamplerVolumeKnob.Value;
@@ -120,11 +126,13 @@ namespace BeatSyncStudioPro
             CurvePicker.SelectionChanged += (s, e) => UpdateCrossfader();
             DjMasterKnob.ValueChanged += (s, e) => _musicLevel = (float)DjMasterKnob.Value;
             UpdateCrossfader();
+            WireChannelStrips();
+            MasterSpectrumImage.Source = new DrawingImage(_masterVisual.Drawing);
 
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
             _companion.CommandReceived += json => _companionQueue.Enqueue(json);
             _companion.StateJsonProvider = () => _companionStateJson;
-            _timer.Tick += (s, e) => { _panelA.Refresh(); _panelB.Refresh(); CruiseTick(); SamplerFlashTick(); MicTick(); DrainCompanion(); };
+            _timer.Tick += (s, e) => { _panelA.Refresh(); _panelB.Refresh(); CruiseTick(); SamplerFlashTick(); MicTick(); MixerTick(); DrainCompanion(); };
             _timer.Start();
 
             // Never open larger than the screen's work area (scaled displays
@@ -140,6 +148,82 @@ namespace BeatSyncStudioPro
                 Top = wa.Top + Math.Max(0, (wa.Height - ActualHeight) / 2);
             };
             Closed += (s, e) => { _timer.Stop(); _recorder.Stop(); _owner.DetachDjMixer(_recorder); _mic.Dispose(); _companion.Stop(); };
+        }
+
+        // ===== v3.37 concept board: channel strips + live master spectrum =====
+        // The strip gain knob, the strip fader and the deck panel's own gain knob
+        // are three surfaces on ONE value (the deck's channel volume); the EQ
+        // knobs drive the deck's real TrackFxSettings (the same EQ the FX popup
+        // edits, which defaults to on and only bites when a band is off zero).
+        private void WireChannelStrips()
+        {
+            ChAGainKnob.ValueChanged += (s, e) => { if (!_syncingChannelUi) _panelA.SetChannelVolume(ChAGainKnob.Value); };
+            ChBGainKnob.ValueChanged += (s, e) => { if (!_syncingChannelUi) _panelB.SetChannelVolume(ChBGainKnob.Value); };
+            ChAFader.ValueChanged += (s, e) => { if (!_syncingChannelUi) _panelA.SetChannelVolume(ChAFader.Value / 1000.0 * 1.25); };
+            ChBFader.ValueChanged += (s, e) => { if (!_syncingChannelUi) _panelB.SetChannelVolume(ChBFader.Value / 1000.0 * 1.25); };
+            ChAHiKnob.ValueChanged += (s, e) => _fxA.HighDb = ChAHiKnob.Value;
+            ChAMidKnob.ValueChanged += (s, e) => _fxA.MidDb = ChAMidKnob.Value;
+            ChALowKnob.ValueChanged += (s, e) => _fxA.LowDb = ChALowKnob.Value;
+            ChBHiKnob.ValueChanged += (s, e) => _fxB.HighDb = ChBHiKnob.Value;
+            ChBMidKnob.ValueChanged += (s, e) => _fxB.MidDb = ChBMidKnob.Value;
+            ChBLowKnob.ValueChanged += (s, e) => _fxB.LowDb = ChBLowKnob.Value;
+        }
+
+        private void MixerTick()
+        {
+            VuAFill.Height = Math.Clamp(_panelA.TapLevel, 0f, 1f) * 372;
+            VuBFill.Height = Math.Clamp(_panelB.TapLevel, 0f, 1f) * 372;
+            _syncingChannelUi = true;
+            SyncStrip(_panelA, ChAGainKnob, ChAFader);
+            SyncStrip(_panelB, ChBGainKnob, ChBFader);
+            _syncingChannelUi = false;
+            DrawMasterSpectrum();
+        }
+
+        private void SyncStrip(DeckPanel panel, KnobControl gainKnob, Slider fader)
+        {
+            double v = panel.ChannelVolume;
+            if (Math.Abs(gainKnob.Value - v) > 0.005) gainKnob.Value = v;
+            double f = v / 1.25 * 1000;
+            if (Math.Abs(fader.Value - f) > 2) fader.Value = f;
+        }
+
+        private void DrawMasterSpectrum()
+        {
+            double w = MasterSpectrumImage.ActualWidth, h = MasterSpectrumImage.ActualHeight;
+            if (w < 10 || h < 10) return;
+            var bands = _masterTap.GetSpectrum(64);
+            using var dc = _masterVisual.RenderOpen();
+            dc.DrawRectangle(SpectrumBgBrush, null, new Rect(0, 0, w, h));
+            double bw = w / bands.Length;
+            for (int i = 0; i < bands.Length; i++)
+            {
+                double bh = Math.Clamp(bands[i], 0.01, 1) * (h - 2);
+                var brush = SpectrumBrushes[Math.Min(SpectrumBrushes.Length - 1, (int)(Math.Clamp(bands[i], 0, 1) * SpectrumBrushes.Length))];
+                dc.DrawRectangle(brush, null, new Rect(i * bw + 0.5, h - bh, Math.Max(1, bw - 1.5), bh));
+            }
+        }
+
+        private static Brush[] BuildSpectrumBrushes()
+        {
+            var list = new System.Collections.Generic.List<Brush>();
+            for (int i = 0; i < 24; i++)
+            {
+                double t = i / 23.0;
+                Color c = t < 0.6
+                    ? LerpColor(Color.FromRgb(0x1D, 0xB9, 0x54), Color.FromRgb(0xE8, 0xC7, 0x66), t / 0.6)
+                    : LerpColor(Color.FromRgb(0xE8, 0xC7, 0x66), Color.FromRgb(0xE0, 0x54, 0xE0), (t - 0.6) / 0.4);
+                var b = new SolidColorBrush(c);
+                b.Freeze();
+                list.Add(b);
+            }
+            return list.ToArray();
+        }
+
+        private static Color LerpColor(Color a, Color b, double t)
+        {
+            t = Math.Clamp(t, 0, 1);
+            return Color.FromRgb((byte)(a.R + (b.R - a.R) * t), (byte)(a.G + (b.G - a.G) * t), (byte)(a.B + (b.B - a.B) * t));
         }
 
         private (VolumeSampleProvider Xfade, VolumeSampleProvider Channel, AudioTapSampleProvider Tap) BuildDeckChain(
@@ -630,6 +714,7 @@ namespace BeatSyncStudioPro
             private readonly string _name;
             private readonly SolidColorBrush _accent;
             private readonly VolumeSampleProvider _channelGain;
+            private KnobControl? _gainKnob;
 
             private readonly TextBlock _title;
             private readonly Image _waveImage;
@@ -1035,9 +1120,9 @@ namespace BeatSyncStudioPro
                 // Gain
                 var gainRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
                 gainRow.Children.Add(new TextBlock { Text = "Gain", Foreground = MutedText, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Width = 48 });
-                var gain = new KnobControl { Minimum = 0, Maximum = 1.25, Value = 1.0, Width = 56, Height = 56, Accent = _accent, VerticalAlignment = VerticalAlignment.Center };
-                gain.ValueChanged += (s, e) => _channelGain.Volume = (float)gain.Value;
-                gainRow.Children.Add(gain);
+                _gainKnob = new KnobControl { Minimum = 0, Maximum = 1.25, Value = 1.0, Width = 56, Height = 56, Accent = _accent, VerticalAlignment = VerticalAlignment.Center };
+                _gainKnob.ValueChanged += (s, e) => _channelGain.Volume = (float)_gainKnob.Value;
+                gainRow.Children.Add(_gainKnob);
                 root.Children.Add(gainRow);
 
                 // Track list for this deck: queue songs, step through them, mix on
@@ -1097,7 +1182,7 @@ namespace BeatSyncStudioPro
                 root.Children.Add(_autoNextBox);
 
                 ApplyHardwareStyles(root);
-                host.Child = root;
+                host.Child = new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
             }
 
             /// <summary>v3.33 board skin: every button in the panel wears the
@@ -1385,6 +1470,16 @@ namespace BeatSyncStudioPro
             {
                 var peaks = _deck.ComputePeaks(RingBars);
                 for (int i = 0; i < RingBars; i++) _ringPeaks[i] = peaks[i];
+            }
+
+            // v3.37: mixer channel-strip glue — the strip's gain knob/fader drive
+            // the same channel volume as this panel's own gain knob.
+            internal double ChannelVolume => _channelGain.Volume;
+            internal float TapLevel => _tap.Level;
+            internal void SetChannelVolume(double v)
+            {
+                _channelGain.Volume = (float)v;
+                if (_gainKnob != null && Math.Abs(_gainKnob.Value - v) > 0.005) _gainKnob.Value = v;
             }
 
             private void SetSlip(bool on)
