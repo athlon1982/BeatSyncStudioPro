@@ -1,6 +1,7 @@
 <Window x:Class="BeatSyncStudioPro.OutputWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:BeatSyncStudioPro"
         Title="BeatSync Output" Icon="/Assets/app.ico"
         Width="960" Height="560" MinWidth="480" MinHeight="300"
         Background="Black" Foreground="#FFFFFF" WindowStartupLocation="CenterScreen"
@@ -22,12 +23,19 @@
                     <ComboBoxItem Content="⬛ Black"/>
                 </ComboBox>
                 <TextBlock x:Name="SceneLabel" Text="Scene" Foreground="#A0A5B5" FontSize="11" VerticalAlignment="Center" Margin="14,0,6,0" Visibility="Collapsed"/>
-                <ComboBox x:Name="ScenePicker" Width="140" VerticalAlignment="Center" Visibility="Collapsed" SelectionChanged="ScenePicker_SelectionChanged">
+                <ComboBox x:Name="ScenePicker" Width="170" VerticalAlignment="Center" Visibility="Collapsed" SelectionChanged="ScenePicker_SelectionChanged">
                     <ComboBoxItem Content="🔄 Auto Cycle" IsSelected="True"/>
                     <ComboBoxItem Content="📊 Spectrum Bars"/>
                     <ComboBoxItem Content="〰️ Wave Scope"/>
                     <ComboBoxItem Content="⭕ Pulse Rings"/>
+                    <ComboBoxItem Content="🌀 projectM (MilkDrop)"/>
                 </ComboBox>
+                <StackPanel x:Name="PmBar" Orientation="Horizontal" Visibility="Collapsed" VerticalAlignment="Center">
+                    <Button Content="⏮" Click="PmPrev_Click" Padding="8,3" Margin="10,0,0,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Previous preset"/>
+                    <Button Content="⏭" Click="PmNext_Click" Padding="8,3" Margin="4,0,0,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Next preset"/>
+                    <TextBlock x:Name="PmNameLabel" Text="" Foreground="#A0A5B5" FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0" MaxWidth="180" TextTrimming="CharacterEllipsis"/>
+                    <Button Content="📁 .milk…" Click="PmImport_Click" Padding="8,3" Margin="8,0,0,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Add a folder of your own MilkDrop (.milk) presets to the rotation"/>
+                </StackPanel>
                 <TextBlock Text="Display" Foreground="#A0A5B5" FontSize="11" VerticalAlignment="Center" Margin="14,0,6,0"/>
                 <ComboBox x:Name="DisplayPicker" Width="190" VerticalAlignment="Center"/>
                 <Button Content="Send" Click="SendToDisplay_Click" Padding="10,3" Margin="6,0,0,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
@@ -41,6 +49,7 @@
             <MediaElement x:Name="OutputPlayer" LoadedBehavior="Manual" UnloadedBehavior="Stop" Stretch="Uniform" Volume="0"/>
             <Image x:Name="VisualImage" Stretch="Fill" Visibility="Collapsed"/>
             <Image x:Name="FadeImage" Stretch="Fill" Visibility="Collapsed"/>
+            <local:ProjectMHost x:Name="ProjectMView" Visibility="Collapsed"/>
             <TextBlock x:Name="IdleLabel" Text="BeatSync Studio Pro" Foreground="#2E3442" FontSize="28" FontWeight="Bold"
                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Grid>

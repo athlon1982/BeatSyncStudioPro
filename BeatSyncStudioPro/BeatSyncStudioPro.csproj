@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>3.55.0</Version>
+    <Version>3.56.0</Version>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
@@ -24,6 +24,23 @@
     <Resource Include="Assets\app.ico" />
     <Content Include="Assets\soundpack.zip">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <!-- v3.56: bundled self-authored MilkDrop presets for the projectM scene -->
+    <Content Include="Assets\presets\*.milk">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <!-- v3.56: libprojectM engine (LGPL-2.1) ships as a loose, replaceable
+         DLL beside the exe — never linked into the app. Binary: local + PC
+         only, like the splash/icon art (text-only GitHub push). -->
+    <Content Include="Native\projectM.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>projectM.dll</Link>
+    </Content>
+    <!-- glew32.dll: the OpenGL loader libprojectM depends on (GLEW 2.2.0,
+         x64). Also a loose binary beside the exe; local + PC only. -->
+    <Content Include="Native\glew32.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>glew32.dll</Link>
     </Content>
   </ItemGroup>
 

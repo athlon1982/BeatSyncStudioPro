@@ -19,6 +19,13 @@ namespace BeatSyncStudioPro
         private readonly float[] _ring = new float[FftSize];
         private int _writePos;
         private readonly object _lock = new object();
+
+        // v3.56: a one-second interleaved-stereo ring for projectM's PCM
+        // feed. Consumers track the frame counter and pull only the frames
+        // they haven't fed yet (see ReadStereo).
+        private const int StereoCapacityFrames = 44100;
+        private readonly float[] _stereoRing = new float[StereoCapacityFrames * 2];
+        private long _stereoWritten;
         private readonly float[] _smooth = new float[MaxBands];
         private DateTime _lastFft = DateTime.MinValue;
 
@@ -40,8 +47,56 @@ namespace BeatSyncStudioPro
                     _ring[_writePos] = (buffer[offset + i] + buffer[offset + i + 1]) * 0.5f;
                     _writePos = (_writePos + 1) % FftSize;
                 }
+                int channels = WaveFormat.Channels;
+                if (channels >= 1)
+                {
+                    int frames = read / channels;
+                    for (int f = 0; f < frames; f++)
+                    {
+                        float l = buffer[offset + f * channels];
+                        float r = channels > 1 ? buffer[offset + f * channels + 1] : l;
+                        int pos = (int)(_stereoWritten % StereoCapacityFrames) * 2;
+                        _stereoRing[pos] = l;
+                        _stereoRing[pos + 1] = r;
+                        _stereoWritten++;
+                    }
+                }
             }
             return read;
+        }
+
+        /// <summary>Total stereo frames captured since startup (monotonic).</summary>
+        public long StereoFramesWritten
+        {
+            get { lock (_lock) return _stereoWritten; }
+        }
+
+        /// <summary>
+        /// Copy up to maxFrames interleaved stereo frames starting at
+        /// startFrame into dest (sized 2*maxFrames). Returns the number of
+        /// frames actually copied; 0 when startFrame is already caught up.
+        /// A startFrame older than the ring still holds clamps forward.
+        /// </summary>
+        public int ReadStereo(long startFrame, float[] dest, int maxFrames)
+        {
+            lock (_lock)
+            {
+                long avail = _stereoWritten - startFrame;
+                if (avail <= 0) return 0;
+                if (avail > StereoCapacityFrames)
+                {
+                    startFrame = _stereoWritten - StereoCapacityFrames;
+                    avail = StereoCapacityFrames;
+                }
+                int n = (int)Math.Min(avail, maxFrames);
+                for (int f = 0; f < n; f++)
+                {
+                    int pos = (int)((startFrame + f) % StereoCapacityFrames) * 2;
+                    dest[f * 2] = _stereoRing[pos];
+                    dest[f * 2 + 1] = _stereoRing[pos + 1];
+                }
+                return n;
+            }
         }
 
         private float[] Snapshot()

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -61,6 +62,12 @@ namespace BeatSyncStudioPro
             _renderTimer.Tick += RenderTick;
             _renderTimer.Start();
             Closed += (s, e) => _renderTimer.Stop();
+
+            // v3.56: projectM (MilkDrop) scene — bundled presets live in a
+            // "presets" folder beside the exe; the host starts lazily the
+            // first time the scene is picked.
+            ProjectMView.InitialPresetFolder = Path.Combine(AppContext.BaseDirectory, "Assets", "presets");
+            Closed += (s, e) => { try { ProjectMView.Dispose(); } catch { } };
         }
 
         // ---------------- Sync with the main player ----------------
@@ -69,7 +76,7 @@ namespace BeatSyncStudioPro
         {
             if (_mode != 0)
             {
-                IdleLabel.Visibility = Visibility.Collapsed;
+                if (!_noteVisible) IdleLabel.Visibility = Visibility.Collapsed;
                 return;
             }
 
@@ -117,6 +124,7 @@ namespace BeatSyncStudioPro
             if (ScenePicker == null || VisualImage == null) return; // still initializing
             _mode = SourcePicker.SelectedIndex;
             bool visuals = _mode == 1;
+            if (!visuals) DeactivateProjectM();
             SceneLabel.Visibility = visuals ? Visibility.Visible : Visibility.Collapsed;
             ScenePicker.Visibility = visuals ? Visibility.Visible : Visibility.Collapsed;
             VisualImage.Visibility = visuals ? Visibility.Visible : Visibility.Collapsed;
@@ -138,9 +146,84 @@ namespace BeatSyncStudioPro
         private void ScenePicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (ScenePicker.SelectedIndex > 0)
-                SwitchScene(ScenePicker.SelectedIndex);
+                SetScene(ScenePicker.SelectedIndex);
             else
                 _sceneSince = DateTime.Now; // Auto: restart the cycle clock
+        }
+
+        // ---- projectM (scene 4) ----
+
+        private bool _pmFailed;
+        private bool _noteVisible;
+        private string _pmNameShown = "";
+        private DispatcherTimer? _noteTimer;
+
+        private List<int> AvailableScenes()
+        {
+            var list = new List<int> { 1, 2, 3 };
+            if (!_pmFailed && ProjectMNative.DllPresent()) list.Add(4);
+            return list;
+        }
+
+        private void SetScene(int scene)
+        {
+            if (scene == 4) { ActivateProjectM(); return; }
+            DeactivateProjectM();
+            SwitchScene(scene);
+        }
+
+        private void ActivateProjectM()
+        {
+            SwitchScene(4);
+            ProjectMView.Tap = _owner.AudioTap;
+            ProjectMView.Visibility = Visibility.Visible;
+            ProjectMView.RenderEnabled = true;
+            VisualImage.Visibility = Visibility.Collapsed;
+            FadeImage.Visibility = Visibility.Collapsed;
+            PmBar.Visibility = Visibility.Visible;
+        }
+
+        private void DeactivateProjectM()
+        {
+            if (ProjectMView == null) return;
+            ProjectMView.RenderEnabled = false;
+            ProjectMView.Visibility = Visibility.Collapsed;
+            if (PmBar != null) PmBar.Visibility = Visibility.Collapsed;
+            if (_mode == 1 && VisualImage != null) VisualImage.Visibility = Visibility.Visible;
+        }
+
+        private void PmPrev_Click(object sender, RoutedEventArgs e) => ProjectMView.PrevPreset();
+        private void PmNext_Click(object sender, RoutedEventArgs e) => ProjectMView.NextPreset();
+
+        private void PmImport_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "Pick a folder of MilkDrop (.milk) presets" };
+            if (dlg.ShowDialog(this) == true)
+            {
+                ProjectMView.AddPresetFolder(dlg.FolderName);
+                ProjectMView.NextPreset();
+            }
+        }
+
+        private void ShowStageNote(string text)
+        {
+            _noteVisible = true;
+            IdleLabel.Text = text;
+            IdleLabel.Foreground = new SolidColorBrush(Color.FromRgb(0xA0, 0xA5, 0xB5));
+            IdleLabel.FontSize = 15;
+            IdleLabel.Visibility = Visibility.Visible;
+            _noteTimer?.Stop();
+            _noteTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            _noteTimer.Tick += (s, e2) =>
+            {
+                _noteTimer?.Stop();
+                _noteVisible = false;
+                IdleLabel.Visibility = Visibility.Collapsed;
+                IdleLabel.Text = "BeatSync Studio Pro";
+                IdleLabel.Foreground = new SolidColorBrush(Color.FromRgb(0x2E, 0x34, 0x42));
+                IdleLabel.FontSize = 28;
+            };
+            _noteTimer.Start();
         }
 
         private void Topmost_Changed(object sender, RoutedEventArgs e)
@@ -242,11 +325,40 @@ namespace BeatSyncStudioPro
         private void RenderTick(object? sender, EventArgs e)
         {
             if (_mode != 1) return;
-            var tap = _owner.AudioTap;
-            if (tap == null) return;
 
             if (ScenePicker.SelectedIndex == 0 && (DateTime.Now - _sceneSince).TotalSeconds > 24)
-                SwitchScene(_scene % 3 + 1);
+            {
+                var avail = AvailableScenes();
+                int cur = avail.IndexOf(_scene);
+                SetScene(avail[(cur + 1) % avail.Count]);
+            }
+
+            if (_scene == 4)
+            {
+                // projectM renders itself on its own thread; here we only
+                // watch for failure (fall back to the FFT scenes) and keep
+                // the preset name label current.
+                ProjectMView.Tap = _owner.AudioTap;
+                if (ProjectMView.Failed && !_pmFailed)
+                {
+                    _pmFailed = true;
+                    PmNameLabel.Text = "";
+                    _pmNameShown = "";
+                    DeactivateProjectM();
+                    SwitchScene(1);
+                    if (ScenePicker.SelectedIndex > 0) ScenePicker.SelectedIndex = 1;
+                    ShowStageNote("projectM unavailable — " + ProjectMView.FailReason + " Showing Spectrum Bars instead.");
+                }
+                else if (ProjectMView.Started)
+                {
+                    string name = ProjectMView.CurrentPresetName;
+                    if (name != _pmNameShown) { _pmNameShown = name; PmNameLabel.Text = name; }
+                }
+                return;
+            }
+
+            var tap = _owner.AudioTap;
+            if (tap == null) return;
 
             if (_fadeOpacity > 0)
             {

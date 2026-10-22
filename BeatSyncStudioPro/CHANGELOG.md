@@ -3,6 +3,13 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.56 — MilkDrop Visuals (projectM)
+- **The Output window's Visuals get the real MilkDrop engine.** Pick **🌀 projectM (MilkDrop)** in the Scene picker and the stage runs actual MilkDrop presets — the swirling, beat-reactive visuals from the Winamp days — rendered live by libprojectM and fed from the master audio, so what you hear is what it dances to.
+- **Four starter presets ship with the app** (written for BeatSync, since the engine ships with none): **Green Pulse**, **Gold Tunnel**, **Purple Waves** and **Vermont Pines**. They rotate on their own every 30 seconds; the ⏮ / ⏭ buttons in the Output bar skip between them and the bar shows the current preset's name.
+- **Bring your own presets:** the **📁 .milk…** button in the Output bar adds any folder of MilkDrop (.milk) presets to the rotation — thousands of community presets from the Winamp era work as-is.
+- Auto Cycle now includes the projectM scene when it's available. If the engine ever can't start on a machine, the Output window quietly falls back to the built-in scenes instead of breaking.
+- Under the hood: the engine is a separate, replaceable library (LGPL) that sits beside the program rather than inside it, running on its own render thread at 30 fps and capped at 720p internally so it stays light on the graphics chip, then upscaled to the stage.
+
 ## Version 3.55 — Stems, Nested
 - **The stems sub-categories now nest under one Stems parent** (Michael's layout): instead of "Stems · Bass", "Stems · Drums" and friends sitting in the category list as flat rows, there's a single **+ Stems** row with the total count, and the sub-categories live underneath it, indented: **-- Bass**, **-- Drums**, **-- Other**, **-- Vocals**. Click the Stems row to fold them away or bring them back.
 - Picking **Stems** itself shows every stem at once; picking a sub-category shows just that kind.
