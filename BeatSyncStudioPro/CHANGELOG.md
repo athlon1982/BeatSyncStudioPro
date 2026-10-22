@@ -3,6 +3,9 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.62 — Audit Fix 3: Beat Detection Can't Crash the App
+- **Bug fix (audit #3 of 6):** running Detect Beats on a corrupt or unusual clip could crash the whole app — the two entry points that feed it are fire-and-forget (`async void`), where an unhandled error has nowhere to go but down. Both are guarded now: a bad clip simply reports "no steady beat found" (or tells you what went wrong) and the app carries on.
+
 ## Version 3.61 — Audit Fix 2: Sound-Library Archive Locking
 - **Bug fix (audit #2 of 6):** the sound-library archive (`sound-library.zip`) was opened from several places at once with no synchronization — the screen, imports, mashup saves, and the background "stems are ready" callback could all hit it simultaneously, causing "file in use" errors and risking a torn archive (the likely cause of the unreadable-archive incident on Oct 22). Every archive read/write now goes through a single lock, so those operations line up instead of colliding. No visible behavior change — just no more collisions.
 

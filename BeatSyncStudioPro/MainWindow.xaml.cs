@@ -105,30 +105,45 @@ namespace BeatSyncStudioPro
             if (block == null) return null;
             var bytes = block.RawBytes;
             var type = block.SoundType;
-            var (bpm, fileOffset, conf) = await System.Threading.Tasks.Task.Run(() => BeatDetector.Detect(bytes, type));
-            if (bpm <= 0) return null;
-            return ComputeGridFromClip(block, bpm, fileOffset, conf);
+            // Audit Bug 3 (v3.62): a corrupt/odd clip must read as "no grid
+            // found", never as a crash — this feeds async-void callers.
+            try
+            {
+                var (bpm, fileOffset, conf) = await System.Threading.Tasks.Task.Run(() => BeatDetector.Detect(bytes, type));
+                if (bpm <= 0) return null;
+                return ComputeGridFromClip(block, bpm, fileOffset, conf);
+            }
+            catch { return null; }
         }
 
         /// <summary>Detect the beat grid from one specific clip and apply it (clip context menu).</summary>
         public async void DetectBeatsFromClip(FixedBlock block)
         {
             if (block.RawBytes == null || block.RawBytes.Length == 0) return;
-            var bytes = block.RawBytes;
-            var type = block.SoundType;
-            var (bpm, fileOffset, conf) = await System.Threading.Tasks.Task.Run(() => BeatDetector.Detect(bytes, type));
-            if (bpm <= 0)
+            // Audit Bug 3 (v3.62): async void — an unhandled throw here takes
+            // the whole app down, so the detector gets a guard and a voice.
+            try
             {
-                MessageBox.Show("No steady beat found in that clip — you can set the grid by hand in Tracks → Beat Grid…", "Detect Beats");
-                return;
+                var bytes = block.RawBytes;
+                var type = block.SoundType;
+                var (bpm, fileOffset, conf) = await System.Threading.Tasks.Task.Run(() => BeatDetector.Detect(bytes, type));
+                if (bpm <= 0)
+                {
+                    MessageBox.Show("No steady beat found in that clip — you can set the grid by hand in Tracks → Beat Grid…", "Detect Beats");
+                    return;
+                }
+                var grid = ComputeGridFromClip(block, bpm, fileOffset, conf);
+                if (grid == null) return;
+                ProjectBpm = grid.Value.Bpm;
+                BeatOffsetSeconds = grid.Value.OffsetTimeline;
+                RenderStudioGridLanes();
+                MessageBox.Show($"Beat grid set: {grid.Value.Bpm:0.0} BPM (confidence {grid.Value.Confidence * 100:0}%).\n\nBeat lines are on the timeline and clips snap to them while dragging.",
+                    "Detect Beats");
             }
-            var grid = ComputeGridFromClip(block, bpm, fileOffset, conf);
-            if (grid == null) return;
-            ProjectBpm = grid.Value.Bpm;
-            BeatOffsetSeconds = grid.Value.OffsetTimeline;
-            RenderStudioGridLanes();
-            MessageBox.Show($"Beat grid set: {grid.Value.Bpm:0.0} BPM (confidence {grid.Value.Confidence * 100:0}%).\n\nBeat lines are on the timeline and clips snap to them while dragging.",
-                "Detect Beats");
+            catch (Exception ex)
+            {
+                MessageBox.Show("Beat detection hit a problem with that clip: " + ex.Message + "\n\nYou can set the grid by hand in Tracks → Beat Grid…", "Detect Beats");
+            }
         }
 
         private void MenuBeatGrid_Click(object sender, RoutedEventArgs e)
