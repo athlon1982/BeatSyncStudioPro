@@ -991,6 +991,21 @@ namespace BeatSyncStudioPro
             catch { }
         }
 
+        // v3.54 (audit #23): both decks detect keys on background threads and
+        // used to race load-modify-save on the shared cache file — last writer
+        // won and dropped the other deck's key. Merge one entry under a lock.
+        private static readonly object KeyCacheLock = new object();
+
+        internal static void SaveKeyCacheEntry(string key, KeyCacheEntry entry)
+        {
+            lock (KeyCacheLock)
+            {
+                var map = LoadKeyCache();
+                map[key] = entry;
+                SaveKeyCache(map);
+            }
+        }
+
         private void CruiseTick()
         {
             if (!_cruiseOn || _cruisePanel == null) return;
@@ -1822,6 +1837,65 @@ namespace BeatSyncStudioPro
             private RotateTransform? _reelSpinL, _reelSpinR;
             private Ellipse? _tapeL, _tapeR;
             private SolidColorBrush? _visualBrush, _visualBrush2;
+
+            // v3.54 (audit #17): the deck visual re-renders every 100 ms — its
+            // bitmap, pens and brushes are cached instead of allocated per tick.
+            private RenderTargetBitmap? _visualBmp;
+            private readonly DrawingVisual _deckVisual = new DrawingVisual();
+            private readonly Dictionary<int, SolidColorBrush> _hueBrushes = new Dictionary<int, SolidColorBrush>();
+            private SolidColorBrush? _dimSrc;
+            private SolidColorBrush? _dim45;
+            private SolidColorBrush? _dim35;
+            private SolidColorBrush? _penSrc;
+            private Pen? _vizPen12;
+            private Pen? _vizPen25;
+            private Pen? _vizPen10;
+
+            private static SolidColorBrush FrozenBrush(Color c)
+            {
+                var b = new SolidColorBrush(c);
+                b.Freeze();
+                return b;
+            }
+
+            private static Pen FrozenPen(Brush brush, double thickness)
+            {
+                var pen = new Pen(brush, thickness);
+                pen.Freeze();
+                return pen;
+            }
+
+            private static readonly SolidColorBrush Viz2Default = FrozenBrush(Color.FromRgb(0xFF, 0xC8, 0x3D));
+            private static readonly SolidColorBrush VuGreen = FrozenBrush(Color.FromRgb(0x1D, 0xB9, 0x54));
+            private static readonly SolidColorBrush VuYellow = FrozenBrush(Color.FromRgb(0xFF, 0xC8, 0x3D));
+            private static readonly SolidColorBrush VuRed = FrozenBrush(Color.FromRgb(0xFF, 0x52, 0x52));
+
+            private void VizPens(SolidColorBrush viz, out Pen pen12, out Pen pen25, out Pen pen10)
+            {
+                if (!ReferenceEquals(_penSrc, viz))
+                {
+                    _penSrc = viz;
+                    _vizPen12 = FrozenPen(viz, 1.2);
+                    _vizPen25 = FrozenPen(viz, 2.5);
+                    _vizPen10 = FrozenPen(viz, 1);
+                }
+                pen12 = _vizPen12!; pen25 = _vizPen25!; pen10 = _vizPen10!;
+            }
+
+            private SolidColorBrush DimBrush(SolidColorBrush viz, double opacity)
+            {
+                if (!ReferenceEquals(_dimSrc, viz))
+                {
+                    _dimSrc = viz;
+                    var b45 = new SolidColorBrush(viz.Color) { Opacity = 0.45 };
+                    b45.Freeze();
+                    _dim45 = b45;
+                    var b35 = new SolidColorBrush(viz.Color) { Opacity = 0.35 };
+                    b35.Freeze();
+                    _dim35 = b35;
+                }
+                return opacity < 0.4 ? _dim35! : _dim45!;
+            }
             private double _hueShift;
 
             private bool IsDeckB => _name.EndsWith("B");
@@ -2769,14 +2843,14 @@ namespace BeatSyncStudioPro
             private void DrawDeckVisual(DrawingContext dc, int mode, int W, int H)
             {
                 SolidColorBrush viz = _visualBrush ?? _accent;
-                SolidColorBrush viz2 = _visualBrush2 ?? new SolidColorBrush(Color.FromRgb(0xFF, 0xC8, 0x3D));
+                SolidColorBrush viz2 = _visualBrush2 ?? Viz2Default;
                 // Wave-based modes draw from the scope trace (flat line when idle)
                 if (mode == 7 || mode == 8)
                 {
                     var wave = _tap.GetWaveform(220);
                     if (mode == 8)
                     {
-                        var pen = new Pen(viz, 1.2);
+                        VizPens(viz, out var pen, out _, out _);
                         Point prev = new Point(0, H / 2.0 - wave[0] * (H / 2.0 - 2));
                         for (int p = 1; p < wave.Length; p++)
                         {
@@ -2796,8 +2870,8 @@ namespace BeatSyncStudioPro
                             ctx.LineTo(new Point(W, H), true, false);
                         }
                         geo.Freeze();
-                        var fill = new SolidColorBrush(viz.Color) { Opacity = 0.45 };
-                        dc.DrawGeometry(fill, new Pen(viz, 1.2), geo);
+                        VizPens(viz, out var pen7, out _, out _);
+                        dc.DrawGeometry(DimBrush(viz, 0.45), pen7, geo);
                     }
                     return;
                 }
@@ -2811,8 +2885,7 @@ namespace BeatSyncStudioPro
                     }
                     else
                     {
-                        var dim = new SolidColorBrush(viz.Color) { Opacity = 0.45 };
-                        dc.DrawRectangle(dim, null, new Rect(0, H - 4, W, 2));
+                        dc.DrawRectangle(DimBrush(viz, 0.45), null, new Rect(0, H - 4, W, 2));
                     }
                     return;
                 }
@@ -2845,7 +2918,12 @@ namespace BeatSyncStudioPro
                         {
                             int lit = (int)Math.Round(v[i] * rows);
                             double hue = (360.0 - (i / (double)(n - 1)) * 325.0 + _hueShift + 360.0) % 360.0;
-                            var brush = new SolidColorBrush(HslToRgb(hue, 1.0, 0.55));
+                            int hueKey = (int)hue;
+                            if (!_hueBrushes.TryGetValue(hueKey, out var brush))
+                            {
+                                brush = FrozenBrush(HslToRgb(hueKey, 1.0, 0.55));
+                                _hueBrushes[hueKey] = brush;
+                            }
                             for (int r = 0; r < lit; r++)
                             {
                                 double y = H - 2 - (r + 1) * segH - r * segGap;
@@ -2877,8 +2955,8 @@ namespace BeatSyncStudioPro
                     case 4: // Radial spectrum — bars radiating from a center circle
                     {
                         var center = new Point(W / 2.0, H / 2.0);
-                        var pen = new Pen(viz, 2.5);
-                        dc.DrawEllipse(null, new Pen(viz, 1), center, 8, 8);
+                        VizPens(viz, out _, out var pen, out var penRing);
+                        dc.DrawEllipse(null, penRing, center, 8, 8);
                         for (int i = 0; i < n; i++)
                         {
                             double a = i / (double)n * Math.PI * 2 - Math.PI / 2;
@@ -2902,9 +2980,7 @@ namespace BeatSyncStudioPro
                             for (int r = 0; r < lit; r++)
                             {
                                 double frac = (double)r / rows;
-                                var brush = new SolidColorBrush(frac < 0.55 ? Color.FromRgb(0x1D, 0xB9, 0x54)
-                                    : frac < 0.8 ? Color.FromRgb(0xFF, 0xC8, 0x3D)
-                                    : Color.FromRgb(0xFF, 0x52, 0x52));
+                                var brush = frac < 0.55 ? VuGreen : frac < 0.8 ? VuYellow : VuRed;
                                 double y = H - 2 - (r + 1) * segH - r * segGap;
                                 dc.DrawRectangle(brush, null, new Rect(i * vw + 1, y, vw - 2, segH));
                             }
@@ -2936,8 +3012,7 @@ namespace BeatSyncStudioPro
                         for (int i = 0; i < n; i++)
                         {
                             double h = Math.Max(1, v[i] * (H - 6));
-                            var dimBar = new SolidColorBrush(viz.Color) { Opacity = 0.35 };
-                            dc.DrawRectangle(dimBar, null, new Rect(i * bw + 1, H - h, bw - 2, h));
+                            dc.DrawRectangle(DimBrush(viz, 0.35), null, new Rect(i * bw + 1, H - h, bw - 2, h));
                             if (v[i] >= _dotPos[i]) { _dotPos[i] = (float)v[i]; _dotVel[i] = 0; }
                             else
                             {
@@ -3140,8 +3215,13 @@ namespace BeatSyncStudioPro
                 }
                 _stemBusy = true;
                 _stemBtn.IsEnabled = false;
-                _stemCts?.Cancel();
+                // v3.54 (audit #24): dispose the replaced CTS — the previous
+                // split has finished by here (the busy guard above), so its
+                // token is no longer in use.
+                var oldCts = _stemCts;
                 _stemCts = new CancellationTokenSource();
+                oldCts?.Cancel();
+                oldCts?.Dispose();
                 int gen = ++_stemGeneration;
                 try
                 {
@@ -3184,8 +3264,7 @@ namespace BeatSyncStudioPro
                         result = KeyDetector.Detect(mono);
                         if (result != null && cacheKey.Length > 0)
                         {
-                            cache[cacheKey] = new KeyCacheEntry(result.PitchClass, result.IsMinor);
-                            DjWindow.SaveKeyCache(cache);
+                            DjWindow.SaveKeyCacheEntry(cacheKey, new KeyCacheEntry(result.PitchClass, result.IsMinor));
                         }
                     }
                     var res = result;
@@ -3536,6 +3615,14 @@ namespace BeatSyncStudioPro
                 {
                     _deck.Bpm = 0;
                 }
+                else
+                {
+                    // v3.54 (audit #20): don't fail silently — a mistyped BPM
+                    // used to keep the old value with no sign anything was
+                    // wrong. Restore the real value and say so.
+                    _bpmBox.Text = _deck.Bpm > 0 ? $"{_deck.Bpm:0}" : "";
+                    _window.SetStatus($"{_name}: that BPM didn't take — type a number between 40 and 240, or clear the box to unset it.");
+                }
             }
 
             private void TapTempo()
@@ -3671,14 +3758,13 @@ namespace BeatSyncStudioPro
                 if (_visualBorder != null && _visualBorder.Visibility == Visibility.Visible && _visualPicker != null)
                 {
                     const int W = 440, H = 54;
-                    var visual = new DrawingVisual();
-                    using (var dc = visual.RenderOpen())
+                    using (var dc = _deckVisual.RenderOpen())
                     {
                         DrawDeckVisual(dc, _visualPicker.SelectedIndex, W, H);
                     }
-                    var bmp = new RenderTargetBitmap(W, H, 96, 96, PixelFormats.Pbgra32);
-                    bmp.Render(visual);
-                    _visualImage.Source = bmp;
+                    _visualBmp ??= new RenderTargetBitmap(W, H, 96, 96, PixelFormats.Pbgra32);
+                    _visualBmp.Render(_deckVisual);
+                    if (!ReferenceEquals(_visualImage.Source, _visualBmp)) _visualImage.Source = _visualBmp;
                 }
                 _playButton.Content = _deck.IsPlaying ? "⏸ PAUSE" : "▶ PLAY";
                 _effBpmText.Text = _deck.EffectiveBpm > 0 ? $"→ {_deck.EffectiveBpm:0.0} BPM" : "";

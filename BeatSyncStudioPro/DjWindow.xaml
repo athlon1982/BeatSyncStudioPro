@@ -55,6 +55,25 @@
                         <Grid>
                             <Border Height="8" CornerRadius="4" Background="#0A0C11" BorderBrush="#333A4C" BorderThickness="1" VerticalAlignment="Center"/>
                             <Track x:Name="PART_Track">
+                                <!-- v3.54 (audit #21): track clicks jump the value (drag still works too) -->
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="Slider.DecreaseLarge" Focusable="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Background="Transparent" Height="12" VerticalAlignment="Center"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="Slider.IncreaseLarge" Focusable="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Background="Transparent" Height="12" VerticalAlignment="Center"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
                                 <Track.Thumb>
                                     <Thumb Width="34" Height="20" Cursor="Hand">
                                         <Thumb.Template>
@@ -79,6 +98,25 @@
                         <Grid>
                             <Border Width="8" CornerRadius="4" Background="#0A0C11" BorderBrush="#333A4C" BorderThickness="1" HorizontalAlignment="Center"/>
                             <Track x:Name="PART_Track">
+                                <!-- v3.54 (audit #21): track clicks jump the value (drag still works too) -->
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="Slider.DecreaseLarge" Focusable="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Background="Transparent" Width="12" HorizontalAlignment="Center"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="Slider.IncreaseLarge" Focusable="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Background="Transparent" Width="12" HorizontalAlignment="Center"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
                                 <Track.Thumb>
                                     <Thumb Width="30" Height="20" Cursor="Hand">
                                         <Thumb.Template>

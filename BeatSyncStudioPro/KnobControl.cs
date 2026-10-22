@@ -15,11 +15,14 @@ namespace BeatSyncStudioPro
     {
         public static readonly DependencyProperty ValueProperty = DependencyProperty.Register(
             nameof(Value), typeof(double), typeof(KnobControl),
-            new FrameworkPropertyMetadata(0.0, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnValueChanged));
+            new FrameworkPropertyMetadata(0.0, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnValueChanged, CoerceValue));
+        // v3.54 (audit #19): min/max changes re-render the knob and re-clamp.
         public static readonly DependencyProperty MinimumProperty = DependencyProperty.Register(
-            nameof(Minimum), typeof(double), typeof(KnobControl), new FrameworkPropertyMetadata(0.0));
+            nameof(Minimum), typeof(double), typeof(KnobControl),
+            new FrameworkPropertyMetadata(0.0, FrameworkPropertyMetadataOptions.AffectsRender, OnRangeChanged));
         public static readonly DependencyProperty MaximumProperty = DependencyProperty.Register(
-            nameof(Maximum), typeof(double), typeof(KnobControl), new FrameworkPropertyMetadata(1.0));
+            nameof(Maximum), typeof(double), typeof(KnobControl),
+            new FrameworkPropertyMetadata(1.0, FrameworkPropertyMetadataOptions.AffectsRender, OnRangeChanged));
         public static readonly DependencyProperty AccentProperty = DependencyProperty.Register(
             nameof(Accent), typeof(Brush), typeof(KnobControl),
             new FrameworkPropertyMetadata(new SolidColorBrush(Color.FromRgb(0x1D, 0xB9, 0x54)), FrameworkPropertyMetadataOptions.AffectsRender));
@@ -34,11 +37,28 @@ namespace BeatSyncStudioPro
         public Brush Accent { get => (Brush)GetValue(AccentProperty); set => SetValue(AccentProperty, value); }
         public double DefaultValue { get => (double)GetValue(DefaultValueProperty); set => SetValue(DefaultValueProperty, value); }
 
+        private static object CoerceValue(DependencyObject d, object baseValue)
+        {
+            var k = (KnobControl)d;
+            return Math.Clamp((double)baseValue, k.Minimum, k.Maximum);
+        }
+
+        private static void OnRangeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
+            ((KnobControl)d).CoerceValue(ValueProperty);
+
+        private bool _raising;
+
         private static void OnValueChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var k = (KnobControl)d;
             k.InvalidateVisual();
-            k.ValueChanged?.Invoke(k, (double)e.NewValue);
+            // v3.54 (audit #18): a handler that writes Value from inside the
+            // event must not recurse — the visual still updates, the event
+            // just doesn't re-fire for the nested change.
+            if (k._raising) return;
+            k._raising = true;
+            try { k.ValueChanged?.Invoke(k, (double)e.NewValue); }
+            finally { k._raising = false; }
         }
 
         private bool _dragging;
@@ -95,6 +115,41 @@ namespace BeatSyncStudioPro
             e.Handled = true;
         }
 
+        // v3.54 (audit #19): brushes and pens are cached/frozen once instead
+        // of allocated on every render (knobs re-render on every value tick).
+        private static SolidColorBrush Frozen(byte r, byte g, byte b)
+        {
+            var br = new SolidColorBrush(Color.FromRgb(r, g, b));
+            br.Freeze();
+            return br;
+        }
+
+        private static Pen FrozenPen(Brush brush, double thickness)
+        {
+            var pen = new Pen(brush, thickness);
+            pen.Freeze();
+            return pen;
+        }
+
+        private static readonly SolidColorBrush TickOffBrush = Frozen(0x34, 0x3A, 0x4A);
+        private static readonly Pen TickOffPen = FrozenPen(TickOffBrush, 2.5);
+        private static readonly SolidColorBrush BodyBrush = Frozen(0x23, 0x28, 0x36);
+        private static readonly Pen BodyPen = FrozenPen(Frozen(0x45, 0x4E, 0x63), 1.5);
+        private static readonly SolidColorBrush InnerBrush = Frozen(0x15, 0x17, 0x20);
+        private static readonly SolidColorBrush CenterBrush = Frozen(0x0A, 0x0B, 0x0F);
+        private static readonly SolidColorBrush SheenBrush = BuildSheen();
+
+        private static SolidColorBrush BuildSheen()
+        {
+            var br = new SolidColorBrush(Color.FromArgb(0x2A, 0xFF, 0xFF, 0xFF));
+            br.Freeze();
+            return br;
+        }
+
+        private Brush? _penAccent;
+        private Pen? _tickOnPen;
+        private Pen? _needlePen;
+
         protected override void OnRender(DrawingContext dc)
         {
             double size = Math.Min(ActualWidth, ActualHeight);
@@ -103,24 +158,28 @@ namespace BeatSyncStudioPro
             double r = size / 2 - 11;
             double range = Maximum - Minimum;
             double frac = range > 0 ? Math.Clamp((Value - Minimum) / range, 0, 1) : 0;
-            var accent = Accent as SolidColorBrush ?? new SolidColorBrush(Colors.LimeGreen);
-            var tickOff = new SolidColorBrush(Color.FromRgb(0x34, 0x3A, 0x4A));
+            var accent = Accent ?? Brushes.LimeGreen;
+            if (!ReferenceEquals(_penAccent, accent))
+            {
+                _penAccent = accent;
+                _tickOnPen = FrozenPen(accent, 2.5);
+                _needlePen = FrozenPen(accent, 3.5);
+            }
+            int lit = (int)Math.Round(frac * 10);
             for (int i = 0; i <= 10; i++)
             {
                 double a = (-135 + i * 27) * Math.PI / 180.0;
                 var p1 = new Point(c.X + (r + 4) * Math.Sin(a), c.Y - (r + 4) * Math.Cos(a));
                 var p2 = new Point(c.X + (r + 9) * Math.Sin(a), c.Y - (r + 9) * Math.Cos(a));
-                dc.DrawLine(new Pen(i <= (int)Math.Round(frac * 10) ? (Brush)accent : tickOff, 2.5), p1, p2);
+                dc.DrawLine(i <= lit ? _tickOnPen : TickOffPen, p1, p2);
             }
-            dc.DrawEllipse(new SolidColorBrush(Color.FromRgb(0x23, 0x28, 0x36)),
-                new Pen(new SolidColorBrush(Color.FromRgb(0x45, 0x4E, 0x63)), 1.5), c, r, r);
-            dc.DrawEllipse(new SolidColorBrush(Color.FromRgb(0x15, 0x17, 0x20)), null, c, r - 5, r - 5);
-            dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(0x2A, 0xFF, 0xFF, 0xFF)), null,
-                new Point(c.X, c.Y - r * 0.55), r * 0.62, r * 0.26);
+            dc.DrawEllipse(BodyBrush, BodyPen, c, r, r);
+            dc.DrawEllipse(InnerBrush, null, c, r - 5, r - 5);
+            dc.DrawEllipse(SheenBrush, null, new Point(c.X, c.Y - r * 0.55), r * 0.62, r * 0.26);
             double ang = (-135 + frac * 270) * Math.PI / 180.0;
             var tip = new Point(c.X + (r - 7) * Math.Sin(ang), c.Y - (r - 7) * Math.Cos(ang));
-            dc.DrawLine(new Pen(accent, 3.5), c, tip);
-            dc.DrawEllipse(new SolidColorBrush(Color.FromRgb(0x0A, 0x0B, 0x0F)), null, c, 3.5, 3.5);
+            dc.DrawLine(_needlePen, c, tip);
+            dc.DrawEllipse(CenterBrush, null, c, 3.5, 3.5);
         }
     }
 }

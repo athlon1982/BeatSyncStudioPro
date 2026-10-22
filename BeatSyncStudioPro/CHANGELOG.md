@@ -3,6 +3,15 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.54 — Under-the-Hood Tune-Up
+- **The DJ board audit is now fully worked through** — this build clears the last batch of small findings:
+- Knobs redraw properly when their range changes and can't get stuck in a feedback loop.
+- Typing a BPM the box can't use (letters, or outside 40–240) now tells you and restores the real value, instead of silently keeping the old BPM.
+- The DJ board's sliders answer clicks on their tracks, not just drags.
+- The two decks share the saved-key file safely now — one deck can no longer wipe the other's detected key.
+- The mic channel disconnects cleanly, and old stem-split jobs are properly disposed of.
+- The little deck visual screens reuse their brushes and bitmap instead of rebuilding them ten times a second — smoother and lighter on memory.
+
 ## Version 3.53 — ID Tags & Cover Art
 - **The app now reads the tags inside your MP3 and FLAC files** — title, artist, album, year, genre, the BPM and key written in the file, and the embedded cover art. No new downloads or libraries; the reader is built in.
 - **On the DJ decks:** load a tagged song and the deck header shows the cover art thumbnail and the tagged "Artist – Title" instead of the bare file name, with an album • year • genre line under it. The new **🏷️ Tags** button on each deck opens the full tag sheet with the cover art big.

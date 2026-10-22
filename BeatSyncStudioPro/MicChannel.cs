@@ -59,11 +59,16 @@ namespace BeatSyncStudioPro
 
         public void Stop()
         {
-            if (_waveIn != null)
+            // v3.54 (audit #22): detach the callback and clear the field
+            // BEFORE disposing, so a DataAvailable already in flight on the
+            // capture thread can't run against a disposed device.
+            var waveIn = _waveIn;
+            if (waveIn != null)
             {
-                try { _waveIn.StopRecording(); } catch { }
-                _waveIn.Dispose();
                 _waveIn = null;
+                waveIn.DataAvailable -= OnDataAvailable;
+                try { waveIn.StopRecording(); } catch { }
+                try { waveIn.Dispose(); } catch { }
             }
             lock (_lock) { _count = 0; _readPos = _writePos; }
             _level = 0;
