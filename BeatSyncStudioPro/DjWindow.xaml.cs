@@ -38,6 +38,18 @@ namespace BeatSyncStudioPro
         private readonly AudioTapSampleProvider _masterTap;
         private readonly DrawingVisual _masterVisual = new DrawingVisual();
         private bool _syncingChannelUi;
+
+        // v3.42: click the brand-strip spectrum to cycle its density too.
+        private static readonly int[] MasterSpectrumSteps = { 32, 64, 96 };
+        private int _masterBands = 64;
+
+        private void MasterSpectrum_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            int idx = Array.IndexOf(MasterSpectrumSteps, _masterBands);
+            _masterBands = MasterSpectrumSteps[(idx + 1) % MasterSpectrumSteps.Length];
+            string label = _masterBands == 32 ? "FAT bars" : _masterBands == 96 ? "FINE bars" : "NORMAL bars";
+            SetStatus($"Master spectrum: {label} — {_masterBands} bars. Click it again to change it.");
+        }
         private static readonly Brush SpectrumBgBrush = new SolidColorBrush(Color.FromRgb(0x0B, 0x0D, 0x13));
         private static readonly Brush[] SpectrumBrushes = BuildSpectrumBrushes();
         private readonly DeckPanel _panelA;
@@ -187,8 +199,8 @@ namespace BeatSyncStudioPro
 
         private void MixerTick()
         {
-            VuAFill.Height = Math.Clamp(_panelA.TapLevel, 0f, 1f) * 256;
-            VuBFill.Height = Math.Clamp(_panelB.TapLevel, 0f, 1f) * 256;
+            VuAFill.Height = Math.Clamp(_panelA.TapLevel, 0f, 1f) * 248;
+            VuBFill.Height = Math.Clamp(_panelB.TapLevel, 0f, 1f) * 248;
             _syncingChannelUi = true;
             SyncStrip(_panelA, ChAGainKnob, ChAFader);
             SyncStrip(_panelB, ChBGainKnob, ChBFader);
@@ -208,7 +220,7 @@ namespace BeatSyncStudioPro
         {
             double w = MasterSpectrumImage.ActualWidth, h = MasterSpectrumImage.ActualHeight;
             if (w < 10 || h < 10) return;
-            var bands = _masterTap.GetSpectrum(64);
+            var bands = _masterTap.GetSpectrum(_masterBands);
             using var dc = _masterVisual.RenderOpen();
             dc.DrawRectangle(SpectrumBgBrush, null, new Rect(0, 0, w, h));
             double bw = w / bands.Length;
@@ -329,39 +341,150 @@ namespace BeatSyncStudioPro
             }
             _mixBusy = true;
             MixButton.IsEnabled = false;
+            FindPairButton.IsEnabled = false;
+            try { await RunMixSetupAsync(); }
+            finally { _mixBusy = false; MixButton.IsEnabled = true; FindPairButton.IsEnabled = true; }
+        }
+
+        private async Task RunMixSetupAsync()
+        {
+            if (_cruiseOn) TurnCruiseOff("\U0001F500 Cruise off — MIX A+B took over.");
+            SetStatus("\U0001F500 MIX A+B: working out the BPMs…");
+            bool bpmA = await _panelA.EnsureBpmAsync();
+            bool bpmB = await _panelB.EnsureBpmAsync();
+            if (!bpmA || !bpmB)
+            {
+                SetStatus($"\U0001F500 MIX A+B stopped — no BPM for {(!bpmA ? "Deck A" : "Deck B")} (auto-detect couldn't find one). Type it in or TAP it, then press MIX A+B again.");
+                return;
+            }
+            // Key detection runs by itself after each load; give it a moment to land.
+            for (int i = 0; i < 60 && (!_panelA.KeyReady || !_panelB.KeyReady); i++)
+                await Task.Delay(200);
+            bool synced = _panelB.TrySyncTempoTo(_deckA.EffectiveBpm, out string how);
+            bool keySynced = await _panelB.EnsureKeySyncedAsync();
+            CurvePicker.SelectedIndex = 1;   // Constant Power
+            XfadeSlider.Value = 500;          // both decks fully up
+            _panelA.MixStopAndRewindToCue();
+            _panelB.MixStopAndRewindToCue();
+            _panelA.MixPlay();
+            _panelB.MixPlay();
+            string tempoNote = synced
+                ? (how.Length == 0 ? $"Deck B tempo matched to {_deckA.EffectiveBpm:0.0} BPM" : $"Deck B matched at {how} ({_deckB.Bpm:0} → {_deckA.EffectiveBpm:0.0} BPM)")
+                : $"⚠ BPMs too far apart to tempo-match ({_deckA.Bpm:0} vs {_deckB.Bpm:0}) — playing unmatched";
+            string keyNote = keySynced ? "keys in sync" : (_panelA.KeyReady && _panelB.KeyReady ? "keys left as-is" : "key not detected — no key sync");
+            SetStatus($"\U0001F500 MIXING A+B: {tempoNote} • {keyNote} • crossfader centered. Ride the channel faders + EQ to blend!");
+        }
+
+        // ===== v3.42: Find Best Pair — analyze a pile of songs, remix the two that fit =====
+        private sealed class PairCandidate
+        {
+            public string Name = "";
+            public byte[] Bytes = Array.Empty<byte>();
+            public double Bpm;
+            public KeyDetector.KeyResult? Key;
+        }
+
+        private bool _pairBusy;
+
+        private async void FindPairButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_pairBusy || _mixBusy) return;
+            var dialog = new OpenFileDialog
+            {
+                Title = "Pick a bunch of songs — I'll find the best two to remix",
+                Filter = "Audio|*.mp3;*.wav",
+                Multiselect = true
+            };
+            if (dialog.ShowDialog() != true) return;
+            var files = dialog.FileNames.Take(12).ToArray();
+            if (files.Length < 2) { SetStatus("🎲 Pick at least two songs and I'll find the best pair."); return; }
+            _pairBusy = true;
+            FindPairButton.IsEnabled = false;
+            MixButton.IsEnabled = false;
             try
             {
-                if (_cruiseOn) TurnCruiseOff("\U0001F500 Cruise off — MIX A+B took over.");
-                SetStatus("\U0001F500 MIX A+B: working out the BPMs…");
-                bool bpmA = await _panelA.EnsureBpmAsync();
-                bool bpmB = await _panelB.EnsureBpmAsync();
-                if (!bpmA || !bpmB)
+                var found = new List<PairCandidate>();
+                for (int i = 0; i < files.Length; i++)
                 {
-                    SetStatus($"\U0001F500 MIX A+B stopped — no BPM for {(!bpmA ? "Deck A" : "Deck B")} (auto-detect couldn't find one). Type it in or TAP it, then press MIX A+B again.");
+                    string path = files[i];
+                    string name = System.IO.Path.GetFileName(path);
+                    SetStatus($"🎲 Analyzing {i + 1}/{files.Length}: {name}…");
+                    try
+                    {
+                        var bytes = await Task.Run(() => File.ReadAllBytes(path));
+                        string type = System.IO.Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
+                        var (bpm, _, _) = await Task.Run(() => BeatDetector.Detect(bytes, type));
+                        if (bpm < 50 || bpm > 200) continue;
+                        KeyDetector.KeyResult? key = null;
+                        try
+                        {
+                            key = await Task.Run(() =>
+                            {
+                                var (l, r) = StemSeparator.DecodeBytes(bytes, type);
+                                var mono = new float[l.Length];
+                                for (int j = 0; j < l.Length; j++) mono[j] = (l[j] + r[j]) * 0.5f;
+                                return KeyDetector.Detect(mono);
+                            });
+                        }
+                        catch { /* key unknown — scores neutral */ }
+                        found.Add(new PairCandidate { Name = name, Bytes = bytes, Bpm = Math.Round(bpm * 2) / 2, Key = key });
+                    }
+                    catch { /* unreadable file — skip it */ }
+                }
+                if (found.Count < 2)
+                {
+                    SetStatus($"🎲 Only {found.Count} of those songs could be analyzed — pick at least two good MP3/WAV files.");
                     return;
                 }
-                // Key detection runs by itself after each load; give it a moment to land.
-                for (int i = 0; i < 60 && (!_panelA.KeyReady || !_panelB.KeyReady); i++)
-                    await Task.Delay(200);
-                bool synced = _panelB.TrySyncTempoTo(_deckA.EffectiveBpm, out string how);
-                bool keySynced = await _panelB.EnsureKeySyncedAsync();
-                CurvePicker.SelectedIndex = 1;   // Constant Power
-                XfadeSlider.Value = 500;          // both decks fully up
-                _panelA.MixStopAndRewindToCue();
-                _panelB.MixStopAndRewindToCue();
-                _panelA.MixPlay();
-                _panelB.MixPlay();
-                string tempoNote = synced
-                    ? (how.Length == 0 ? $"Deck B tempo matched to {_deckA.EffectiveBpm:0.0} BPM" : $"Deck B matched at {how} ({_deckB.Bpm:0} → {_deckA.EffectiveBpm:0.0} BPM)")
-                    : $"⚠ BPMs too far apart to tempo-match ({_deckA.Bpm:0} vs {_deckB.Bpm:0}) — playing unmatched";
-                string keyNote = keySynced ? "keys in sync" : (_panelA.KeyReady && _panelB.KeyReady ? "keys left as-is" : "key not detected — no key sync");
-                SetStatus($"\U0001F500 MIXING A+B: {tempoNote} • {keyNote} • crossfader centered. Ride the channel faders + EQ to blend!");
+                PairCandidate? bestA = null, bestB = null;
+                double bestScore = double.MinValue;
+                for (int i = 0; i < found.Count; i++)
+                    for (int j = i + 1; j < found.Count; j++)
+                    {
+                        double sc = PairScore(found[i], found[j]);
+                        if (sc > bestScore) { bestScore = sc; bestA = found[i]; bestB = found[j]; }
+                    }
+                if (bestA == null || bestB == null) return;
+                string keyA = bestA.Key != null ? bestA.Key.KeyName + " (" + bestA.Key.Camelot + ")" : "key ?";
+                string keyB = bestB.Key != null ? bestB.Key.KeyName + " (" + bestB.Key.Camelot + ")" : "key ?";
+                SetStatus($"🎲 Best pair of {found.Count}: \"{bestA.Name}\" ({bestA.Bpm:0} BPM, {keyA}) + \"{bestB.Name}\" ({bestB.Bpm:0} BPM, {keyB}) — loading them up…");
+                if (!_panelA.LoadForMix(bestA.Bytes, bestA.Name) || !_panelB.LoadForMix(bestB.Bytes, bestB.Name))
+                {
+                    SetStatus("🎲 Couldn't load the winning pair onto the decks.");
+                    return;
+                }
+                _panelA.SetBpmUi(bestA.Bpm);
+                _panelB.SetBpmUi(bestB.Bpm);
+                await RunMixSetupAsync();
             }
             finally
             {
-                _mixBusy = false;
+                _pairBusy = false;
+                FindPairButton.IsEnabled = true;
                 MixButton.IsEnabled = true;
             }
+        }
+
+        private static double PairScore(PairCandidate a, PairCandidate b)
+        {
+            // Tempo: straight match within ±8% scores up to 100; half/double-time up to 60; else 0.
+            double r = b.Bpm / a.Bpm;
+            double tempo;
+            if (r >= 0.92 && r <= 1.08) tempo = 100 * (1 - Math.Abs(r - 1) / 0.08 * 0.5);
+            else if (r * 2 >= 0.92 && r * 2 <= 1.08) tempo = 60 * (1 - Math.Abs(r * 2 - 1) / 0.08 * 0.5);
+            else if (r / 2 >= 0.92 && r / 2 <= 1.08) tempo = 60 * (1 - Math.Abs(r / 2 - 1) / 0.08 * 0.5);
+            else tempo = 0;
+            // Key: Camelot-compatible = 100; within 2 semitones = 55; unknown = 35; far = 10.
+            double keyScore;
+            if (a.Key == null || b.Key == null) keyScore = 35;
+            else if (KeyDetector.CamelotCompatible(a.Key.Camelot, b.Key.Camelot)) keyScore = 100;
+            else
+            {
+                int d = Math.Abs(a.Key.PitchClass - b.Key.PitchClass);
+                d = Math.Min(d, 12 - d);
+                keyScore = d <= 2 ? 55 : 10;
+            }
+            return tempo * 0.6 + keyScore * 0.4;
         }
 
         private async void StartCruise()
@@ -972,9 +1095,24 @@ namespace BeatSyncStudioPro
                 _visualBrush = null; _visualBrush2 = null; _hueShift = 0;
             }
             private float _specPeak = 0.2f;
-            private readonly float[] _peakCaps = new float[48];
-            private readonly float[] _dotPos = new float[48];
-            private readonly float[] _dotVel = new float[48];
+            private float[] _peakCaps = new float[48];
+            private float[] _dotPos = new float[48];
+            private float[] _dotVel = new float[48];
+            // v3.42: click the visual to cycle spectrum density (bars across the same range).
+            private static readonly int[] SpectrumSteps = { 28, 48, 84 };
+            private int _spectrumBands = 48;
+
+            private void CycleSpectrumDensity()
+            {
+                int idx = Array.IndexOf(SpectrumSteps, _spectrumBands);
+                _spectrumBands = SpectrumSteps[(idx + 1) % SpectrumSteps.Length];
+                _peakCaps = new float[_spectrumBands];
+                _dotPos = new float[_spectrumBands];
+                _dotVel = new float[_spectrumBands];
+                _waterHistory.Clear();
+                string label = _spectrumBands == 28 ? "FAT bars (bass-heavy)" : _spectrumBands == 84 ? "FINE bars (full detail)" : "NORMAL bars";
+                _window.SetStatus($"{_name} spectrum: {label} — {_spectrumBands} bars. Click the visual again to change it.");
+            }
             private readonly List<float[]> _waterHistory = new List<float[]>();
             private readonly List<string> _queuePaths = new List<string>();
             private int _queueIndex = -1;
@@ -1140,7 +1278,8 @@ namespace BeatSyncStudioPro
                 };
                 styleRow.Children.Add(_colorPicker);
                 rightStack.Children.Add(styleRow);
-                _visualBorder = new Border { Height = 56, Margin = new Thickness(0, 4, 0, 0), Background = new SolidColorBrush(Color.FromRgb(0x0B, 0x0D, 0x13)), CornerRadius = new CornerRadius(8) };
+                _visualBorder = new Border { Height = 56, Margin = new Thickness(0, 4, 0, 0), Background = new SolidColorBrush(Color.FromRgb(0x0B, 0x0D, 0x13)), CornerRadius = new CornerRadius(8), Cursor = Cursors.Hand, ToolTip = "This deck's live visual. Click it to change the spectrum density (fat / normal / fine bars) — works on all the spectrum styles." };
+                _visualBorder.MouseLeftButtonDown += (s, e) => CycleSpectrumDensity();
                 _visualImage = new Image { Stretch = Stretch.Fill };
                 _visualBorder.Child = _visualImage;
                 rightStack.Children.Add(_visualBorder);
@@ -1832,12 +1971,12 @@ namespace BeatSyncStudioPro
             /// <summary>Auto-gained spectrum bands (0..1) — raw FFT values run small.</summary>
             private double[] ScaledBands()
             {
-                var bands = _tap.GetSpectrum(48);
-                var scaled = new double[48];
+                var bands = _tap.GetSpectrum(_spectrumBands);
+                var scaled = new double[bands.Length];
                 float frameMax = 0;
-                for (int i = 0; i < 48; i++) frameMax = Math.Max(frameMax, bands[i]);
+                for (int i = 0; i < bands.Length; i++) frameMax = Math.Max(frameMax, bands[i]);
                 _specPeak = Math.Max(Math.Max(frameMax, _specPeak * 0.994f), 0.12f);
-                for (int i = 0; i < 48; i++)
+                for (int i = 0; i < bands.Length; i++)
                     scaled[i] = Math.Clamp(Math.Sqrt(bands[i] / _specPeak) * 0.95, 0, 1);
                 return scaled;
             }
@@ -1908,12 +2047,13 @@ namespace BeatSyncStudioPro
                 }
 
                 var v = ScaledBands();
-                double bw = W / 48.0;
+                int n = v.Length;
+                double bw = W / (double)n;
 
                 switch (mode)
                 {
                     case 0: // Spectrum bars in the deck color
-                        for (int i = 0; i < 48; i++)
+                        for (int i = 0; i < n; i++)
                         {
                             double h = Math.Max(1, v[i] * (H - 4));
                             dc.DrawRectangle((Brush)viz, null, new Rect(i * bw + 1, H - h, bw - 2, h));
@@ -1923,10 +2063,10 @@ namespace BeatSyncStudioPro
                     case 1: // Rainbow LED blocks — hue sweeps red→orange across the bands
                     {
                         const int segH = 4, segGap = 2, rows = 8;
-                        for (int i = 0; i < 48; i++)
+                        for (int i = 0; i < n; i++)
                         {
                             int lit = (int)Math.Round(v[i] * rows);
-                            double hue = (360.0 - (i / 47.0) * 325.0 + _hueShift + 360.0) % 360.0;
+                            double hue = (360.0 - (i / (double)(n - 1)) * 325.0 + _hueShift + 360.0) % 360.0;
                             var brush = new SolidColorBrush(HslToRgb(hue, 1.0, 0.55));
                             for (int r = 0; r < lit; r++)
                             {
@@ -1938,7 +2078,7 @@ namespace BeatSyncStudioPro
                     }
 
                     case 2: // Spectrum + falling white peak caps
-                        for (int i = 0; i < 48; i++)
+                        for (int i = 0; i < n; i++)
                         {
                             double h = Math.Max(1, v[i] * (H - 6));
                             dc.DrawRectangle((Brush)viz, null, new Rect(i * bw + 1, H - h, bw - 2, h));
@@ -1949,7 +2089,7 @@ namespace BeatSyncStudioPro
                         break;
 
                     case 3: // Mirrored spectrum — bars grow both ways from the center line
-                        for (int i = 0; i < 48; i++)
+                        for (int i = 0; i < n; i++)
                         {
                             double half = v[i] * (H / 2.0 - 2);
                             dc.DrawRectangle((Brush)viz, null, new Rect(i * bw + 1, H / 2.0 - half, bw - 2, half * 2));
@@ -1961,9 +2101,9 @@ namespace BeatSyncStudioPro
                         var center = new Point(W / 2.0, H / 2.0);
                         var pen = new Pen(viz, 2.5);
                         dc.DrawEllipse(null, new Pen(viz, 1), center, 8, 8);
-                        for (int i = 0; i < 48; i++)
+                        for (int i = 0; i < n; i++)
                         {
-                            double a = i / 48.0 * Math.PI * 2 - Math.PI / 2;
+                            double a = i / (double)n * Math.PI * 2 - Math.PI / 2;
                             double r0 = 10, r1 = 10 + v[i] * 15;
                             dc.DrawLine(pen,
                                 new Point(center.X + Math.Cos(a) * r0, center.Y + Math.Sin(a) * r0),
@@ -1975,8 +2115,9 @@ namespace BeatSyncStudioPro
                     case 5: // VU bars — wide LED bars, green/yellow/red zones
                     {
                         const int segH = 4, segGap = 2, rows = 8;
-                        double vw = W / 24.0;
-                        for (int i = 0; i < 24; i++)
+                        int half = n / 2;
+                        double vw = W / (double)half;
+                        for (int i = 0; i < half; i++)
                         {
                             double val = (v[i * 2] + v[i * 2 + 1]) / 2;
                             int lit = (int)Math.Round(val * rows);
@@ -1995,15 +2136,15 @@ namespace BeatSyncStudioPro
 
                     case 6: // Waterfall — newest frame on top, history scrolls down and fades
                     {
-                        var frame = new float[48];
-                        for (int i = 0; i < 48; i++) frame[i] = (float)v[i];
+                        var frame = new float[n];
+                        for (int i = 0; i < n; i++) frame[i] = (float)v[i];
                         _waterHistory.Insert(0, frame);
                         while (_waterHistory.Count > 12) _waterHistory.RemoveAt(_waterHistory.Count - 1);
                         double cellH = H / 12.0;
                         for (int r = 0; r < _waterHistory.Count; r++)
                         {
                             var row = _waterHistory[r];
-                            for (int i = 0; i < 48; i++)
+                            for (int i = 0; i < n; i++)
                             {
                                 if (row[i] < 0.04) continue;
                                 var brush = new SolidColorBrush(viz.Color) { Opacity = Math.Clamp(row[i], 0f, 1f) * (1 - r / 16.0) };
@@ -2014,7 +2155,7 @@ namespace BeatSyncStudioPro
                     }
 
                     case 10: // Falling dots — dim bars with bright dots that drop with gravity
-                        for (int i = 0; i < 48; i++)
+                        for (int i = 0; i < n; i++)
                         {
                             double h = Math.Max(1, v[i] * (H - 6));
                             var dimBar = new SolidColorBrush(viz.Color) { Opacity = 0.35 };
@@ -2428,6 +2569,8 @@ namespace BeatSyncStudioPro
             {
                 if (_deck.Bpm > 0 && _other().EffectiveBpm > 0) SyncToOther();
             }
+
+            internal bool LoadForMix(byte[] bytes, string name) => LoadBytes(bytes, name);
 
             private void LoadQueueItem(int i, bool autoplay)
             {

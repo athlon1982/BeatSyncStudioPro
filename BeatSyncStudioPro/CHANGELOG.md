@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.42 — Roomier Mixer, 🎲 Best Pair, Clickable Spectrums
+- **Mixer layout fixed:** the center column is wider (352) and the whole lower section (crossfader/curve/fade, cruise, mic, companion) is stacked full-width — the mic picker, **Duck music while talking**, and the **Mic FX / Companion** buttons are no longer clipped or cut off. Knobs and faders got a small trim so everything fits without scrolling.
+- **NEW — 🎲 Best Pair** (next to MIX A+B): pick a bunch of songs (up to 12) and the app analyzes each one's BPM and key, scores every pair for tempo + Camelot-key compatibility, loads the best-matching two onto the decks, and runs MIX A+B on them — the pair that will actually remix well, not two random songs.
+- **Clickable spectrums:** click any deck's visual to cycle its spectrum density (28 fat bass-heavy bars → 48 normal → 84 fine detail); the master spectrum in the top bar clicks the same way (32/64/96).
+
 ## Version 3.41 — 🔀 MIX A+B, Knob Reset, Honest SYNC
 - **NEW — 🔀 MIX A+B button** (top of the mixer): load a track on each deck, press it once, and it sets the whole mix up for you — auto-detects any missing BPM (the same beat detector as the editor's beat grid), matches Deck B's tempo to Deck A, key-syncs Deck B to Deck A, centers the crossfader on the Constant Power curve, and starts **both decks together** from their cue points. The status line tells you exactly what it did.
 - **Knob reset:** double-click any knob in the DJ window to snap it back to its default (gain 1.0, EQ flat, master/mic/sampler 0.9), and each channel strip has a **↺ Reset** button that resets the whole strip (gain + EQ + fader) at once.
