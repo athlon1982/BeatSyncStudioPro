@@ -2939,10 +2939,8 @@ namespace BeatSyncStudioPro
             if (LibrarySoundList == null) return;
             entries ??= MergedEntries();
             string cat = SelectedBrowserCategory();
-            string query = LibrarySearchBox?.Text?.Trim() ?? "";
             var rows = entries
-                .Where(e => (cat == "" || e.Category == cat) &&
-                            (query.Length == 0 || e.Display.Contains(query, StringComparison.OrdinalIgnoreCase)))
+                .Where(e => cat == "" || e.Category == cat)
                 .OrderBy(e => e.Display, StringComparer.OrdinalIgnoreCase)
                 .ToList();
             _refreshingLibrary = true;
@@ -3564,8 +3562,6 @@ namespace BeatSyncStudioPro
             MessageBox.Show($"Imported {added} sound{(added == 1 ? "" : "s")} into the library, sorted by category.\n{skipped} skipped (duplicates or unreadable files).",
                 "Import sounds", MessageBoxButton.OK, MessageBoxImage.Information);
         }
-
-        private void LibraryFilter_Changed(object sender, RoutedEventArgs e) => ApplyLibraryFilter();
 
         private CreateSongWindow? _createSongWindow;
         private void BtnCreateSong_Click(object sender, RoutedEventArgs e)

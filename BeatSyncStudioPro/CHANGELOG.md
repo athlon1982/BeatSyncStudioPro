@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.51 — Sidebar Cleanup
+- **The library search box is gone** (Michael's call — it sat unlabeled under the Import button and anything typed into it silently filtered the sound list to empty). The category list + sound list are the way to browse now, exactly like the DJ sampler picker.
+- **Buttons renamed:** Quick Video → **Add Video**, Quick Images → **Add Image**, Quick Audio → **Add Song**.
+
 ## Version 3.50 — Timeline Zoom, Roomier Timeline, Stems Sub-Categories Fixed
 - **Mouse-wheel timeline zoom:** roll the wheel over the timeline to zoom in and out (10%–1000%), anchored at the cursor so the moment under the mouse stays put. The ruler adapts as you zoom: whole seconds when zoomed out, splitting into halves, quarters and tenths of a second when zoomed in (1.25s, 1.5s, 1.75s…), with longer ticks on the whole seconds. A zoom readout sits in the timeline header. Clips, beat grid, loop region, playhead, playback, export and transcript timing all follow the zoom; project files still save at the standard scale, so zooming never corrupts a saved project.
 - **The video preview box hides itself:** when no video clip is on the timeline, the big empty player above the timeline goes away and the timeline takes the full workspace height. Add a video clip and the player comes right back.
