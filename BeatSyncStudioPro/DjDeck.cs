@@ -74,6 +74,11 @@ namespace BeatSyncStudioPro
         public double Bpm { get; set; }
         public double EffectiveBpm => Bpm > 0 ? Bpm * Tempo : 0;
 
+        /// <summary>Auto-gain trim (v3.68): loudness-match factor the panel
+        /// computes at load time; 1.0 = no trim. Applied to every output
+        /// sample in Read, upstream of the channel strip's manual gain.</summary>
+        public double AutoGain { get; set; } = 1.0;
+
         // ---- scratch + level (UI-driven) ----
         private volatile bool _grabbed;
         private double _scratchRate;
@@ -141,6 +146,7 @@ namespace BeatSyncStudioPro
                 Bpm = 0;
                 Tempo = 1.0;
                 Bend = 1.0;
+                AutoGain = 1.0;
             }
         }
 
@@ -402,6 +408,12 @@ namespace BeatSyncStudioPro
                     {
                         buffer[offset + f * 2] = (float)(_samples[i0] * (1 - frac) + _samples[i1] * frac);
                         buffer[offset + f * 2 + 1] = (float)(_samples[i0 + 1] * (1 - frac) + _samples[i1 + 1] * frac);
+                    }
+                    if (AutoGain != 1.0)
+                    {
+                        float ag = (float)AutoGain;
+                        buffer[offset + f * 2] *= ag;
+                        buffer[offset + f * 2 + 1] *= ag;
                     }
                     float a0 = Math.Abs(buffer[offset + f * 2]);
                     float a1 = Math.Abs(buffer[offset + f * 2 + 1]);

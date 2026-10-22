@@ -1982,6 +1982,11 @@ namespace BeatSyncStudioPro
             private CancellationTokenSource? _keyRenderCts;
             private readonly Button _keyLockBtn;
             private Button _suggestBtn = null!;
+            private Button _autoGainBtn = null!;
+            private TextBlock _autoGainText = null!;
+            internal bool AutoGainOn = true;
+            private double _autoGainFactor = 1.0;
+            private double _autoGainDb;
             private bool _quantize = true;
             private readonly Button _quantizeBtn;
             private int _loadGen;
@@ -2545,6 +2550,14 @@ namespace BeatSyncStudioPro
                 _gainKnob = new KnobControl { Minimum = 0, Maximum = 1.25, Value = 1.0, DefaultValue = 1.0, Width = 56, Height = 56, Accent = _accent, VerticalAlignment = VerticalAlignment.Center };
                 _gainKnob.ValueChanged += (s, e) => _channelGain.Volume = (float)_gainKnob.Value;
                 gainRow.Children.Add(_gainKnob);
+                _autoGainBtn = MakeButton("Auto-Gain: ON", 108);
+                _autoGainBtn.Margin = new Thickness(10, 0, 0, 0);
+                _autoGainBtn.Background = _accent;
+                _autoGainBtn.ToolTip = "Auto-Gain: measures each song's loudness when it loads and trims this deck so every track plays at the same level. Your Gain knob still trims on top.";
+                _autoGainBtn.Click += (s, e) => ToggleAutoGain();
+                gainRow.Children.Add(_autoGainBtn);
+                _autoGainText = new TextBlock { Text = "", Foreground = MutedText, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
+                gainRow.Children.Add(_autoGainText);
                 midR.Children.Add(gainRow);
 
                 // Track list for this deck: queue songs, step through them, mix on
@@ -3304,6 +3317,77 @@ namespace BeatSyncStudioPro
                 ShowStemChips(false, "");
                 _ = TryLoadCachedStemsAsync();
                 StartKeyDetection();
+                StartAutoGainAnalysis();
+            }
+
+            // ===== v3.68: per-deck auto-gain =====
+
+            private void ToggleAutoGain()
+            {
+                AutoGainOn = !AutoGainOn;
+                _deck.AutoGain = AutoGainOn ? _autoGainFactor : 1.0;
+                _autoGainBtn.Content = AutoGainOn ? "Auto-Gain: ON" : "Auto-Gain: OFF";
+                _autoGainBtn.Background = AutoGainOn ? _accent : PanelBtn;
+                UpdateAutoGainLabel();
+                _window.SetStatus(AutoGainOn
+                    ? $"{_name}: auto-gain on — this track is trimmed {_autoGainDb:+0.0;-0.0} dB to the standard level."
+                    : $"{_name}: auto-gain off — tracks play at their recorded level.");
+            }
+
+            private void UpdateAutoGainLabel()
+            {
+                _autoGainText.Text = !_deck.IsLoaded ? "" : AutoGainOn ? $"auto {_autoGainDb:+0.0;-0.0} dB" : "auto off";
+            }
+
+            /// <summary>Measure the loaded track's loudness (RMS + peak off
+            /// the decoded buffers) and set the deck's auto-gain trim so
+            /// every song plays at the same level: RMS target ≈ -14 dBFS,
+            /// gain clamped to about ±10 dB, peak-capped at 0.94.</summary>
+            private void StartAutoGainAnalysis()
+            {
+                int gen = _loadGen;
+                _autoGainFactor = 1.0;
+                _autoGainDb = 0;
+                _deck.AutoGain = 1.0;
+                UpdateAutoGainLabel();
+                _ = Task.Run(() =>
+                {
+                    double factor = 1.0, db = 0;
+                    try
+                    {
+                        var (l, r) = _deck.GetChannelBuffers();
+                        long n = Math.Min(l.Length, r.Length);
+                        if (n > 0)
+                        {
+                            double sum = 0;
+                            float peak = 0;
+                            for (long i = 0; i < n; i++)
+                            {
+                                sum += (double)l[i] * l[i] + (double)r[i] * r[i];
+                                float a = Math.Max(Math.Abs(l[i]), Math.Abs(r[i]));
+                                if (a > peak) peak = a;
+                            }
+                            double rms = Math.Sqrt(sum / (2.0 * n));
+                            if (rms > 1e-6)
+                            {
+                                const double target = 0.20;
+                                factor = Math.Clamp(target / rms, 0.30, 3.0);
+                                if (peak > 0 && peak * factor > 0.94) factor = 0.94 / peak;
+                                db = 20 * Math.Log10(factor);
+                            }
+                        }
+                    }
+                    catch { factor = 1.0; db = 0; }
+                    double f2 = factor, d2 = db;
+                    _window.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        if (gen != _loadGen) return;
+                        _autoGainFactor = f2;
+                        _autoGainDb = d2;
+                        if (AutoGainOn) _deck.AutoGain = f2;
+                        UpdateAutoGainLabel();
+                    }));
+                });
             }
 
             // v3.53: read the file's embedded tags and dress the deck header

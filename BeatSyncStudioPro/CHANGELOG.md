@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.68 — Per-Deck Auto-Gain
+- **No more volume surprises between songs:** each deck now measures a track's loudness the moment it loads and trims the deck so every song plays at the same level (RMS matched to a standard target, peak-capped so a trim-up can never clip). Quiet songs come up, loud songs come down — before the crossfader, so mixes sit together properly.
+- **Per-deck toggle:** the "Auto-Gain: ON/OFF" button sits next to each deck's Gain knob, with the live trim shown beside it (e.g. "auto -3.5 dB"). Your Gain knob still works exactly as before, trimming on top of the auto level. Turn it off and tracks play at their recorded level.
+
 ## Version 3.67 — Suggest Next Song
 - **New 🎯 Suggest button on each DJ deck:** load a track, hit Suggest, and BeatSync ranks your library songs by how well they mix *after* that deck's track — Camelot key compatibility counts most (same key, relative major/minor, and ±1 energy shifts score highest), BPM closeness second, with half/double-time tempos folded in fairly. The ranked list shows each song's key, BPM, and a match %.
 - **Pick loads the other deck:** double-click a suggestion (or hit "⬇ Load onto Deck…") and it loads straight onto the opposite deck, ready to mix in.
