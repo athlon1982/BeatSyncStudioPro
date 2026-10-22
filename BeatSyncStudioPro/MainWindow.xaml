@@ -219,6 +219,7 @@
                 <MenuItem Header="🎵 My Songs..." Click="BtnMySongs_Click"/>
                 <MenuItem Header="🌐 Freesound Sounds..." Click="BtnFreesound_Click"/>
                 <MenuItem Header="🏛️ Internet Archive Music..." Click="BtnArchive_Click"/>
+                <MenuItem Header="🎵 Jamendo Music..." Click="BtnJamendo_Click"/>
                 <MenuItem Header="🎁 Sound Pack..." Click="BtnSoundPack_Click"/>
                 <MenuItem Header="🎤 Create Song..." Click="BtnCreateSong_Click"/>
             </MenuItem>

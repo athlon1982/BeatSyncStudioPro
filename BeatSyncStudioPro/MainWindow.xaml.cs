@@ -2697,6 +2697,9 @@ namespace BeatSyncStudioPro
 
         private void BtnArchive_Click(object sender, RoutedEventArgs e) => OpenSearchHub(1);
 
+        // v3.66: Jamendo joins the hub as the third source (tab 2).
+        private void BtnJamendo_Click(object sender, RoutedEventArgs e) => OpenSearchHub(2);
+
         private SoundPackWindow? _soundPackWindow;
         private void BtnSoundPack_Click(object sender, RoutedEventArgs e)
         {

@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.66 — Jamendo Joins the Search Hub
+- **New music source:** the 🔎 Search Sounds & Music window gains a third source — **🎵 More Music — Jamendo**. Search jamendo.com's library of free, Creative Commons-licensed full songs by independent artists, preview them streaming, and add them to your library (filed into categories automatically, with the license and artist shown for credit) — same flow as the Archive tab.
+- **Free client ID, your account:** Jamendo needs a free client ID from devportal.jamendo.com (sign up, create an app, copy the ID). Paste it in the hub's renamed **🔑 API Keys** tab, which now holds both the Freesound key and the Jamendo ID — stored encrypted on this PC, sent only to Jamendo. The tab has a one-click button that opens the signup page.
+- **View menu:** a new "🎵 Jamendo Music..." entry opens the hub straight on the Jamendo tab.
+
 ## Version 3.65 — Audit Fix 6: Warning Residue Cleared
 - **Cleanup (audit #6 of 6 — the audit list is now fully worked through):** removed a never-read variable from the download engine, and untangled a drag-and-drop helper that aliased its own parameter into a same-named local and nulled it (the compiler's last real warnings). The build now compiles with only one warning left — a deliberate one on the playback dispatch, which is fire-and-forget by design and guarded inside.
 
