@@ -178,13 +178,17 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <Button x:Name="MixButton" Grid.Column="0" Content="🔀 MIX A+B" Click="MixButton_Click" Height="36" Style="{StaticResource HwButton}" Margin="0,0,4,0"
                                 Background="#1DB954" Foreground="White" FontWeight="Bold" FontSize="13" BorderThickness="0" Cursor="Hand"
-                                ToolTip="MIX A+B: one press sets up a two-deck mix — it detects any missing BPMs, matches Deck B's tempo to Deck A (half/double-time when they're far apart), key-syncs B to A, centers the crossfader, and starts both decks together from their cue points."/>
-                        <Button x:Name="FindPairButton" Grid.Column="1" Content="🎲 Best Pair" Click="FindPairButton_Click" Height="36" Style="{StaticResource HwButton}" Margin="4,0,0,0" Padding="10,0"
+                                ToolTip="MIX A+B: one press sets up a two-deck mix — it detects any missing BPMs, matches Deck B's tempo to Deck A (half/double-time when they're far apart), key-syncs B to A, centers the crossfader, and starts both decks together from their cue points. Both FULL songs play — for a clean remix, use MASHUP instead."/>
+                        <Button x:Name="MashupButton" Grid.Column="1" Content="🎤 Mashup" Click="MashupButton_Click" Height="36" Style="{StaticResource HwButton}" Margin="0,0,4,0" Padding="8,0"
+                                Background="#7C4DFF" Foreground="White" FontWeight="Bold" FontSize="12" BorderThickness="0" Cursor="Hand"
+                                ToolTip="MASHUP A+B — the real remix recipe: Deck A plays VOCALS ONLY, Deck B plays the BEAT ONLY (drums + bass + other), tempo- and key-synced, started together. No lyrics-over-lyrics mess. Splits the stems first if a song hasn't been split yet (first time takes a while, then it's cached)."/>
+                        <Button x:Name="FindPairButton" Grid.Column="2" Content="🎲 Best Pair" Click="FindPairButton_Click" Height="36" Style="{StaticResource HwButton}" Margin="0" Padding="8,0"
                                 Background="#2A303C" Foreground="White" FontWeight="Bold" FontSize="12" BorderThickness="0" Cursor="Hand"
-                                ToolTip="Find Best Pair: pick a bunch of songs and the app analyzes every one's BPM and key, finds the two that will actually remix well together, loads them on the decks, and runs MIX A+B on them."/>
+                                ToolTip="Find Best Pair: pick a bunch of songs and the app analyzes every one's BPM and key, finds the two that will actually remix well together, loads them on the decks, and runs MIX A+B on them. A progress window shows every step."/>
                     </Grid>
 
                     <!-- Channel strips: gain + 3-band EQ knobs + fader per deck, VU columns between -->

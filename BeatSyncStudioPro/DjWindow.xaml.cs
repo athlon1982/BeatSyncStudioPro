@@ -346,7 +346,7 @@ namespace BeatSyncStudioPro
             finally { _mixBusy = false; MixButton.IsEnabled = true; FindPairButton.IsEnabled = true; }
         }
 
-        private async Task RunMixSetupAsync()
+        private async Task RunMixSetupAsync(bool mashup = false)
         {
             if (_cruiseOn) TurnCruiseOff("\U0001F500 Cruise off — MIX A+B took over.");
             SetStatus("\U0001F500 MIX A+B: working out the BPMs…");
@@ -362,6 +362,12 @@ namespace BeatSyncStudioPro
                 await Task.Delay(200);
             bool synced = _panelB.TrySyncTempoTo(_deckA.EffectiveBpm, out string how);
             bool keySynced = await _panelB.EnsureKeySyncedAsync();
+            if (mashup)
+            {
+                // The real remix recipe: A's voice over B's beat — no lyric pile-up.
+                _panelA.SetStemMix(vocals: true, drums: false, bass: false, other: false);
+                _panelB.SetStemMix(vocals: false, drums: true, bass: true, other: true);
+            }
             CurvePicker.SelectedIndex = 1;   // Constant Power
             XfadeSlider.Value = 500;          // both decks fully up
             _panelA.MixStopAndRewindToCue();
@@ -372,7 +378,134 @@ namespace BeatSyncStudioPro
                 ? (how.Length == 0 ? $"Deck B tempo matched to {_deckA.EffectiveBpm:0.0} BPM" : $"Deck B matched at {how} ({_deckB.Bpm:0} → {_deckA.EffectiveBpm:0.0} BPM)")
                 : $"⚠ BPMs too far apart to tempo-match ({_deckA.Bpm:0} vs {_deckB.Bpm:0}) — playing unmatched";
             string keyNote = keySynced ? "keys in sync" : (_panelA.KeyReady && _panelB.KeyReady ? "keys left as-is" : "key not detected — no key sync");
-            SetStatus($"\U0001F500 MIXING A+B: {tempoNote} • {keyNote} • crossfader centered. Ride the channel faders + EQ to blend!");
+            if (mashup)
+                SetStatus($"🎤 MASHUP A+B: Deck A's VOCALS over Deck B's BEAT (drums+bass+other) • {tempoNote} • {keyNote} • crossfader centered. Want it the other way round? Swap the two tracks and press MASHUP again.");
+            else
+                SetStatus($"\U0001F500 MIXING A+B: {tempoNote} • {keyNote} • crossfader centered. Ride the channel faders + EQ to blend!");
+        }
+
+        // ===== v3.43: shared progress window (Best Pair + Mashup narrate their steps) =====
+        private sealed class ProgressWindowHelper
+        {
+            private readonly Window _win;
+            private readonly ProgressBar _bar;
+            private readonly TextBlock _status;
+            private readonly StackPanel _log;
+            private readonly ScrollViewer _scroll;
+            private bool _closed;
+
+            public ProgressWindowHelper(Window owner, string title)
+            {
+                _win = new Window
+                {
+                    Title = title,
+                    Width = 560,
+                    Height = 420,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Owner = owner,
+                    ResizeMode = ResizeMode.NoResize,
+                    Background = new SolidColorBrush(Color.FromRgb(0x14, 0x17, 0x1E)),
+                    Foreground = Brushes.White
+                };
+                var root = new StackPanel { Margin = new Thickness(16) };
+                root.Children.Add(new TextBlock { Text = title, FontSize = 15, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
+                _bar = new ProgressBar { Height = 12, Margin = new Thickness(0, 10, 0, 6), Minimum = 0, Maximum = 100, Value = 0 };
+                root.Children.Add(_bar);
+                _status = new TextBlock { Foreground = new SolidColorBrush(Color.FromRgb(0xA0, 0xA5, 0xB5)), Text = "Starting…" };
+                root.Children.Add(_status);
+                _log = new StackPanel();
+                _scroll = new ScrollViewer { Height = 250, Margin = new Thickness(0, 10, 0, 0), VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = _log };
+                root.Children.Add(_scroll);
+                _win.Content = root;
+                _win.Closed += (s, e) => _closed = true;
+            }
+
+            public void Show() => _win.Show();
+            public void Close() { if (!_closed) _win.Close(); }
+            public void SetBar(int done, int total) { if (!_closed && total > 0) _bar.Value = done * 100.0 / total; }
+            public void SetStatus(string text) { if (!_closed) _status.Text = text; }
+
+            public void Log(string text, bool bold = false)
+            {
+                if (_closed) return;
+                _log.Children.Add(new TextBlock
+                {
+                    Text = text,
+                    Foreground = Brushes.White,
+                    FontSize = 12.5,
+                    FontWeight = bold ? FontWeights.Bold : FontWeights.Normal,
+                    Margin = new Thickness(0, 2, 0, 0),
+                    TextWrapping = TextWrapping.Wrap
+                });
+                _scroll.ScrollToEnd();
+            }
+
+            public void Fail(string text)
+            {
+                Log("✗ " + text, true);
+                SetStatus("Stopped — the log above says why. You can close this window.");
+            }
+        }
+
+        // ===== v3.43: MASHUP A+B — A's vocals over B's beat (the real remix recipe) =====
+        private bool _mashupBusy;
+
+        private async void MashupButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_mashupBusy || _mixBusy || _pairBusy) return;
+            if (!_panelA.HasTrack || !_panelB.HasTrack)
+            {
+                SetStatus("🎤 MASHUP A+B needs a track loaded on BOTH decks first.");
+                return;
+            }
+            _mashupBusy = true;
+            MashupButton.IsEnabled = false;
+            MixButton.IsEnabled = false;
+            FindPairButton.IsEnabled = false;
+            var prog = new ProgressWindowHelper(this, "🎤 Mashup A+B — vocals over beat");
+            prog.Show();
+            try
+            {
+                if (_cruiseOn) TurnCruiseOff("🎤 Cruise off — MASHUP A+B took over.");
+                prog.SetStatus("Working out the BPMs…");
+                bool bpmA = await _panelA.EnsureBpmAsync();
+                bool bpmB = await _panelB.EnsureBpmAsync();
+                if (!bpmA || !bpmB)
+                {
+                    prog.Fail($"No BPM for {(!bpmA ? "Deck A" : "Deck B")} (auto-detect couldn't find one). Type it in or TAP it on that deck, then press MASHUP again.");
+                    return;
+                }
+                prog.Log($"✓ BPMs ready: Deck A {_deckA.Bpm:0} • Deck B {_deckB.Bpm:0}");
+                prog.SetBar(1, 3);
+                if (!_panelA.StemsReady) prog.SetStatus("Splitting Deck A's stems… (first time for a song takes a while; after that it's cached)");
+                bool stemsA = await _panelA.EnsureStemsAsync();
+                if (!stemsA)
+                {
+                    prog.Fail("Deck A's stems couldn't be made — a mashup needs stems. The deck's own stem line (under Split Stems) says why: model download declined, or the split failed.");
+                    return;
+                }
+                prog.Log("✓ Deck A stems ready");
+                prog.SetBar(2, 3);
+                if (!_panelB.StemsReady) prog.SetStatus("Splitting Deck B's stems…");
+                bool stemsB = await _panelB.EnsureStemsAsync();
+                if (!stemsB)
+                {
+                    prog.Fail("Deck B's stems couldn't be made — a mashup needs stems. The deck's own stem line (under Split Stems) says why.");
+                    return;
+                }
+                prog.Log("✓ Deck B stems ready");
+                prog.Log("Setting Deck A = VOCALS ONLY, Deck B = BEAT ONLY (drums + bass + other), syncing tempo + key, starting both together…", true);
+                prog.SetBar(3, 3);
+                prog.Close();
+                await RunMixSetupAsync(mashup: true);
+            }
+            finally
+            {
+                _mashupBusy = false;
+                MashupButton.IsEnabled = true;
+                MixButton.IsEnabled = true;
+                FindPairButton.IsEnabled = true;
+            }
         }
 
         // ===== v3.42: Find Best Pair — analyze a pile of songs, remix the two that fit =====
@@ -401,6 +534,10 @@ namespace BeatSyncStudioPro
             _pairBusy = true;
             FindPairButton.IsEnabled = false;
             MixButton.IsEnabled = false;
+            MashupButton.IsEnabled = false;
+            var prog = new ProgressWindowHelper(this, "🎲 Find Best Pair");
+            prog.Show();
+            prog.Log($"Analyzing {files.Length} songs — BPM and key for each one…");
             try
             {
                 var found = new List<PairCandidate>();
@@ -408,13 +545,14 @@ namespace BeatSyncStudioPro
                 {
                     string path = files[i];
                     string name = System.IO.Path.GetFileName(path);
-                    SetStatus($"🎲 Analyzing {i + 1}/{files.Length}: {name}…");
+                    prog.SetStatus($"Analyzing {i + 1}/{files.Length}: {name}…");
+                    prog.SetBar(i, files.Length);
                     try
                     {
                         var bytes = await Task.Run(() => File.ReadAllBytes(path));
                         string type = System.IO.Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
                         var (bpm, _, _) = await Task.Run(() => BeatDetector.Detect(bytes, type));
-                        if (bpm < 50 || bpm > 200) continue;
+                        if (bpm < 50 || bpm > 200) { prog.Log($"✗ {name} — skipped (no clear BPM found)"); continue; }
                         KeyDetector.KeyResult? key = null;
                         try
                         {
@@ -427,15 +565,20 @@ namespace BeatSyncStudioPro
                             });
                         }
                         catch { /* key unknown — scores neutral */ }
-                        found.Add(new PairCandidate { Name = name, Bytes = bytes, Bpm = Math.Round(bpm * 2) / 2, Key = key });
+                        var cand = new PairCandidate { Name = name, Bytes = bytes, Bpm = Math.Round(bpm * 2) / 2, Key = key };
+                        found.Add(cand);
+                        prog.Log($"✓ {name} — {cand.Bpm:0} BPM, {(key != null ? key.KeyName + " (" + key.Camelot + ")" : "key not detected")}");
+                        prog.SetBar(i + 1, files.Length);
                     }
-                    catch { /* unreadable file — skip it */ }
+                    catch { prog.Log($"✗ {name} — skipped (couldn't read that file)"); }
                 }
                 if (found.Count < 2)
                 {
-                    SetStatus($"🎲 Only {found.Count} of those songs could be analyzed — pick at least two good MP3/WAV files.");
+                    prog.Fail($"Only {found.Count} of those songs could be analyzed — pick at least two good MP3/WAV files.");
                     return;
                 }
+                prog.SetStatus("Scoring every pair for tempo + key fit…");
+                prog.Log($"Scoring {found.Count * (found.Count - 1) / 2} possible pairs…");
                 PairCandidate? bestA = null, bestB = null;
                 double bestScore = double.MinValue;
                 for (int i = 0; i < found.Count; i++)
@@ -447,14 +590,17 @@ namespace BeatSyncStudioPro
                 if (bestA == null || bestB == null) return;
                 string keyA = bestA.Key != null ? bestA.Key.KeyName + " (" + bestA.Key.Camelot + ")" : "key ?";
                 string keyB = bestB.Key != null ? bestB.Key.KeyName + " (" + bestB.Key.Camelot + ")" : "key ?";
-                SetStatus($"🎲 Best pair of {found.Count}: \"{bestA.Name}\" ({bestA.Bpm:0} BPM, {keyA}) + \"{bestB.Name}\" ({bestB.Bpm:0} BPM, {keyB}) — loading them up…");
+                prog.Log($"🏆 Best pair: \"{bestA.Name}\" ({bestA.Bpm:0} BPM, {keyA})", true);
+                prog.Log($"🏆        + \"{bestB.Name}\" ({bestB.Bpm:0} BPM, {keyB})", true);
+                prog.Log("Loading them onto the decks and mixing… (Tip: press 🎤 MASHUP next for A's vocals over B's beat — no lyric pile-up.)");
                 if (!_panelA.LoadForMix(bestA.Bytes, bestA.Name) || !_panelB.LoadForMix(bestB.Bytes, bestB.Name))
                 {
-                    SetStatus("🎲 Couldn't load the winning pair onto the decks.");
+                    prog.Fail("Couldn't load the winning pair onto the decks.");
                     return;
                 }
                 _panelA.SetBpmUi(bestA.Bpm);
                 _panelB.SetBpmUi(bestB.Bpm);
+                prog.Close();
                 await RunMixSetupAsync();
             }
             finally
@@ -462,6 +608,7 @@ namespace BeatSyncStudioPro
                 _pairBusy = false;
                 FindPairButton.IsEnabled = true;
                 MixButton.IsEnabled = true;
+                MashupButton.IsEnabled = true;
             }
         }
 
@@ -2571,6 +2718,30 @@ namespace BeatSyncStudioPro
             }
 
             internal bool LoadForMix(byte[] bytes, string name) => LoadBytes(bytes, name);
+
+            // ===== v3.43: mashup support =====
+            internal bool StemsReady => _deck.StemModeActive;
+
+            internal async Task<bool> EnsureStemsAsync()
+            {
+                if (_deck.StemModeActive) return true;
+                await SplitStemsAsync();
+                return _deck.StemModeActive;
+            }
+
+            /// <summary>Set this deck's stem mix (chips kept in sync). Chip order:
+            /// 0 Vocals (stem 3), 1 Drums (0), 2 Bass (1), 3 Other (2).</summary>
+            internal void SetStemMix(bool vocals, bool drums, bool bass, bool other)
+            {
+                bool[] want = { vocals, drums, bass, other };
+                int[] stemIdx = { 3, 0, 1, 2 };
+                for (int i = 0; i < 4; i++)
+                {
+                    _stemOn[i] = want[i];
+                    _deck.SetStemOn(stemIdx[i], want[i]);
+                    _stemChips[i].Background = want[i] ? _accent : PanelBtn;
+                }
+            }
 
             private void LoadQueueItem(int i, bool autoplay)
             {
