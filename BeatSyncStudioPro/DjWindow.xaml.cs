@@ -2833,6 +2833,29 @@ namespace BeatSyncStudioPro
                 transport.Children.Add(pflBtn);
                 rightStack.Children.Add(transport);
 
+                // v3.90: one-tap transition FX row
+                var fxRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+                var spinBtn = MakeButton("⏪ SPINBACK", 118);
+                spinBtn.ToolTip = "Spinback: whip the record backwards and cut it — the classic spin-out exit. The deck stops a few seconds back.";
+                spinBtn.Click += (s, e) =>
+                {
+                    _window.CruiseManualOverride();
+                    if (_deck.IsPlaying) { _deck.StartSpinback(); _window.SetStatus($"{_name}: spinback!"); }
+                    else _window.SetStatus($"{_name}: spinback needs the deck playing.");
+                };
+                fxRow.Children.Add(spinBtn);
+                var echoBtn = MakeButton("🔊 ECHO OUT", 118);
+                echoBtn.Margin = new Thickness(6, 0, 0, 0);
+                echoBtn.ToolTip = "Echo Out: the track keeps echoing on a beat-synced delay while the dry sound fades away, then the deck stops — a clean exit under the next track.";
+                echoBtn.Click += (s, e) =>
+                {
+                    _window.CruiseManualOverride();
+                    if (_deck.IsPlaying) { _deck.StartEchoOut(); _window.SetStatus($"{_name}: echo out…"); }
+                    else _window.SetStatus($"{_name}: echo out needs the deck playing.");
+                };
+                fxRow.Children.Add(echoBtn);
+                rightStack.Children.Add(fxRow);
+
                 // Tempo row
                 var tempoRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
                 tempoRow.Children.Add(new TextBlock { Text = "Tempo", Foreground = MutedText, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Width = 42 });
@@ -4500,6 +4523,7 @@ namespace BeatSyncStudioPro
             private void PlayPause()
             {
                 _window.CruiseManualOverride();
+                _deck.CancelFx();
                 if (!_deck.IsLoaded) return;
                 if (!_deck.IsPlaying && _deck.PositionSeconds >= _deck.TotalSeconds - 0.05)
                     _deck.PositionSeconds = 0;
@@ -4510,6 +4534,7 @@ namespace BeatSyncStudioPro
             private void Cue()
             {
                 _window.CruiseManualOverride();
+                _deck.CancelFx();
                 if (!_deck.IsLoaded) return;
                 if (_deck.IsPlaying)
                 {

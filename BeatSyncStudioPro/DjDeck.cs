@@ -90,7 +90,7 @@ namespace BeatSyncStudioPro
         public float Level { get { float v = _level; _level = v * 0.80f; return v; } }
 
         /// <summary>The hand is on the record: the deck's advance comes from ScratchRate.</summary>
-        public void GrabRecord() { _grabbed = true; _scratchRate = 0; }
+        public void GrabRecord() { _grabbed = true; _scratchRate = 0; lock (_lock) { _fx = DeckFx.None; } }
 
         // Slip mode (v3.29): while the hand works the record, a shadow clock
         // keeps the song's true place; on release the deck lands there.
@@ -109,6 +109,65 @@ namespace BeatSyncStudioPro
 
         /// <summary>Hand speed in playback-rate units (1 = normal, negative = backwards).</summary>
         public double ScratchRate { set => _scratchRate = value; }
+
+        // ---- one-tap transition FX (v3.90) ----
+        // Spinback: a rate script inside Read whips the record backwards
+        // (accelerating reverse) and cuts the deck. Echo Out: the deck
+        // keeps playing into a beat-synced feedback delay while its dry
+        // level fades out, the echoes ring down, then the deck stops.
+        private enum DeckFx { None, Spinback, EchoOut }
+        private DeckFx _fx = DeckFx.None;
+        private long _fxFrames;
+        private float[]? _echoBuf;
+        private int _echoPtr;
+
+        public bool FxActive { get { lock (_lock) return _fx != DeckFx.None; } }
+
+        public void StartSpinback()
+        {
+            lock (_lock)
+            {
+                if (!IsLoaded || !IsPlaying) return;
+                _fx = DeckFx.Spinback;
+                _fxFrames = 0;
+                _spinUp = 1;
+                _grabbed = false;
+            }
+        }
+
+        public void StartEchoOut()
+        {
+            lock (_lock)
+            {
+                if (!IsLoaded || !IsPlaying) return;
+                double delaySec = Bpm > 0 ? Math.Clamp(60.0 / Bpm * 0.75, 0.08, 1.0) : 0.38;
+                int delayFrames = Math.Max(2, (int)(44100 * delaySec));
+                _echoBuf = new float[delayFrames * 2];
+                _echoPtr = 0;
+                _fx = DeckFx.EchoOut;
+                _fxFrames = 0;
+                _spinUp = 1;
+                _grabbed = false;
+            }
+        }
+
+        public void CancelFx() { lock (_lock) { _fx = DeckFx.None; } }
+
+        private double SpinbackRate(double t)
+        {
+            if (t < 0.12)
+            {
+                double k = t / 0.12;
+                double start = Tempo * Bend;
+                return start + (-1.5 - start) * k;
+            }
+            if (t < 0.55)
+            {
+                double k = (t - 0.12) / 0.43;
+                return -1.5 + (-6.0 + 1.5) * k;
+            }
+            return -6.0;
+        }
 
         public double CueSeconds { get; set; }
         public double?[] HotCues { get; } = new double?[4];
@@ -134,6 +193,7 @@ namespace BeatSyncStudioPro
                 _samples = decoded;
                 LoadGeneration++;
                 _slipping = false;
+                _fx = DeckFx.None;
                 _stems = null;
                 for (int i = 0; i < 4; i++) { _stemTarget[i] = 1f; _stemGain[i] = 1f; }
                 Title = Path.GetFileNameWithoutExtension(filename);
@@ -359,6 +419,19 @@ namespace BeatSyncStudioPro
                 float peak = 0;
                 for (int f = 0; f < frames; f++)
                 {
+                    if (_fx == DeckFx.Spinback)
+                    {
+                        double fxT = _fxFrames / 44100.0;
+                        if (fxT >= 0.8)
+                        {
+                            _fx = DeckFx.None;
+                            IsPlaying = false;
+                            Array.Clear(buffer, offset + f * 2, (frames - f) * 2);
+                            return count;
+                        }
+                        step = SpinbackRate(fxT);
+                        _fxFrames++;
+                    }
                     if (!_grabbed && LoopBeats > 0 && EffectiveBpm > 0 && _loopStartSeconds >= 0)
                     {
                         double loopLen = LoopBeats * 60.0 / EffectiveBpm;
@@ -377,6 +450,7 @@ namespace BeatSyncStudioPro
                     {
                         // scratched back past the start
                         _positionFrames = 0;
+                        if (_fx == DeckFx.Spinback) { _fx = DeckFx.None; IsPlaying = false; }
                         Array.Clear(buffer, offset + f * 2, (frames - f) * 2);
                         return count;
                     }
@@ -420,6 +494,33 @@ namespace BeatSyncStudioPro
                     if (a0 > peak) peak = a0;
                     if (a1 > peak) peak = a1;
                     _positionFrames += step;
+                }
+                if (_fx == DeckFx.EchoOut && _echoBuf != null)
+                {
+                    bool stopNow = false;
+                    for (int f = 0; f < frames; f++)
+                    {
+                        double fxT = _fxFrames / 44100.0;
+                        if (fxT >= 2.8)
+                        {
+                            Array.Clear(buffer, offset + f * 2, (frames - f) * 2);
+                            stopNow = true;
+                            break;
+                        }
+                        float feed = fxT < 0.30 ? (float)(1.0 - fxT / 0.30) : 0f;
+                        for (int ch = 0; ch < 2; ch++)
+                        {
+                            int bi = offset + f * 2 + ch;
+                            float inp = buffer[bi] * feed;
+                            float d = _echoBuf[_echoPtr + ch];
+                            _echoBuf[_echoPtr + ch] = inp + d * 0.55f;
+                            buffer[bi] = inp + d;
+                        }
+                        _echoPtr += 2;
+                        if (_echoPtr >= _echoBuf.Length) _echoPtr = 0;
+                        _fxFrames++;
+                    }
+                    if (stopNow) { _fx = DeckFx.None; IsPlaying = false; }
                 }
                 if (peak > _level) _level = peak;
                 return count;
