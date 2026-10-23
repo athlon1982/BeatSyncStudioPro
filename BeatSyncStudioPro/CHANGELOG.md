@@ -3,6 +3,12 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.87 — Listener Requests for Rad-Dad Radio
+- **New: a public request page for the radio.** While the Companion server runs, anyone who can reach this PC at port 8765 /request gets a Rad-Dad Radio page: your name (optional), a song request, and a shoutout/dedication. Send, and it lands in the studio instantly — no account, no password (the DJ controls stay locked behind the companion password as always).
+- **Requests live in the DJ window.** The new **📨 Requests** button (under the mic section, next to Companion) shows a live count of waiting requests and opens the requests window: song, who sent it, when, and the shoutout in gold italics. ✔ Done clears a request once played; Clear All wipes the list (with a confirm). Requests are saved to disk, so they survive an app restart.
+- **Also on the phone remote:** a Listener Requests card lists what's waiting, read-only, right under the sampler pads.
+- **Spam care:** one request per listener address every 15 seconds, a 100-request cap, and sensible length limits on every field.
+
 ## Version 3.86 — Phone Remote Grows a Queue
 - **New on the phone remote: ⏮ Prev / ⏭ Next for each deck.** The BeatSync Companion page (the phone remote, in the app since 3.32) can now step each deck's track queue from the phone — the same Prev/Next buttons on the deck panels — including loading the first queued song when nothing from the queue is loaded yet.
 - **"Next up" on the phone.** Each deck card shows the next queued song's name and queue position (like 2/8), refreshed live with the rest of the remote — see what's coming without walking back to the PC.
