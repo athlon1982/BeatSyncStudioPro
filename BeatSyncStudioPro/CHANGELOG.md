@@ -3,6 +3,12 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.90 — One-Tap Transition FX
+- **New on every deck: ⏪ SPINBACK and 🔊 ECHO OUT buttons** (under the transport row) — the two classic DJ exits, one tap each.
+- **Spinback** whips the record backwards with an accelerating reverse sweep (about 0.8 seconds) and cuts the deck a few seconds back — the spin-out exit. If the sweep reaches the start of the track, the deck stops there instead.
+- **Echo Out** keeps the track playing into a beat-synced feedback delay (a dotted-quarter echo at the deck's BPM) while the dry sound fades out over a third of a second; the echoes ring down for about 2.8 seconds, then the deck stops itself — a clean exit under the next track.
+- Both effects run inside the deck's own audio path, so they land in your mix recordings and the live stream too. Pressing Play or Cue (or grabbing the record to scratch) cancels an effect mid-flight.
+
 ## Version 3.89 — Set Energy Planner (+ Twitch)
 - **New in 🧺 Set Builder: the Set Energy planner.** Under the crate, a live chart draws the set's energy arc in crate order — each song's energy is **measured** (its actual loudness from decoding the file, blended with its tempo), not guessed. Songs are analyzed once and cached, so the chart is instant after the first look.
 - **Dots are colored by key fit** with the previous song: green = harmonic, yellow = workable, red = clash, gray = key unknown (Camelot). Reorder songs and the arc redraws immediately.
