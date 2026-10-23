@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.95 — Library Deep-Scan
+- **The Song Library's analyze button is now 🔍 Deep-Scan Library:** one click walks EVERY song in the library and fills in whatever analysis is missing — BPM, musical key, and (new) energy — writing BPM/key into the library entries and warming the energy cache.
+- **Why it matters:** the Set Builder's energy planner, the key-fit dots, and Suggest Next all read these results. After one deep-scan they answer instantly for your whole library instead of analyzing songs one at a time as you bump into them.
+- The scan runs in the background with a progress bar and a plain-language summary (how many BPMs, keys, and energies it filled), it saves as it goes, and **⏹ Cancel Scan** stops it between songs with all progress kept.
+
 ## Version 3.94 — Stream Overlay (Now Playing Card)
 - **The Output window now carries a stream overlay card** (bottom-left): the song that's actually audible (picked by which deck is playing and where the crossfader sits), the live Rad-Dad Radio listener count from the local Icecast server, and the latest listener request with the requester's name.
 - It updates itself every couple of seconds, hides lines that have nothing to say, and is part of the picture Go Live sends to YouTube/Twitch/Facebook — open the Output window and your viewers see what's playing and feel the requests landing.
