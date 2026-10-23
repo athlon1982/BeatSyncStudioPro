@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.91 — One Menu System, Readable Everywhere
+- **Every menu in the app now uses a single dark menu system:** the main menu bar, the timeline clip right-click menu, the sound-library menu, and the DJ board's sound and pad right-click menus all render with the same dark background, light readable text, clear hover highlight, green checkmarks, muted shortcut labels, and dark dividers.
+- **What was wrong:** only the main window's own menu had a full dark design; everywhere else the menus fell back to pieces of the light Windows theme — pale popups and highlights with light text on top, the unreadable menus reported on the timeline and in the AI/DJ areas. Those stock pieces are now fully replaced, in one place, so the fix holds in every window.
+- The main window's duplicate private copy of the menu design was removed — one design, one place, nothing to drift apart again.
+
 ## Version 3.90 — One-Tap Transition FX
 - **New on every deck: ⏪ SPINBACK and 🔊 ECHO OUT buttons** (under the transport row) — the two classic DJ exits, one tap each.
 - **Spinback** whips the record backwards with an accelerating reverse sweep (about 0.8 seconds) and cuts the deck a few seconds back — the spin-out exit. If the sweep reaches the start of the track, the deck stops there instead.

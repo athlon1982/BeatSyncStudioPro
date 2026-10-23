@@ -375,13 +375,108 @@
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="Padding" Value="6,3"/>
         </Style>
+        <!-- v3.91: ONE dark menu system for the whole app. The old styles
+             only set colors on the stock templates, whose highlights, popup
+             backgrounds and disabled text come from the light Windows
+             theme — that left right-click menus (timeline clips, DJ
+             sounds/pads) and submenus pale with unreadable text. These are
+             full templates: every menu bar, context menu and submenu in
+             every window now renders the same dark, readable way. -->
+        <Style TargetType="Menu">
+            <Setter Property="Foreground" Value="#E8ECF3"/>
+        </Style>
         <Style TargetType="ContextMenu">
             <Setter Property="Background" Value="#1B212E"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="#E8ECF3"/>
             <Setter Property="BorderBrush" Value="#2A3446"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <Border.Effect>
+                                <DropShadowEffect Color="Black" Opacity="0.5" BlurRadius="14" ShadowDepth="3"/>
+                            </Border.Effect>
+                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style TargetType="MenuItem">
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="#E8ECF3"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="Border" Background="{TemplateBinding Background}" BorderThickness="0"
+                                Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True" CornerRadius="5">
+                            <Grid VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="18"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="14"/>
+                                </Grid.ColumnDefinitions>
+                                <Path x:Name="GlyphPath" Grid.Column="0" Data="M 1,6 L 5,10 L 12,1" Stroke="#1DB954"
+                                      StrokeThickness="2" Visibility="Collapsed" VerticalAlignment="Center"/>
+                                <ContentPresenter Grid.Column="1" ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Text="{TemplateBinding InputGestureText}" Foreground="#7C8698"
+                                           Margin="16,0,0,0" VerticalAlignment="Center"/>
+                                <Path x:Name="Arrow" Grid.Column="3" Data="M 1,1 L 6,4.5 L 1,8 Z" Fill="#7C8698"
+                                      Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                <Popup x:Name="PART_Popup" AllowsTransparency="True" Focusable="False"
+                                       IsOpen="{TemplateBinding IsSubmenuOpen}" Placement="Bottom" PopupAnimation="Fade">
+                                    <Border Background="#1B212E" BorderBrush="#2A3446" BorderThickness="1" CornerRadius="8" Padding="4" MinWidth="220">
+                                        <Border.Effect>
+                                            <DropShadowEffect Color="Black" Opacity="0.5" BlurRadius="14" ShadowDepth="3"/>
+                                        </Border.Effect>
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                    </Border>
+                                </Popup>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Role" Value="SubmenuHeader">
+                                <Setter TargetName="Arrow" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="PART_Popup" Property="Placement" Value="Right"/>
+                            </Trigger>
+                            <Trigger Property="Role" Value="TopLevelHeader">
+                                <Setter TargetName="PART_Popup" Property="Placement" Value="Bottom"/>
+                            </Trigger>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#2A3446"/>
+                            </Trigger>
+                            <Trigger Property="IsSubmenuOpen" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#2A3446"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="GlyphPath" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#59637A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="Separator">
+            <Setter Property="Height" Value="1"/>
+            <Setter Property="Margin" Value="6,5"/>
+            <Setter Property="Background" Value="#2A3446"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Separator">
+                        <Border Background="{TemplateBinding Background}" Height="{TemplateBinding Height}"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style TargetType="ToolTip">
             <Setter Property="Background" Value="#1B212E"/>
