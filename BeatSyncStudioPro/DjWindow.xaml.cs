@@ -38,6 +38,7 @@ namespace BeatSyncStudioPro
         private readonly RecordingSampleProvider _recorder;
         private readonly AudioTapSampleProvider _masterTap;
         private readonly DrawingVisual _masterVisual = new DrawingVisual();
+        private RenderTargetBitmap? _masterBmp;
         private bool _syncingChannelUi;
 
         // v3.42: click the brand-strip spectrum to cycle its density too.
@@ -156,12 +157,31 @@ namespace BeatSyncStudioPro
             DjMasterKnob.ValueChanged += (s, e) => _musicLevel = (float)DjMasterKnob.Value;
             UpdateCrossfader();
             WireChannelStrips();
-            MasterSpectrumImage.Source = new DrawingImage(_masterVisual.Drawing);
+            // NOTE: no Source assignment here on purpose (v3.83 fix) —
+            // a DrawingImage over DrawingVisual.Drawing freezes on the
+            // first frame, because every RenderOpen REPLACES the visual's
+            // DrawingGroup. DrawMasterSpectrum renders to a bitmap
+            // instead, like the deck visuals do.
 
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
             _companion.CommandReceived += json => _companionQueue.Enqueue(json);
             _companion.StateJsonProvider = () => _companionStateJson;
-            _timer.Tick += (s, e) => { _panelA.Refresh(); _panelB.Refresh(); CruiseTick(); SamplerFlashTick(); MicTick(); MixerTick(); DrainCompanion(); SetRecordTick(); };
+            _timer.Tick += (s, e) =>
+            {
+                // v3.83: every step guarded on its own. The old bare chain
+                // meant one step throwing on a tick silently starved every
+                // step after it — the frozen-visuals failure shape. A fault
+                // now gets logged once per step (to crash.log, like the
+                // app's crash handler) and the rest of the tick still runs.
+                SafeTick("panelA", () => _panelA.Refresh());
+                SafeTick("panelB", () => _panelB.Refresh());
+                SafeTick("cruise", CruiseTick);
+                SafeTick("sampler", SamplerFlashTick);
+                SafeTick("mic", MicTick);
+                SafeTick("mixer", MixerTick);
+                SafeTick("companion", DrainCompanion);
+                SafeTick("setrec", SetRecordTick);
+            };
             InitMidi();
             _timer.Start();
             TuneToolTips(this);
@@ -212,6 +232,31 @@ namespace BeatSyncStudioPro
             ChBLowKnob.ValueChanged += (s, e) => _fxB.LowDb = ChBLowKnob.Value;
         }
 
+        private readonly System.Collections.Generic.HashSet<string> _tickFaultsLogged = new System.Collections.Generic.HashSet<string>();
+
+        /// <summary>Run one DJ timer step; a throwing step is logged
+        /// (once per step) instead of silently killing the steps that
+        /// come after it on every tick.</summary>
+        private void SafeTick(string step, Action run)
+        {
+            try { run(); }
+            catch (Exception ex)
+            {
+                if (_tickFaultsLogged.Add(step))
+                {
+                    try
+                    {
+                        string dir = System.IO.Path.Combine(
+                            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BeatSyncStudioPro");
+                        System.IO.Directory.CreateDirectory(dir);
+                        System.IO.File.AppendAllText(System.IO.Path.Combine(dir, "crash.log"),
+                            $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] DJ tick step '{step}': {ex}{Environment.NewLine}");
+                    }
+                    catch { /* logging must never take the tick down with it */ }
+                }
+            }
+        }
+
         private void MixerTick()
         {
             VuAFill.Height = Math.Clamp(_panelA.TapLevel, 0f, 1f) * 248;
@@ -233,19 +278,63 @@ namespace BeatSyncStudioPro
 
         private void DrawMasterSpectrum()
         {
-            double w = MasterSpectrumImage.ActualWidth, h = MasterSpectrumImage.ActualHeight;
+            // v3.84 ROOT-CAUSE FIX: size the drawing from the strip's
+            // BORDER, never from the Image itself. The Image starts
+            // life with no sized source, so it measures 0x0 — and the
+            // old code read ActualWidth/Height FROM THE IMAGE, hit the
+            // <10 early-out on every tick, and never drew a single
+            // frame (the years-long black strip). The border always
+            // has a real size; once the first bitmap lands, the Image
+            // gets a real size too and the strip stays live.
+            double w = 0, h = 0;
+            if (MasterSpectrumImage.Parent is FrameworkElement host && host.ActualWidth > 20 && host.ActualHeight > 10)
+            {
+                w = host.ActualWidth - 12;  // the Image's 6,3 margin
+                h = host.ActualHeight - 6;
+            }
+            else
+            {
+                w = MasterSpectrumImage.ActualWidth;
+                h = MasterSpectrumImage.ActualHeight;
+            }
             if (w < 10 || h < 10) return;
             var bands = _masterTap.GetSpectrum(_masterBands);
-            using var dc = _masterVisual.RenderOpen();
-            dc.DrawRectangle(SpectrumBgBrush, null, new Rect(0, 0, w, h));
-            double bw = w / bands.Length;
-            for (int i = 0; i < bands.Length; i++)
+            // v3.85: AUTO-GAIN, same as the deck visuals' ScaledBands.
+            // Raw FFT band values run tiny (hundredths), so drawing
+            // them raw — as this strip always did — makes sub-pixel
+            // bars: a black strip even with the math working. Scale
+            // each frame by a slow-decaying peak so the bars dance at
+            // any volume.
+            float frameMax = 0;
+            for (int i = 0; i < bands.Length; i++) frameMax = Math.Max(frameMax, bands[i]);
+            _masterSpecPeak = Math.Max(Math.Max(frameMax, _masterSpecPeak * 0.994f), 0.02f);
+            using (var dc = _masterVisual.RenderOpen())
             {
-                double bh = Math.Clamp(bands[i], 0.01, 1) * (h - 2);
-                var brush = SpectrumBrushes[Math.Min(SpectrumBrushes.Length - 1, (int)(Math.Clamp(bands[i], 0, 1) * SpectrumBrushes.Length))];
-                dc.DrawRectangle(brush, null, new Rect(i * bw + 0.5, h - bh, Math.Max(1, bw - 1.5), bh));
+                dc.DrawRectangle(SpectrumBgBrush, null, new Rect(0, 0, w, h));
+                double bw = w / bands.Length;
+                for (int i = 0; i < bands.Length; i++)
+                {
+                    double scaled = Math.Clamp(Math.Sqrt(bands[i] / _masterSpecPeak) * 0.95, 0, 1);
+                    double bh = Math.Max(1, scaled * (h - 2));
+                    var brush = SpectrumBrushes[Math.Min(SpectrumBrushes.Length - 1, (int)(scaled * SpectrumBrushes.Length))];
+                    dc.DrawRectangle(brush, null, new Rect(i * bw + 0.5, h - bh, Math.Max(1, bw - 1.5), bh));
+                }
             }
+            // v3.83: present the frame the way the deck visuals do —
+            // render the DrawingVisual into a bitmap every tick. The old
+            // code handed the Image a DrawingImage over the visual's
+            // Drawing ONCE at startup; RenderOpen replaces that Drawing
+            // every call, so the strip showed the first (silent) frame
+            // forever — a permanently black spectrum while music played.
+            int pw = (int)Math.Round(w), ph = (int)Math.Round(h);
+            if (_masterBmp == null || _masterBmp.PixelWidth != pw || _masterBmp.PixelHeight != ph)
+                _masterBmp = new RenderTargetBitmap(pw, ph, 96, 96, PixelFormats.Pbgra32);
+            _masterBmp.Render(_masterVisual);
+            if (!ReferenceEquals(MasterSpectrumImage.Source, _masterBmp))
+                MasterSpectrumImage.Source = _masterBmp;
         }
+
+        private float _masterSpecPeak = 0.02f;
 
         private static Brush[] BuildSpectrumBrushes()
         {
