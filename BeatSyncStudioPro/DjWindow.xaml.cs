@@ -2085,6 +2085,10 @@ namespace BeatSyncStudioPro
                         case "playB": _panelB.RemotePlayPause(); break;
                         case "cueA": _panelA.RemoteCue(); break;
                         case "cueB": _panelB.RemoteCue(); break;
+                        case "nextA": _panelA.RemoteNext(); break;
+                        case "prevA": _panelA.RemotePrev(); break;
+                        case "nextB": _panelB.RemoteNext(); break;
+                        case "prevB": _panelB.RemotePrev(); break;
                         case "xfader": if (root.TryGetProperty("value", out var xv)) XfadeSlider.Value = Math.Clamp(xv.GetDouble(), 0, 1000); break;
                         case "master": if (root.TryGetProperty("value", out var mv)) DjMasterKnob.Value = Math.Clamp(mv.GetDouble(), 0, 125) / 100.0; break;
                         case "cruise": if (_cruiseOn) TurnCruiseOff("\U0001F6A2 Cruise off (phone)."); else StartCruise(); break;
@@ -2101,7 +2105,7 @@ namespace BeatSyncStudioPro
         {
             static string Esc(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
             string Deck(DeckPanel p) => FormattableString.Invariant(
-                $"{{\"title\":\"{Esc(p.CurrentTitle)}\",\"playing\":{(p.IsPlayingDeck ? "true" : "false")},\"pos\":{p.DeckPositionSeconds:0.0},\"dur\":{p.DeckTotalSeconds:0.0},\"key\":\"{Esc(p.KeyDisplayText)}\"}}");
+                $"{{\"title\":\"{Esc(p.CurrentTitle)}\",\"playing\":{(p.IsPlayingDeck ? "true" : "false")},\"pos\":{p.DeckPositionSeconds:0.0},\"dur\":{p.DeckTotalSeconds:0.0},\"key\":\"{Esc(p.KeyDisplayText)}\",\"next\":\"{Esc(p.NextUpTitle)}\",\"q\":\"{Esc(p.QueueInfoText)}\"}}");
             return FormattableString.Invariant(
                 $"{{\"a\":{Deck(_panelA)},\"b\":{Deck(_panelB)},\"xfader\":{XfadeSlider.Value:0},\"master\":{DjMasterKnob.Value * 100:0},\"cruise\":{(_cruiseOn ? "true" : "false")},\"mic\":{(_micOn ? "true" : "false")}}}");
         }
@@ -4055,6 +4059,26 @@ namespace BeatSyncStudioPro
             internal void StopForCruise() { _deck.IsPlaying = false; }
 
             internal void RemotePlayPause() => PlayPause();
+
+            // v3.86: phone-companion queue stepping - same moves as the
+            // deck panel Prev/Next buttons, plus a first-load from index 0
+            // when nothing from the queue is loaded yet.
+            internal void RemoteNext()
+            {
+                if (_queueIndex + 1 < _queuePaths.Count) LoadQueueItem(_queueIndex + 1, true);
+                else if (_queueIndex < 0 && _queuePaths.Count > 0) LoadQueueItem(0, true);
+            }
+
+            internal void RemotePrev()
+            {
+                if (_queueIndex > 0) LoadQueueItem(_queueIndex - 1, true);
+            }
+
+            internal string NextUpTitle => _queueIndex + 1 < _queuePaths.Count
+                ? System.IO.Path.GetFileName(_queuePaths[_queueIndex + 1]) : "";
+
+            internal string QueueInfoText => _queuePaths.Count == 0 ? ""
+                : $"{Math.Max(_queueIndex + 1, 0)}/{_queuePaths.Count}";
             internal void RemoteCue() => Cue();
             internal double DeckPositionSeconds => _deck.PositionSeconds;
             internal double DeckTotalSeconds => _deck.TotalSeconds;

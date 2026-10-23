@@ -385,10 +385,14 @@ input[type=range]{width:100%}
 <h1>&#x1F3A7; BeatSync Companion</h1>
 <div class="deck"><div class="name" style="color:#1DB954">DECK A</div><div class="title" id="tA">-</div>
 <div class="meta"><span id="kA"></span> <span id="tmA"></span></div>
-<div class="row"><button id="pA" onclick="cmd('playA')">&#x25B6;&#xFE0F; Play</button><button onclick="cmd('cueA')">CUE</button></div></div>
+<div class="row"><button id="pA" onclick="cmd('playA')">&#x25B6;&#xFE0F; Play</button><button onclick="cmd('cueA')">CUE</button></div>
+<div class="meta" id="nA" style="margin-top:8px"></div>
+<div class="row"><button onclick="cmd('prevA')">&#x23EE;&#xFE0F; Prev</button><button onclick="cmd('nextA')">&#x23ED;&#xFE0F; Next</button></div></div>
 <div class="deck"><div class="name" style="color:#B388FF">DECK B</div><div class="title" id="tB">-</div>
 <div class="meta"><span id="kB"></span> <span id="tmB"></span></div>
-<div class="row"><button id="pB" onclick="cmd('playB')">&#x25B6;&#xFE0F; Play</button><button onclick="cmd('cueB')">CUE</button></div></div>
+<div class="row"><button id="pB" onclick="cmd('playB')">&#x25B6;&#xFE0F; Play</button><button onclick="cmd('cueB')">CUE</button></div>
+<div class="meta" id="nB" style="margin-top:8px"></div>
+<div class="row"><button onclick="cmd('prevB')">&#x23EE;&#xFE0F; Prev</button><button onclick="cmd('nextB')">&#x23ED;&#xFE0F; Next</button></div></div>
 <div class="card"><div class="lbl">Crossfader</div><input type="range" id="xf" min="0" max="1000" value="500" oninput="cmd('xfader',{value:+this.value})">
 <div class="lbl" style="margin-top:8px">Master</div><input type="range" id="ms" min="0" max="125" value="90" oninput="cmd('master',{value:+this.value})"></div>
 <div class="card"><div class="row" style="margin-top:0"><button id="cr" onclick="cmd('cruise')">&#x1F6A2; Cruise</button><button id="mc" onclick="cmd('mic')">&#x1F3A4; Mic</button></div></div>
@@ -415,6 +419,7 @@ async function poll(){
   tA.textContent=s.a.title||'(empty)'; tB.textContent=s.b.title||'(empty)';
   kA.textContent=s.a.key||''; kB.textContent=s.b.key||'';
   tmA.textContent=fmt(s.a.pos)+' / '+fmt(s.a.dur); tmB.textContent=fmt(s.b.pos)+' / '+fmt(s.b.dur);
+  nA.textContent=s.a.next?('\u23ED Next: '+s.a.next+(s.a.q?'  ('+s.a.q+')':'')):''; nB.textContent=s.b.next?('\u23ED Next: '+s.b.next+(s.b.q?'  ('+s.b.q+')':'')):'';
   pA.innerHTML=s.a.playing?'&#x23F8;&#xFE0F; Pause':'&#x25B6;&#xFE0F; Play'; pA.className=s.a.playing?'on':'';
   pB.innerHTML=s.b.playing?'&#x23F8;&#xFE0F; Pause':'&#x25B6;&#xFE0F; Play'; pB.className=s.b.playing?'on':'';
   if(!xfBusy)xf.value=s.xfader; if(!msBusy)ms.value=s.master;
