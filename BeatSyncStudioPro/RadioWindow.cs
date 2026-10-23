@@ -24,6 +24,9 @@ namespace BeatSyncStudioPro
         private readonly TextBlock _status = new TextBlock();
         private readonly TextBox _nameBox = new TextBox();
         private readonly TextBox _urlBox = new TextBox();
+        private readonly TextBox _searchBox = new TextBox();
+        private readonly ListBox _results = new ListBox();
+        private readonly List<DirectoryStation> _resultStations = new List<DirectoryStation>();
 
         private static readonly Brush Panel = new SolidColorBrush(Color.FromRgb(0x2A, 0x30, 0x3C));
         private static readonly Brush Green = new SolidColorBrush(Color.FromRgb(0x1D, 0xB9, 0x54));
@@ -35,7 +38,7 @@ namespace BeatSyncStudioPro
             _stations = RadioStore.Load();
             Title = "📡 Internet Radio — Listen Live";
             Width = 560;
-            Height = 520;
+            Height = 640;
             MinWidth = 460;
             MinHeight = 420;
             Background = new SolidColorBrush(Color.FromRgb(0x0B, 0x0E, 0x14));
@@ -120,6 +123,46 @@ namespace BeatSyncStudioPro
             addPanel.Children.Add(add);
             root.Children.Add(addPanel);
 
+            // ---- Find stations (v3.100): the verified Vermont directory
+            // built into the app, plus the free Radio Browser online
+            // directory for anything else, anywhere. ----
+            var findPanel = new StackPanel { Margin = new Thickness(0, 18, 0, 0) };
+            findPanel.Children.Add(new TextBlock { Text = "FIND STATIONS — VERMONT DIRECTORY + ONLINE SEARCH", FontSize = 11, Foreground = Muted, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
+            findPanel.Children.Add(new TextBlock
+            {
+                Text = "Every Vermont station in the built-in directory was stream-tested live. Type a name, a town, or a style (country, jazz, rock...) and search — or just press Search to browse all of Vermont. Double-click a result to add it to your stations.",
+                Foreground = Muted, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
+            });
+            var searchRow = new StackPanel { Orientation = Orientation.Horizontal };
+            _searchBox.Width = 300;
+            _searchBox.Padding = new Thickness(6, 4, 6, 4);
+            _searchBox.ToolTip = "Station name, Vermont town, or a format like country or jazz. Leave empty to browse all of Vermont.";
+            _searchBox.KeyDown += (s2, e2) => { if (e2.Key == System.Windows.Input.Key.Enter) _ = RunSearch(); };
+            searchRow.Children.Add(_searchBox);
+            var searchBtn = new Button
+            {
+                Content = "🔍 Search", Padding = new Thickness(14, 6, 14, 6), Margin = new Thickness(8, 0, 0, 0),
+                Background = Green, Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                FontWeight = FontWeights.Bold, Cursor = System.Windows.Input.Cursors.Hand
+            };
+            searchBtn.Click += async (s2, e2) => await RunSearch();
+            searchRow.Children.Add(searchBtn);
+            findPanel.Children.Add(searchRow);
+            _results.Height = 150;
+            _results.Margin = new Thickness(0, 8, 0, 0);
+            _results.MouseDoubleClick += (s2, e2) => AddSelectedResult();
+            findPanel.Children.Add(_results);
+            var addResult = new Button
+            {
+                Content = "➕ Add selected to My Stations", Padding = new Thickness(12, 7, 12, 7), Margin = new Thickness(0, 8, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Background = Panel, Foreground = Brushes.White, BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            addResult.Click += (s2, e2) => AddSelectedResult();
+            findPanel.Children.Add(addResult);
+            root.Children.Add(findPanel);
+
             Content = new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             RefreshList();
             RefreshState();
@@ -170,6 +213,56 @@ namespace BeatSyncStudioPro
             _stations.RemoveAt(i);
             RadioStore.Save(_stations);
             RefreshList();
+        }
+
+        private async System.Threading.Tasks.Task RunSearch()
+        {
+            string q = _searchBox.Text.Trim();
+            _resultStations.Clear();
+            _results.Items.Clear();
+            foreach (var st in RadioDirectory.SearchLocal(q)) AddResult(st);
+            _status.Text = _resultStations.Count > 0
+                ? $"Found {_resultStations.Count} in the built-in Vermont directory — checking the online directory too…"
+                : "Checking the online directory…";
+            try
+            {
+                var online = (q.Length == 0 || q.Equals("vermont", StringComparison.OrdinalIgnoreCase))
+                    ? await RadioBrowser.VermontOnline()
+                    : await RadioBrowser.SearchByName(q);
+                int before = _resultStations.Count;
+                foreach (var st in online) AddResult(st);
+                _status.Text = _resultStations.Count > 0
+                    ? $"Found {_resultStations.Count} station(s). Double-click one to add it to your stations."
+                    : "No stations found — try a different name or town.";
+                if (_resultStations.Count == before && before == 0) { /* status already set */ }
+            }
+            catch
+            {
+                if (_resultStations.Count == 0) _status.Text = "Online search didn't answer — the built-in Vermont directory still works offline.";
+            }
+        }
+
+        private void AddResult(DirectoryStation st)
+        {
+            foreach (var existing in _resultStations)
+                if (existing.Url == st.Url) return;
+            _resultStations.Add(st);
+            _results.Items.Add(st.Display);
+        }
+
+        private void AddSelectedResult()
+        {
+            int i = _results.SelectedIndex;
+            if (i < 0 || i >= _resultStations.Count) { _status.Text = "Pick a search result first."; return; }
+            var st = _resultStations[i];
+            string storeName = st.City.Length > 0 ? st.Name + " (" + st.City + ")" : st.Name;
+            foreach (var existing in _stations)
+                if (existing.Url == st.Url) { _status.Text = $"'{st.Name}' is already in your stations."; return; }
+            _stations.Add(new RadioStation { Name = storeName, Url = st.Url });
+            RadioStore.Save(_stations);
+            RefreshList();
+            _list.SelectedIndex = _stations.Count - 1;
+            _status.Text = $"Added '{st.Name}' to your stations — double-click it in your list to play.";
         }
 
         private void AddStation()

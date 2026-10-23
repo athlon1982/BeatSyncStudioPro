@@ -3,6 +3,12 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.100 — Vermont Station Directory + Search
+- **Find Stations, built into the Internet Radio window:** a **Vermont directory** of 14 stations, every one stream-tested live before it made the list — Rutland's Rock 94.5, Z97.1 and Cat Country 105.3, Vermont Public (News, Classical, Jazz, BBC), WDEV Waterbury, The Point Montpelier, WRUV Burlington, WGDR Plainfield, WMRW Warren, Alt Vintage, and your own Rad-Dad Radio. Each is listed by **name and location**, as asked.
+- **Search three ways:** by station name, by town, or by style (country, jazz, rock…). An empty search browses the whole state.
+- **Online search too:** the same box also queries the free Radio Browser directory (no account, no key) for any station name anywhere — results merge in, listed by name and state/country.
+- **One click to keep:** double-click any result (or Add selected) and it joins My Stations permanently.
+
 ## Version 3.99 — Internet Radio (Listen Live)
 - **New 📡 Internet Radio** (button under Event Mode in the DJ board): listen to live online radio stations through the DJ mix — the station plays over the board and lands in Record Mix, Record My Set and the live stream like everything else.
 - **Your local stations are built in:** **Rock 94.5 — WDVT** (Rutland classic rock) and **Z97.1 — WZRT** (Rutland Top 40), using the direct streams from the stations' own web players (found and verified live), plus **Rad-Dad Radio**, your own Icecast. Double-click a station to play it.
