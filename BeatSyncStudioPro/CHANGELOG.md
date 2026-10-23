@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.74 — Autosave + Crash Recovery
+- **Your work now saves itself:** every 2 minutes, if the project actually changed, BeatSync quietly writes an autosave — a real .bsp project file, written by the exact same code as Save As. No popups, no interruptions, and it skips the write when nothing changed so big projects don't churn the disk.
+- **Crash recovery:** if the app (or the PC) goes down mid-session, the next launch knows — and offers the autosave back with one click: "Restore it?" Your normally-saved projects are never touched. Closing the app properly clears the autosave away, so the offer only ever appears after a genuinely bad exit.
+- **File → ♻️ Recover Autosaved Project:** the autosave is also reachable by hand any time one exists.
+
 ## Version 3.73 — Your Suno Songs, On the Decks (Streamed, Never Downloaded)
 - **New ☀️ Suno tab in the Song Library:** press **🔄 Sync My Suno Songs** and the library reads your Suno library from the built-in browser (sign in once in the browser strip at the bottom — it's the same sign-in the My Songs window uses). It finds your songs, then checks your public profile to mark each one **Published** or **Draft**. Covers, titles and status all land in the grid, and the list is kept on this PC between sessions.
 - **⬇ Stream to Deck A / B:** a Suno song loads straight onto a DJ deck by *streaming* — the exact same audio stream Suno's own web player plays, fetched into memory. It never uses Suno's Download button and never touches your download quota. Double-click does it too, and 🔍 Analyze reads BPM + key off the stream so you can plan the mix first.

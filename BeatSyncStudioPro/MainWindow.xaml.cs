@@ -224,6 +224,27 @@ namespace BeatSyncStudioPro
             // it can never go stale again (it sat at v3.65 through 3.71).
             var ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
             if (ver != null) VersionChip.Text = $"v{ver.Major}.{ver.Minor}";
+            // v3.74: autosave + crash recovery. A flag file lives while
+            // the app runs; a clean exit deletes it (and the autosave).
+            // Finding it at startup means last time ended badly.
+            try
+            {
+                Directory.CreateDirectory(AppDataDir);
+                bool crashedLastTime = File.Exists(SessionFlagPath);
+                File.WriteAllText(SessionFlagPath, DateTime.UtcNow.ToString("o"));
+                Closing += (s, e) =>
+                {
+                    try { File.Delete(SessionFlagPath); } catch { }
+                    try { File.Delete(AutosavePath); } catch { }
+                    try { File.Delete(AutosaveMetaPath); } catch { }
+                };
+                _autosaveTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMinutes(2) };
+                _autosaveTimer.Tick += (s, e) => TryAutosaveNow();
+                _autosaveTimer.Start();
+                if (crashedLastTime && File.Exists(AutosavePath))
+                    Loaded += RecoverCrashOnce;
+            }
+            catch { /* recovery plumbing must never block startup */ }
             InitializeAudioEngine();
             RenderTimeRulerHeaders();
             RenderStudioGridLanes();
@@ -1574,6 +1595,90 @@ namespace BeatSyncStudioPro
         private static string RecentProjectsPath => System.IO.Path.Combine(AppDataDir, "recent-projects.json");
         private static string AppSettingsPath => System.IO.Path.Combine(AppDataDir, "app-settings.json");
 
+        // ---------- v3.74: autosave + crash recovery ----------
+        private static string AutosavePath => System.IO.Path.Combine(AppDataDir, "autosave.bsp");
+        private static string AutosaveMetaPath => System.IO.Path.Combine(AppDataDir, "autosave-meta.json");
+        private static string SessionFlagPath => System.IO.Path.Combine(AppDataDir, "session-running.flag");
+        private System.Windows.Threading.DispatcherTimer? _autosaveTimer;
+        private string _lastAutosaveFingerprint = "";
+
+        /// <summary>Cheap change detector for the project: block count +
+        /// geometry, library size, patterns, master settings. Autosave
+        /// only writes when this changes.</summary>
+        private string ProjectFingerprint()
+        {
+            unchecked
+            {
+                long h = 1469598103934665603L;
+                void Mix(long v) { h = (h ^ v) * 1099511628211L; }
+                Mix(TimelineBlocks.Count);
+                foreach (var b in TimelineBlocks)
+                {
+                    Mix(b.Filename?.GetHashCode() ?? 0);
+                    Mix((long)(b.StartX * 10));
+                    Mix((long)(b.Width * 10));
+                    Mix(b.TrackId);
+                }
+                Mix(ZipSounds.Count);
+                Mix(Patterns?.Count ?? 0);
+                Mix(PianoPatterns?.Count ?? 0);
+                Mix((long)(MasterVolume * 1000));
+                Mix((long)(ProjectBpm * 10));
+                return h.ToString("X");
+            }
+        }
+
+        private void TryAutosaveNow()
+        {
+            try
+            {
+                if (TimelineBlocks.Count == 0 && ZipSounds.Count == 0) return;
+                string fp = ProjectFingerprint();
+                if (fp == _lastAutosaveFingerprint) return;
+                WriteProjectFile(AutosavePath);
+                _lastAutosaveFingerprint = fp;
+                File.WriteAllText(AutosaveMetaPath, JsonSerializer.Serialize(new { SavedUtc = DateTime.UtcNow, Fingerprint = fp }));
+            }
+            catch { /* autosave must never interrupt the work */ }
+        }
+
+        private void RecoverCrashOnce(object sender, RoutedEventArgs e)
+        {
+            Loaded -= RecoverCrashOnce;
+            try
+            {
+                string when = "";
+                try
+                {
+                    using var doc = JsonDocument.Parse(File.ReadAllText(AutosaveMetaPath));
+                    if (doc.RootElement.TryGetProperty("SavedUtc", out var su)
+                        && su.GetString() is string s && DateTime.TryParse(s, out var utc))
+                        when = " from " + utc.ToLocalTime().ToString("h:mm tt on MMM d");
+                }
+                catch { }
+                var r = MessageBox.Show(
+                    $"BeatSync didn't close properly last time — but an autosave{when} survived.\n\nRestore it? (No just deletes the autosave; your saved projects are untouched.)",
+                    "Recover Autosaved Project", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (r == MessageBoxResult.Yes) OpenProjectFromPath(AutosavePath);
+                else
+                {
+                    try { File.Delete(AutosavePath); } catch { }
+                    try { File.Delete(AutosaveMetaPath); } catch { }
+                }
+            }
+            catch { }
+        }
+
+        private void MenuRecoverAutosave_Click(object sender, RoutedEventArgs e)
+        {
+            if (!File.Exists(AutosavePath))
+            {
+                MessageBox.Show("There's no autosaved project right now. Autosave runs every 2 minutes while you're working on a project, so one appears on its own.", "Recover Autosave", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            OpenProjectFromPath(AutosavePath);
+        }
+
         public static List<string> GetRecentProjects()
         {
             try
@@ -2312,94 +2417,103 @@ namespace BeatSyncStudioPro
 
             try
             {
-                var project = new
-                {
-                    Created = DateTime.UtcNow,
-                    Version = "2.0",
-                    AudioTrackCount = this.AudioTrackCount,
-                    MasterVolume = this.MasterVolume,
-                    Bpm = this.ProjectBpm,
-                    BeatOffsetSeconds = this.BeatOffsetSeconds,
-                    SnapToBeat = this.SnapToBeatEnabled,
-                    Patterns = this.Patterns,
-                    PianoPatterns = this.PianoPatterns,
-                    SoundCategories = this.SoundCategories,
-                    TrackVolumes = this.TrackVolumeValues,
-                    TrackPans = this.TrackPanValues,
-                    TrackFx = this.TrackFxValues,
-                    Blocks = this.TimelineBlocks.Select(b => new
-                    {
-                        b.Filename,
-                        b.TrackId,
-                        // Project files always store geometry at the canonical
-                        // 100 px/s scale, whatever the current zoom is.
-                        StartX = b.StartX * 100.0 / FixedBlock.PixelsPerSecond,
-                        Width = b.Width * 100.0 / FixedBlock.PixelsPerSecond,
-                        b.Volume,
-                        b.SoundType,
-                        b.IsVideo,
-                        b.Speed,
-                        b.SourceStartSeconds,
-                        b.IsVideoAudio,
-                        b.LengthSeconds,
-                        b.Reverse,
-                        b.Normalize,
-                        b.NudgeMs,
-                        ClipFx = b.ClipFx,
-                        VolumePoints = b.VolumePoints,
-                        b.GateOn,
-                        b.GateThresholdDb,
-                        b.KeepPitch
-                    }).ToList()
-                };
-
-                using (var fs = new FileStream(dlg.FileName, FileMode.Create))
-                using (var archive = new ZipArchive(fs, ZipArchiveMode.Create))
-                {
-                    var pjEntry = archive.CreateEntry("project.json", CompressionLevel.Optimal);
-                    using (var es = pjEntry.Open())
-                    using (var sw = new StreamWriter(es))
-                    {
-                        var options = new JsonSerializerOptions { WriteIndented = true };
-                        sw.Write(JsonSerializer.Serialize(project, options));
-                    }
-
-                    foreach (var kv in ZipSounds)
-                    {
-                        var assetEntry = archive.CreateEntry(System.IO.Path.Combine("assets", kv.Key), CompressionLevel.Optimal);
-                        using (var es = assetEntry.Open())
-                        {
-                            es.Write(kv.Value, 0, kv.Value.Length);
-                        }
-                    }
-
-                    foreach (var kv in VideoAssets.Where(x => File.Exists(x.Value)))
-                    {
-                        var vEntry = archive.CreateEntry(System.IO.Path.Combine("video", kv.Key), CompressionLevel.Optimal);
-                        using (var es = vEntry.Open())
-                        using (var vf = new FileStream(kv.Value, FileMode.Open, FileAccess.Read))
-                        {
-                            vf.CopyTo(es);
-                        }
-                    }
-
-                    foreach (var kv in ImageAssets.Where(x => File.Exists(x.Value)))
-                    {
-                        var iEntry = archive.CreateEntry(System.IO.Path.Combine("images", kv.Key), CompressionLevel.Optimal);
-                        using (var es = iEntry.Open())
-                        using (var vf = new FileStream(kv.Value, FileMode.Open, FileAccess.Read))
-                        {
-                            vf.CopyTo(es);
-                        }
-                    }
-                }
-
+                WriteProjectFile(dlg.FileName);
+                _lastAutosaveFingerprint = ProjectFingerprint();
                 RememberRecentProject(dlg.FileName);
                 MessageBox.Show($"✅ Project saved successfully!\n\n📁 {dlg.FileName}", "Save Complete", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"❌ Save failed: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>Serialize the current project to a .bsp file — the
+        /// ONE writer behind Save As and the v3.74 autosave, so an
+        /// autosaved project is a real, fully-openable project file.
+        /// No dialogs, no popups.</summary>
+        private void WriteProjectFile(string path)
+        {
+            var project = new
+            {
+                Created = DateTime.UtcNow,
+                Version = "2.0",
+                AudioTrackCount = this.AudioTrackCount,
+                MasterVolume = this.MasterVolume,
+                Bpm = this.ProjectBpm,
+                BeatOffsetSeconds = this.BeatOffsetSeconds,
+                SnapToBeat = this.SnapToBeatEnabled,
+                Patterns = this.Patterns,
+                PianoPatterns = this.PianoPatterns,
+                SoundCategories = this.SoundCategories,
+                TrackVolumes = this.TrackVolumeValues,
+                TrackPans = this.TrackPanValues,
+                TrackFx = this.TrackFxValues,
+                Blocks = this.TimelineBlocks.Select(b => new
+                {
+                    b.Filename,
+                    b.TrackId,
+                    // Project files always store geometry at the canonical
+                    // 100 px/s scale, whatever the current zoom is.
+                    StartX = b.StartX * 100.0 / FixedBlock.PixelsPerSecond,
+                    Width = b.Width * 100.0 / FixedBlock.PixelsPerSecond,
+                    b.Volume,
+                    b.SoundType,
+                    b.IsVideo,
+                    b.Speed,
+                    b.SourceStartSeconds,
+                    b.IsVideoAudio,
+                    b.LengthSeconds,
+                    b.Reverse,
+                    b.Normalize,
+                    b.NudgeMs,
+                    ClipFx = b.ClipFx,
+                    VolumePoints = b.VolumePoints,
+                    b.GateOn,
+                    b.GateThresholdDb,
+                    b.KeepPitch
+                }).ToList()
+            };
+
+            using (var fs = new FileStream(path, FileMode.Create))
+            using (var archive = new ZipArchive(fs, ZipArchiveMode.Create))
+            {
+                var pjEntry = archive.CreateEntry("project.json", CompressionLevel.Optimal);
+                using (var es = pjEntry.Open())
+                using (var sw = new StreamWriter(es))
+                {
+                    var options = new JsonSerializerOptions { WriteIndented = true };
+                    sw.Write(JsonSerializer.Serialize(project, options));
+                }
+
+                foreach (var kv in ZipSounds)
+                {
+                    var assetEntry = archive.CreateEntry(System.IO.Path.Combine("assets", kv.Key), CompressionLevel.Optimal);
+                    using (var es = assetEntry.Open())
+                    {
+                        es.Write(kv.Value, 0, kv.Value.Length);
+                    }
+                }
+
+                foreach (var kv in VideoAssets.Where(x => File.Exists(x.Value)))
+                {
+                    var vEntry = archive.CreateEntry(System.IO.Path.Combine("video", kv.Key), CompressionLevel.Optimal);
+                    using (var es = vEntry.Open())
+                    using (var vf = new FileStream(kv.Value, FileMode.Open, FileAccess.Read))
+                    {
+                        vf.CopyTo(es);
+                    }
+                }
+
+                foreach (var kv in ImageAssets.Where(x => File.Exists(x.Value)))
+                {
+                    var iEntry = archive.CreateEntry(System.IO.Path.Combine("images", kv.Key), CompressionLevel.Optimal);
+                    using (var es = iEntry.Open())
+                    using (var vf = new FileStream(kv.Value, FileMode.Open, FileAccess.Read))
+                    {
+                        vf.CopyTo(es);
+                    }
+                }
             }
         }
 

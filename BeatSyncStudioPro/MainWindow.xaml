@@ -186,6 +186,8 @@
                 <Separator/>
                 <MenuItem Header="⬇ Downloads..." Click="BtnDownloads_Click"/>
                 <Separator/>
+                <Separator/>
+                <MenuItem Header="♻️ Recover Autosaved Project" Click="MenuRecoverAutosave_Click"/>
                 <MenuItem Header="Exit" Click="MenuExit_Click"/>
             </MenuItem>
             <MenuItem Header="_Import" Padding="10,4">
