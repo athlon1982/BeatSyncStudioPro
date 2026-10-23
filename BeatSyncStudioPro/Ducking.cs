@@ -47,4 +47,23 @@ namespace BeatSyncStudioPro
             IsDucking = false;
         }
     }
+
+    /// <summary>
+    /// Drops ducking (v3.97): while any radio drop is sounding, the music
+    /// side eases toward DropsDepth; when the drop ends it eases back.
+    /// Pure easing math so the timing can be unit-tested.
+    /// </summary>
+    public static class DropsDuck
+    {
+        public const float Depth = 0.4f;
+
+        public static float Ease(float current, bool dropPlaying)
+        {
+            float target = dropPlaying ? Depth : 1f;
+            float step = target < current ? 0.5f : 0.08f;
+            float next = current + (target - current) * step;
+            if (System.Math.Abs(target - next) < 0.002f) next = target;
+            return next;
+        }
+    }
 }

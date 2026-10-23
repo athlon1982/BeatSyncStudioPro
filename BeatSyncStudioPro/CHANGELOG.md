@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.97 — Radio Drops Board
+- **New 📻 Radio Drops board** (button under Stream Overlay in the DJ board): a dedicated window of 8 BIG pads for station IDs, Rad-Dad tags and promos — live-radio controls, separate from the DJ sampler's FX pads.
+- **Right-click any pad to assign a sound** (any WAV/MP3/FLAC — record your own station ID with the mic, save it, assign it), rename it, or clear it. Assignments are saved and come back next launch.
+- **The music dips under a drop automatically** while it sounds (and comes back up when it ends) — composed with the mic auto-duck, so a drop over your voice over music all stack the right way. The board has its own drops volume and a Stop All.
+
 ## Version 3.96 — Play-and-Encode (FLAC / MP3 / WAV, your spec)
 - **New 💾 ENCODE button on every deck:** encodes the song loaded on that deck to a file in the format YOU pick — **FLAC** (lossless), **MP3** (320 / 256 / 192 / 128 kbps), or **WAV** — at **44.1 kHz or 48 kHz**, 16- or 24-bit for FLAC/WAV.
 - **Built for your Suno songs:** stream a song from the Suno tab onto a deck, hit Encode, and the file is rendered from what the deck plays. **Suno's Download button is never used, so your monthly download quota is untouched.** It works for local files too — anything a deck can play, it can encode.
