@@ -2921,6 +2921,15 @@ namespace BeatSyncStudioPro
                     else _window.SetStatus($"{_name}: echo out needs the deck playing.");
                 };
                 fxRow.Children.Add(echoBtn);
+                var encodeBtn = MakeButton("💾 ENCODE", 104);
+                encodeBtn.Margin = new Thickness(6, 0, 0, 0);
+                encodeBtn.ToolTip = "Encode this deck's song to a file — FLAC, MP3 (up to 320 kbps) or WAV, at 44.1 or 48 kHz. Works for songs streamed from the Suno tab too: it encodes what the deck plays, so Suno's Download button and your download quota are never used.";
+                encodeBtn.Click += (s, e) =>
+                {
+                    if (!_deck.IsLoaded) { _window.SetStatus($"{_name}: load a song first, then Encode can save it in your format."); return; }
+                    new EncodeWindow(_deck, _name) { Owner = _window }.Show();
+                };
+                fxRow.Children.Add(encodeBtn);
                 rightStack.Children.Add(fxRow);
 
                 // Tempo row
