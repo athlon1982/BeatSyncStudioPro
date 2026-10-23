@@ -57,8 +57,10 @@
                         <Button Content="⬆ Up" Style="{StaticResource Btn}" Click="MoveUp_Click"/>
                         <Button Content="⬇ Down" Style="{StaticResource Btn}" Click="MoveDown_Click"/>
                         <Button Content="✖ Remove" Style="{StaticResource Btn}" Click="RemoveItem_Click"/>
-                        <Button Content="📈 Sort by BPM" Style="{StaticResource Btn}" Margin="0" Click="SortBpm_Click"
-                                ToolTip="Order the crate slowest to fastest — an energy ramp. Songs without a BPM go last."/>
+                        <Button Content="📈 Sort by BPM" Style="{StaticResource Btn}" Click="SortBpm_Click"
+                                ToolTip="Order the crate slowest to fastest. Songs without a BPM go last."/>
+                        <Button Content="🔺 Ramp by Energy" Style="{StaticResource Btn}" Margin="0" Click="RampByEnergy_Click"
+                                ToolTip="Order the crate by measured energy (loudness + tempo), quietest first — a build-up set. Songs are analyzed once and cached."/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                         <Button Content="▶ Queue Whole Crate on Deck A" Style="{StaticResource Btn}" Background="#1DB954" FontWeight="Bold" Click="SendA_Click"
@@ -66,7 +68,15 @@
                         <Button Content="▶ Queue on Deck B" Style="{StaticResource Btn}" Background="#7C4DFF" FontWeight="Bold" Margin="0" Click="SendB_Click"/>
                     </StackPanel>
                 </StackPanel>
-                <DataGrid x:Name="ItemGrid" Background="#14171E" Foreground="White" BorderThickness="0"
+                <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+                    <TextBlock Text="SET ENERGY — in crate order" FontWeight="Bold" Foreground="#A0A5B5" Margin="0,0,0,4"/>
+                    <Border Background="#14171E" CornerRadius="6" Padding="4">
+                        <Image x:Name="EnergyImage" Height="104" Stretch="Fill" SizeChanged="EnergyImage_SizeChanged"/>
+                    </Border>
+                    <TextBlock x:Name="EnergyText" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0"
+                               Text="Energy (loudness + tempo) shows here in crate order. Dots are colored by key fit with the previous song: green = harmonic, yellow = workable, red = clash, gray = key unknown."/>
+                </StackPanel>
+                                <DataGrid x:Name="ItemGrid" Background="#14171E" Foreground="White" BorderThickness="0"
                           AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
                           RowBackground="#1B1F28" AlternatingRowBackground="#14171E" GridLinesVisibility="None"
                           SelectionMode="Single">

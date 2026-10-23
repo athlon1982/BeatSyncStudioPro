@@ -73,6 +73,11 @@ namespace BeatSyncStudioPro
         private SetCrate? _current;
         private List<LibrarySong> _library = new List<LibrarySong>();
 
+        // v3.89: energy planner state
+        private readonly Dictionary<string, double> _energyByPath = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        private int _energyGen;
+        private bool _rampBusy;
+
         public SetBuilderWindow(MainWindow owner)
         {
             InitializeComponent();
@@ -107,6 +112,12 @@ namespace BeatSyncStudioPro
                 foreach (var it in _current.Items) _items.Add(it);
             CrateNameText.Text = _current == null ? "Pick or create a crate" : $"🧺 {_current.Name}";
             UpdateSummary();
+            _energyGen++;
+            _energyByPath.Clear();
+            foreach (var it in _items)
+                if (EnergyPlanner.TryGet(it.Path, out double ce)) _energyByPath[it.Path] = ce;
+            DrawEnergy();
+            _ = EnsureEnergiesAsync(_energyGen);
         }
 
         private void SaveAndSync()
@@ -117,6 +128,7 @@ namespace BeatSyncStudioPro
                 SetCrateStore.Save(_crates);
             }
             UpdateSummary();
+            DrawEnergy();
         }
 
         private void UpdateSummary()
@@ -247,6 +259,168 @@ namespace BeatSyncStudioPro
 
         private void SendA_Click(object sender, RoutedEventArgs e) => SendToDeck(true);
         private void SendB_Click(object sender, RoutedEventArgs e) => SendToDeck(false);
+
+        // ---------- v3.89: set energy planner ----------
+
+        private async System.Threading.Tasks.Task EnsureEnergiesAsync(int gen)
+        {
+            try
+            {
+                foreach (var it in _items.ToList())
+                {
+                    if (gen != _energyGen) return;
+                    if (_energyByPath.ContainsKey(it.Path)) continue;
+                    double e = await EnergyPlanner.AnalyzeAsync(it.Path, it.Bpm);
+                    if (gen != _energyGen) return;
+                    _energyByPath[it.Path] = e;
+                    DrawEnergy();
+                }
+            }
+            catch { }
+        }
+
+        private void EnergyImage_SizeChanged(object sender, SizeChangedEventArgs e) => DrawEnergy();
+
+        private void DrawEnergy()
+        {
+            if (EnergyImage == null) return;
+            double w = EnergyImage.ActualWidth, h = EnergyImage.ActualHeight;
+            if (w < 60 || h < 30) return;
+            var visual = new System.Windows.Media.DrawingVisual();
+            using (var dc = visual.RenderOpen())
+            {
+                var gridPen = new System.Windows.Media.Pen(new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(28, 255, 255, 255)), 1);
+                foreach (double f in new[] { 0.25, 0.5, 0.75 })
+                    dc.DrawLine(gridPen, new Point(0, h * (1 - f)), new Point(w, h * (1 - f)));
+
+                int n = _items.Count;
+                if (n == 0) { PresentEnergy(visual, w, h); UpdateEnergyText(); return; }
+
+                bool timed = _items.All(i => i.Seconds > 0);
+                double total = timed ? _items.Sum(i => i.Seconds) : n;
+                var xs = new double[n];
+                double acc = 0;
+                for (int i = 0; i < n; i++)
+                {
+                    double seg = timed ? _items[i].Seconds : 1;
+                    xs[i] = (acc + seg / 2) / total * w;
+                    acc += seg;
+                }
+
+                double Y(double e) => h - 6 - e * (h - 16);
+
+                var known = new List<Point>();
+                for (int i = 0; i < n; i++)
+                    if (_energyByPath.TryGetValue(_items[i].Path, out double e) && e >= 0)
+                        known.Add(new Point(xs[i], Y(e)));
+                if (known.Count >= 2)
+                {
+                    var geo = new System.Windows.Media.StreamGeometry();
+                    using (var ctx = geo.Open())
+                    {
+                        ctx.BeginFigure(known[0], true, true);
+                        for (int i = 1; i < known.Count; i++) ctx.LineTo(known[i], true, false);
+                        ctx.LineTo(new Point(known[known.Count - 1].X, h), false, false);
+                        ctx.LineTo(new Point(known[0].X, h), false, false);
+                    }
+                    geo.Freeze();
+                    dc.DrawGeometry(new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(50, 0x1D, 0xB9, 0x54)), null, geo);
+                    var linePen = new System.Windows.Media.Pen(new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1D, 0xB9, 0x54)), 2);
+                    for (int i = 1; i < known.Count; i++) dc.DrawLine(linePen, known[i - 1], known[i]);
+                }
+                else if (known.Count == 1)
+                {
+                    var p0 = known[0];
+                    dc.DrawLine(new System.Windows.Media.Pen(new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1D, 0xB9, 0x54)), 2),
+                        new Point(Math.Max(0, p0.X - 14), p0.Y), new Point(Math.Min(w, p0.X + 14), p0.Y));
+                }
+
+                for (int i = 0; i < n; i++)
+                {
+                    bool has = _energyByPath.TryGetValue(_items[i].Path, out double e) && e >= 0;
+                    double y = has ? Y(e) : h - 5;
+                    int compat = i == 0 ? -1 : EnergyPlanner.KeyCompatibility(_items[i - 1].Key, _items[i].Key);
+                    var fill = new System.Windows.Media.SolidColorBrush(compat switch
+                    {
+                        2 => System.Windows.Media.Color.FromRgb(0x1D, 0xB9, 0x54),
+                        1 => System.Windows.Media.Color.FromRgb(0xE8, 0xC7, 0x66),
+                        0 => System.Windows.Media.Color.FromRgb(0xE7, 0x4C, 0x3C),
+                        _ => System.Windows.Media.Color.FromRgb(0x6B, 0x72, 0x80)
+                    });
+                    dc.DrawEllipse(fill, null, new Point(xs[i], y), 4, 4);
+                }
+            }
+            PresentEnergy(visual, w, h);
+            UpdateEnergyText();
+        }
+
+        private void PresentEnergy(System.Windows.Media.DrawingVisual visual, double w, double h)
+        {
+            var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap((int)w, (int)h, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+            bmp.Render(visual);
+            EnergyImage.Source = bmp;
+        }
+
+        private void UpdateEnergyText()
+        {
+            if (EnergyText == null) return;
+            int n = _items.Count;
+            if (n == 0) { EnergyText.Text = "Add songs to the crate and their energy arc shows here."; return; }
+            var scored = _items.Where(i => _energyByPath.TryGetValue(i.Path, out double e) && e >= 0).ToList();
+            int pending = _items.Count(i => !_energyByPath.ContainsKey(i.Path));
+            if (scored.Count == 0)
+            {
+                EnergyText.Text = pending > 0 ? $"Analyzing energy… 0/{n} songs scored." : "Couldn't analyze these files for energy (missing or unreadable).";
+                return;
+            }
+            var parts = new List<string>();
+            int peakIdx = 0; double peakVal = -1;
+            for (int i = 0; i < n; i++)
+                if (_energyByPath.TryGetValue(_items[i].Path, out double e) && e > peakVal) { peakVal = e; peakIdx = i; }
+            double minsIn = _items.Take(peakIdx).Sum(i => i.Seconds) / 60.0;
+            parts.Add($"Peak: #{peakIdx + 1} \"{_items[peakIdx].Title}\" ({peakVal * 100:0}%)" + (minsIn >= 1 ? $" about {minsIn:0} min in" : ""));
+            double worst = 0; int worstAt = -1;
+            for (int i = 1; i < n; i++)
+            {
+                if (_energyByPath.TryGetValue(_items[i - 1].Path, out double a) && a >= 0 &&
+                    _energyByPath.TryGetValue(_items[i].Path, out double b) && b >= 0 && b - a < worst)
+                { worst = b - a; worstAt = i; }
+            }
+            if (worstAt > 0) parts.Add($"Biggest drop: #{worstAt} \u2192 #{worstAt + 1} ({worst * 100:0}%)");
+            var first = scored[0]; var last = scored[scored.Count - 1];
+            double fE = _energyByPath[first.Path], lE = _energyByPath[last.Path];
+            parts.Add(lE > fE + 0.05 ? "Ends higher than it starts — a builder." : lE < fE - 0.05 ? "Ends lower than it starts — a wind-down." : "Starts and ends at a similar energy.");
+            if (pending > 0) parts.Add($"Analyzing… {scored.Count}/{n} scored.");
+            EnergyText.Text = string.Join(" \u2022 ", parts);
+        }
+
+        private async void RampByEnergy_Click(object sender, RoutedEventArgs e)
+        {
+            if (_current == null || _items.Count == 0 || _rampBusy) return;
+            _rampBusy = true;
+            try
+            {
+                var missing = _items.Where(i => !_energyByPath.ContainsKey(i.Path)).ToList();
+                if (missing.Count > 0)
+                {
+                    StatusText.Text = $"Analyzing {missing.Count} song(s) for the energy ramp…";
+                    int gen = _energyGen;
+                    foreach (var it in missing)
+                    {
+                        double en = await EnergyPlanner.AnalyzeAsync(it.Path, it.Bpm);
+                        if (gen != _energyGen) return;
+                        _energyByPath[it.Path] = en;
+                    }
+                    DrawEnergy();
+                }
+                var sorted = _items.OrderBy(i => _energyByPath.TryGetValue(i.Path, out double en) && en >= 0 ? en : double.MaxValue).ToList();
+                _items.Clear();
+                foreach (var it in sorted) _items.Add(it);
+                SaveAndSync();
+                StatusText.Text = "Ramped by measured energy, quietest \u2192 loudest. Songs that couldn't be analyzed kept their order at the end.";
+            }
+            finally { _rampBusy = false; }
+        }
 
         // ---------- tiny prompt dialog ----------
 
