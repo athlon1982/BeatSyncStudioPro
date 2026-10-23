@@ -420,6 +420,11 @@
                                     Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
                                     ToolTip="Radio Drops: a board of big pads for station IDs, tags and promos. Assign any sound to a pad (right-click it in the board) — it plays over the mix and the music dips under it automatically."/>
                         </Grid>
+                        <Grid Margin="0,8,0,0">
+                            <Button x:Name="EventButton" Content="&#x1F389; Event Mode" Click="EventButton_Click" Height="32" Style="{StaticResource HwButton}"
+                                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                    ToolTip="Event Mode: a big-button screen for live events — Now Playing, giant Play/Pause and Next Song, crossfader jumps, a giant mic switch and the radio drops. Nothing else to hit by mistake in the dark."/>
+                        </Grid>
                     </StackPanel>
                     <TextBlock x:Name="DjStatus" Text="Load a song on each deck and mix." Foreground="#A0A5B5" FontSize="11"
                                TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,8,0,0"/>

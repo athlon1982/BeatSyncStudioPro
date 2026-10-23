@@ -97,6 +97,10 @@ namespace BeatSyncStudioPro
         private readonly SamplerEngine _drops = new SamplerEngine();
         private float _dropsDuckFactor = 1f;
         private DropsWindow? _dropsWindow;
+        private EventModeWindow? _eventWindow;
+        private System.Collections.Generic.Dictionary<int, DropDef>? _dropDefs;
+        private readonly System.Collections.Generic.Dictionary<int, float[]> _dropSamples = new System.Collections.Generic.Dictionary<int, float[]>();
+        private bool _dropsLoaded;
         private readonly Button[] _padButtons = new Button[SamplerEngine.PadCount];
         private readonly TextBlock[] _padSubs = new TextBlock[SamplerEngine.PadCount];
         private readonly TextBlock[] _padTitles = new TextBlock[SamplerEngine.PadCount];
@@ -2150,6 +2154,111 @@ namespace BeatSyncStudioPro
                 _streamLabel = label;
                 StreamButton.Content = label;
             }
+        }
+
+        // ---- v3.98: Event Mode support ----
+
+        private void EnsureDropsLoaded()
+        {
+            if (_dropsLoaded) return;
+            _dropsLoaded = true;
+            _dropDefs = DropsStore.Load();
+            foreach (var kv in _dropDefs)
+            {
+                if (string.IsNullOrWhiteSpace(kv.Value.Path) || !System.IO.File.Exists(kv.Value.Path)) continue;
+                try
+                {
+                    var samples = SamplerEngine.DecodeBytes(System.IO.File.ReadAllBytes(kv.Value.Path), kv.Value.Path);
+                    if (samples.Length > 0) { _drops.Slots[kv.Key].Load(samples); _dropSamples[kv.Key] = samples; }
+                }
+                catch { }
+            }
+        }
+
+        private void RearmDrop(int pad)
+        {
+            if (_dropSamples.TryGetValue(pad, out var samples) && samples.Length > 0)
+                _drops.Slots[pad].Load(samples);
+        }
+
+        private void EventTriggerDrop(int pad)
+        {
+            EnsureDropsLoaded();
+            var slot = _drops.Slots[pad];
+            if (slot.IsPlaying) { _drops.StopPad(pad); RearmDrop(pad); return; }
+            if (!slot.HasSound && _dropSamples.TryGetValue(pad, out var cached)) slot.Load(cached);
+            if (slot.HasSound) { _drops.Trigger(pad); SetStatus($"📻 Drop: {EventDropName(pad)}"); }
+            else SetStatus($"📻 '{EventDropName(pad)}' has no sound yet — assign one in the Radio Drops board.");
+        }
+
+        private string EventDropName(int pad)
+        {
+            EnsureDropsLoaded();
+            return _dropDefs != null && _dropDefs.TryGetValue(pad, out var def) && !string.IsNullOrWhiteSpace(def.Name)
+                ? def.Name : $"Drop {pad + 1}";
+        }
+
+        private int AudibleDeckIndex()
+        {
+            string picked = OverlayData.PickNowPlaying(
+                _deckA.IsPlaying, _deckA.Title, _deckB.IsPlaying, _deckB.Title, XfadeSlider.Value / 1000.0);
+            if (picked.Length == 0) return -1;
+            if (picked == _deckA.Title) return 0;
+            if (picked == _deckB.Title) return 1;
+            return -1; // a crossfade blend (A + B) — no single audible deck
+        }
+
+        private void EventNextSong()
+        {
+            int audible = AudibleDeckIndex();
+            int target = EventLogic.ChooseNextDeck(audible, _panelA.QueueHasNext, _panelB.QueueHasNext);
+            if (target < 0) { SetStatus("🎉 Event Mode: no next song queued on either deck."); return; }
+            var panel = target == 0 ? _panelA : _panelB;
+            panel.QueueAdvance();
+            if (target != audible && audible >= 0)
+            {
+                (audible == 0 ? _panelA : _panelB).StopForCruise();
+                XfadeSlider.Value = target == 0 ? 0 : 1000;
+            }
+            SetStatus($"🎉 Event Mode: next up — {panel.CurrentTitle} on Deck {(target == 0 ? "A" : "B")}.");
+        }
+
+        private string EventNextTitle()
+        {
+            int audible = AudibleDeckIndex();
+            int target = EventLogic.ChooseNextDeck(audible, _panelA.QueueHasNext, _panelB.QueueHasNext);
+            if (target < 0) return "";
+            string t = (target == 0 ? _panelA : _panelB).QueueNextTitle;
+            return string.IsNullOrEmpty(t) ? "" : t + $"  (Deck {(target == 0 ? "A" : "B")})";
+        }
+
+        private void EventButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_eventWindow == null)
+            {
+                EnsureDropsLoaded();
+                var hooks = new EventHooks
+                {
+                    DeckA = () => new EventDeckState(_panelA.CurrentTitle, _panelA.IsPlayingDeck, _deckA.PositionSeconds, _deckA.TotalSeconds, _deckA.IsLoaded),
+                    DeckB = () => new EventDeckState(_panelB.CurrentTitle, _panelB.IsPlayingDeck, _deckB.PositionSeconds, _deckB.TotalSeconds, _deckB.IsLoaded),
+                    PlayPauseA = () => _panelA.MidiPlayPause(),
+                    PlayPauseB = () => _panelB.MidiPlayPause(),
+                    AudibleDeck = AudibleDeckIndex,
+                    GetCrossfade = () => XfadeSlider.Value / 1000.0,
+                    SetCrossfade = v => XfadeSlider.Value = v * 1000.0,
+                    ToggleMic = () => { if (_micOn) StopMic(); else MicButton_Click(this, new RoutedEventArgs()); },
+                    MicOn = () => _micOn,
+                    NextSong = EventNextSong,
+                    NextUpTitle = EventNextTitle,
+                    TriggerDrop = EventTriggerDrop,
+                    DropPlaying = i => _drops.Slots[i].IsPlaying,
+                    DropName = EventDropName
+                };
+                _eventWindow = new EventModeWindow(hooks) { Owner = this };
+                _eventWindow.Closed += (s2, e2) => _eventWindow = null;
+                _eventWindow.Show();
+            }
+            else _eventWindow.Activate();
         }
 
         private void DropsButton_Click(object sender, RoutedEventArgs e)
@@ -4221,6 +4330,11 @@ namespace BeatSyncStudioPro
             }
 
             internal System.Collections.Generic.IReadOnlyList<string> QueuePathsSnapshot => _queuePaths.ToArray();
+
+            // v3.98: Event Mode drives the same queue the panel buttons drive.
+            internal bool QueueHasNext => _queueIndex + 1 < _queuePaths.Count;
+            internal string QueueNextTitle => QueueHasNext ? System.IO.Path.GetFileName(_queuePaths[_queueIndex + 1]) : "";
+            internal void QueueAdvance() { if (QueueHasNext) LoadQueueItem(_queueIndex + 1, true); }
 
             /// <summary>Append one file to this deck's track list (the
             /// 🎵 Song Library sends songs here).</summary>
