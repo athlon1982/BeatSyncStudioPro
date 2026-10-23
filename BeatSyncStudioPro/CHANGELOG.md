@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.86 — Phone Remote Grows a Queue
+- **New on the phone remote: ⏮ Prev / ⏭ Next for each deck.** The BeatSync Companion page (the phone remote, in the app since 3.32) can now step each deck's track queue from the phone — the same Prev/Next buttons on the deck panels — including loading the first queued song when nothing from the queue is loaded yet.
+- **"Next up" on the phone.** Each deck card shows the next queued song's name and queue position (like 2/8), refreshed live with the rest of the remote — see what's coming without walking back to the PC.
+- Everything else on the remote is unchanged: play/pause, cue, crossfader, master, cruise, mic, and the sampler pads, all behind the same password.
+
 ## Version 3.83 — The Master Spectrum Lives Again
 - **Fixed: the master spectrum strip was a permanently black bar.** It drew every tick into a DrawingVisual, but the strip's Image held a DrawingImage captured ONCE at startup over the visual's first Drawing — and every RenderOpen *replaces* that Drawing, so the strip displayed the first (silent) frame forever while the music played. It now presents each frame as a rendered bitmap, the same proven pattern the per-deck visuals use. The audio itself was never broken — a test recording of the master bus proved it loud and clean; only the picture was frozen.
 - **The DJ timer is now fault-isolated.** Each 100 ms step (deck refresh, cruise, sampler, mic, mixer, companion, set record) runs guarded: if one ever throws, it's written to crash.log once and the remaining steps still run — one bad step can never silently freeze the visuals downstream of it again.
