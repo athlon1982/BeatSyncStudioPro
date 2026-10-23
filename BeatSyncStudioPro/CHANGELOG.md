@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.98 — Event Mode
+- **New 🎉 Event Mode** (button under Radio Drops in the DJ board): a full-screen, big-button control surface for running a live event — the haunt, the parade, a party — built for the dark and for gloves.
+- **What's on it, and nothing else:** Now Playing with progress, one giant **Play/Pause**, a giant **Next Song** (with the next track's name under it), three crossfader jumps (Deck A / Both / Deck B), a giant **Mic** live/mute switch, and the 8 **radio drops** (which duck the music, same as the Drops board).
+- It drives the same decks, queues, mic and drops as the main board — queue your playlist on a deck as usual, open Event Mode, and run the whole night from the big screen. Exit any time; the DJ board stays open behind it.
+
 ## Version 3.97 — Radio Drops Board
 - **New 📻 Radio Drops board** (button under Stream Overlay in the DJ board): a dedicated window of 8 BIG pads for station IDs, Rad-Dad tags and promos — live-radio controls, separate from the DJ sampler's FX pads.
 - **Right-click any pad to assign a sound** (any WAV/MP3/FLAC — record your own station ID with the mic, save it, assign it), rename it, or clear it. Assignments are saved and come back next launch.
