@@ -232,6 +232,9 @@
                     <Button x:Name="StopBothButton" Content="⏹ Stop Both Decks" Click="StopBothButton_Click" Height="32" Style="{StaticResource HwButton}" Margin="0,6,0,0"
                             Background="#A12424" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"
                             ToolTip="Stop BOTH decks at once and rewind them to their cue points — no more stabbing one stop button then the other. A mashup capture keeps what already played, so you can still save it afterwards."/>
+                    <Button x:Name="SetRecordButton" Content="🎙 Record My Set" Click="SetRecordButton_Click" Height="32" Style="{StaticResource HwButton}" Margin="0,6,0,0"
+                            Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"
+                            ToolTip="Record the whole SET in one click — no file dialog, no naming. The performance lands in Music\BeatSync Sets, and a timestamped tracklist (every song, when it came in, which deck) is written beside the WAV automatically."/>
                     <Grid Margin="0,8,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>

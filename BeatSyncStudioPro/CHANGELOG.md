@@ -3,6 +3,12 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.77 — Record My Set
+- **One click, whole set:** the new **🎙 Record My Set** button in the mixer starts recording instantly — no file dialog, no naming to think about mid-performance. The button counts up while you play (⏹ Stop Set (12:34)).
+- **It lands in Music\BeatSync Sets**, auto-named with the date and time (`Set 2026-10-22 8-45 PM.wav`).
+- **The tracklist writes itself:** every time a deck starts a new song, it's logged with its timestamp and deck. When you stop, a matching .txt sits beside the WAV — date, duration, track count, and the full timestamped tracklist, ready to paste anywhere you post the set.
+- It plays fair with the other recorder users: a running mashup capture or Record Mix gets a clear "stop that first" message instead of a hijack, and closing the DJ board mid-set finishes and saves the set properly.
+
 ## Version 3.76 — Sampler Pads Can Stop Now
 - **Hit a playing pad again and it stops.** One-shot pads used to be fire-and-forget — a long loop or riser, once triggered, played to the end no matter what. Now pads toggle: playing → hit it again → silence, with the pad's lit flash clearing itself. The pad right-click menu gains a **⏹ Stop** item too, and the pad tooltips say how it works.
 - The other stop paths were audited and confirmed working in this pass: the sound picker's Preview ⇄ Stop toggle (previews run through the sampler bus, stop cuts them dead), the main library's Preview ⇄ Stop, and **⏹ Stop Both Decks** in the mixer for mashup playback — it stops and rewinds both decks and ends Cruise if it's running.

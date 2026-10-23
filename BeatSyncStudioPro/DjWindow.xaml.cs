@@ -161,7 +161,7 @@ namespace BeatSyncStudioPro
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
             _companion.CommandReceived += json => _companionQueue.Enqueue(json);
             _companion.StateJsonProvider = () => _companionStateJson;
-            _timer.Tick += (s, e) => { _panelA.Refresh(); _panelB.Refresh(); CruiseTick(); SamplerFlashTick(); MicTick(); MixerTick(); DrainCompanion(); };
+            _timer.Tick += (s, e) => { _panelA.Refresh(); _panelB.Refresh(); CruiseTick(); SamplerFlashTick(); MicTick(); MixerTick(); DrainCompanion(); SetRecordTick(); };
             InitMidi();
             _timer.Start();
             TuneToolTips(this);
@@ -178,7 +178,7 @@ namespace BeatSyncStudioPro
                 Left = wa.Left + Math.Max(0, (wa.Width - ActualWidth) / 2);
                 Top = wa.Top + Math.Max(0, (wa.Height - ActualHeight) / 2);
             };
-            Closed += (s, e) => { _timer.Stop(); _recorder.Stop(); _owner.DetachDjMixer(_recorder); _mic.Dispose(); _companion.Stop(); };
+            Closed += (s, e) => { if (_setRecording) FinishSetRecording(); _timer.Stop(); _recorder.Stop(); _owner.DetachDjMixer(_recorder); _mic.Dispose(); _companion.Stop(); };
         }
 
         // v3.40: snappy, long-lived hover help on every element in the window.
@@ -2036,6 +2036,104 @@ namespace BeatSyncStudioPro
             settings.Mode = StemComputePicker.SelectedIndex switch { 1 => "GPU", 2 => "CPU", _ => "Auto" };
             settings.Save();
             SetStatus($"⚙️ Stem splitting now runs on: {settings.Describe()} — applies to the next Mashup / stem split.");
+        }
+
+        // ---------- v3.77: Record My Set ----------
+        private bool _setRecording;
+        private DateTime _setStartUtc;
+        private string _setWavPath = "";
+        private readonly List<string> _setTracklist = new List<string>();
+        private string? _setLastTitleA;
+        private string? _setLastTitleB;
+
+        private void SetRecordButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_setRecording) { FinishSetRecording(); return; }
+            if (_mashupCapture)
+            {
+                SetStatus("🎤 A mashup capture owns the recorder right now — save the mashup (or press MASHUP to restart it) before recording a set.");
+                return;
+            }
+            if (_recorder.IsRecording)
+            {
+                SetStatus("🔴 Record Mix is already rolling — stop it first, then record your set.");
+                return;
+            }
+            try
+            {
+                string dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), "BeatSync Sets");
+                Directory.CreateDirectory(dir);
+                string stamp = DateTime.Now.ToString("yyyy-MM-dd h-mm tt");
+                _setWavPath = System.IO.Path.Combine(dir, $"Set {stamp}.wav");
+                _recorder.Start(_setWavPath);
+                _setRecording = true;
+                _setStartUtc = DateTime.UtcNow;
+                _setTracklist.Clear();
+                _setLastTitleA = null;
+                _setLastTitleB = null;
+                TrackSetTitles();
+                SetRecordButton.Content = "⏹ Stop Set (0:00)";
+                SetRecordButton.Background = new SolidColorBrush(Color.FromRgb(0xA1, 0x24, 0x24));
+                SetStatus($"🎙 Recording your set — {_setWavPath}. The tracklist writes itself as songs come in.");
+            }
+            catch (Exception ex)
+            {
+                _setRecording = false;
+                MessageBox.Show("Could not start the set recording: " + ex.Message, "Record My Set");
+            }
+        }
+
+        private void TrackSetTitles()
+        {
+            if (!_setRecording) return;
+            double elapsed = (DateTime.UtcNow - _setStartUtc).TotalSeconds;
+            void Watch(DeckPanel panel, bool isA)
+            {
+                if (!panel.IsPlayingDeck) return;
+                string title = panel.CurrentTitle;
+                if (string.IsNullOrWhiteSpace(title)) return;
+                if (isA) { if (title == _setLastTitleA) return; _setLastTitleA = title; }
+                else { if (title == _setLastTitleB) return; _setLastTitleB = title; }
+                _setTracklist.Add($"{FmtTime(elapsed)}  {title}  (Deck {(isA ? "A" : "B")})");
+            }
+            Watch(_panelA, true);
+            Watch(_panelB, false);
+        }
+
+        private void SetRecordTick()
+        {
+            if (!_setRecording) return;
+            double elapsed = (DateTime.UtcNow - _setStartUtc).TotalSeconds;
+            SetRecordButton.Content = $"⏹ Stop Set ({FmtTime(elapsed)})";
+            TrackSetTitles();
+        }
+
+        private void FinishSetRecording()
+        {
+            if (!_setRecording) return;
+            _recorder.Stop();
+            _setRecording = false;
+            double seconds = (DateTime.UtcNow - _setStartUtc).TotalSeconds;
+            SetRecordButton.Content = "🎙 Record My Set";
+            SetRecordButton.Background = new SolidColorBrush(Color.FromRgb(0x2A, 0x30, 0x3C));
+            string listPath = System.IO.Path.ChangeExtension(_setWavPath, ".txt");
+            try
+            {
+                var lines = new List<string>
+                {
+                    $"BeatSync Set — {DateTime.Now:ddd MMM d, yyyy, h:mm tt}",
+                    $"Duration: {FmtTime(seconds)}   Tracks: {_setTracklist.Count}",
+                    "",
+                    "TRACKLIST"
+                };
+                lines.AddRange(_setTracklist.Count > 0 ? _setTracklist : new List<string> { "(no tracks played)" });
+                File.WriteAllLines(listPath, lines);
+                SetStatus($"🎙 Set saved: {_setWavPath} ({FmtTime(seconds)}, {_setTracklist.Count} tracks) — tracklist beside it: {System.IO.Path.GetFileName(listPath)}.");
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"🎙 Set audio saved to {_setWavPath}, but the tracklist couldn't be written: {ex.Message}");
+            }
         }
 
         private void RecordButton_Click(object sender, RoutedEventArgs e)
