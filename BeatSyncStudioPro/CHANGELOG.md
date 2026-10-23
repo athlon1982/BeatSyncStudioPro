@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.102 — Deck Visuals Fixed + Reset-to-Defaults
+- **The deck visuals actually dance now.** Root cause found by testing the live board: the deck spectrum's auto-gain floor was 6x higher than the (working) top master strip's, so every one of the 12 visual styles rendered squashed into the bottom quarter of its strip and looked dead. The deck scaling now matches the master strip's proven recipe, the radial style reaches the full strip height, and the Spectrum+Peaks caps fall at a visible rate instead of lingering.
+- **New per-deck "Reset" button** (top-right of each deck, beside Tags): one click restores tempo 0%, the original key (any key shift rendered back), clears a hand-typed BPM, flattens the channel EQ, puts gain + fader back at unity, and turns loop / scratch / slip off. The song stays loaded.
+- Verified live on the board: Play/Pause, the Visual picker (all 13 choices), Quantize, Scratch and Slip toggles, channel strips and the top spectrum all respond; the deck strip fault was the scaling above, not the picker.
+
 ## Version 3.101 — Radio Drops: Empty Pads Explain Themselves
 - **Fix for "the radio drops don't do anything":** the pads ship unassigned on purpose (they're for YOUR voice tags), but clicking an empty pad only printed a faint status line — so they looked broken. Now **clicking an empty pad opens the sound picker immediately**: pick any WAV/MP3 and that pad is live. The pads also say "click: assign a sound" on their face.
 - **Event Mode says it out loud too:** tapping an unassigned drop there now flashes a big amber warning naming the pad and where to assign its sound, instead of silence.

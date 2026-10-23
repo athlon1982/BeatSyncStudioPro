@@ -581,6 +581,15 @@ namespace BeatSyncStudioPro
         private void ChAReset_Click(object sender, RoutedEventArgs e) => ResetChannelStrip(ChAGainKnob, ChAHiKnob, ChAMidKnob, ChALowKnob, ChAFader, "A");
         private void ChBReset_Click(object sender, RoutedEventArgs e) => ResetChannelStrip(ChBGainKnob, ChBHiKnob, ChBMidKnob, ChBLowKnob, ChBFader, "B");
 
+        /// <summary>v3.102: per-deck full reset — the deck panel's Reset
+        /// button resets its own controls, then calls this for the mixer's
+        /// channel strip half (gain / EQ / fader).</summary>
+        public void ResetChannelStripFor(bool deckA)
+        {
+            if (deckA) ResetChannelStrip(ChAGainKnob, ChAHiKnob, ChAMidKnob, ChALowKnob, ChAFader, "A");
+            else ResetChannelStrip(ChBGainKnob, ChBHiKnob, ChBMidKnob, ChBLowKnob, ChBFader, "B");
+        }
+
         private void ResetChannelStrip(KnobControl gain, KnobControl hi, KnobControl mid, KnobControl low, Slider fader, string which)
         {
             gain.Value = 1.0;
@@ -2842,8 +2851,16 @@ namespace BeatSyncStudioPro
                 _tagsButton.IsEnabled = false;
                 _tagsButton.ToolTip = "See everything tagged inside this file — title, artist, album, cover art and more.";
                 _tagsButton.Click += (s, e) => ShowTags();
-                Grid.SetColumn(_tagsButton, 2);
-                headerGrid.Children.Add(_tagsButton);
+                var deckResetBtn = MakeButton("⟲ Reset", 74);
+                deckResetBtn.VerticalAlignment = VerticalAlignment.Top;
+                deckResetBtn.Margin = new Thickness(0, 0, 6, 0);
+                deckResetBtn.ToolTip = "Reset THIS deck to defaults: tempo 0%, original key, manual BPM cleared, EQ flat, gain + fader at unity, loop off, scratch/slip off.";
+                deckResetBtn.Click += async (s, e) => await ResetDeckToDefaults();
+                var headerBtns = new StackPanel { Orientation = Orientation.Horizontal };
+                headerBtns.Children.Add(deckResetBtn);
+                headerBtns.Children.Add(_tagsButton);
+                Grid.SetColumn(headerBtns, 2);
+                headerGrid.Children.Add(headerBtns);
                 root.Children.Add(headerGrid);
 
                 // v3.40 compact board: two-column zones so the whole deck fits
@@ -3738,7 +3755,11 @@ namespace BeatSyncStudioPro
                 var scaled = new double[bands.Length];
                 float frameMax = 0;
                 for (int i = 0; i < bands.Length; i++) frameMax = Math.Max(frameMax, bands[i]);
-                _specPeak = Math.Max(Math.Max(frameMax, _specPeak * 0.994f), 0.12f);
+                // v3.102: floor 0.02, the master strip's proven value — the old
+                // 0.12 floor squashed every deck visual into the bottom quarter
+                // of its strip, so all 12 styles looked dead (Michael:
+                // "the visuals aren't working"). Same math as DrawMasterSpectrum.
+                _specPeak = Math.Max(Math.Max(frameMax, _specPeak * 0.994f), 0.02f);
                 for (int i = 0; i < bands.Length; i++)
                     scaled[i] = Math.Clamp(Math.Sqrt(bands[i] / _specPeak) * 0.95, 0, 1);
                 return scaled;
@@ -3849,7 +3870,7 @@ namespace BeatSyncStudioPro
                         {
                             double h = Math.Max(1, v[i] * (H - 6));
                             dc.DrawRectangle((Brush)viz, null, new Rect(i * bw + 1, H - h, bw - 2, h));
-                            _peakCaps[i] = Math.Max((float)v[i], _peakCaps[i] - 0.008f);
+                            _peakCaps[i] = Math.Max((float)v[i], _peakCaps[i] - 0.03f);
                             double capY = H - 2 - _peakCaps[i] * (H - 6);
                             dc.DrawRectangle(Brushes.White, null, new Rect(i * bw + 1, capY, bw - 2, 2));
                         }
@@ -3871,7 +3892,7 @@ namespace BeatSyncStudioPro
                         for (int i = 0; i < n; i++)
                         {
                             double a = i / (double)n * Math.PI * 2 - Math.PI / 2;
-                            double r0 = 10, r1 = 10 + v[i] * 15;
+                            double r0 = 10, r1 = 10 + v[i] * (H / 2.0 - 4);
                             dc.DrawLine(pen,
                                 new Point(center.X + Math.Cos(a) * r0, center.Y + Math.Sin(a) * r0),
                                 new Point(center.X + Math.Cos(a) * r1, center.Y + Math.Sin(a) * r1));
@@ -4987,6 +5008,29 @@ namespace BeatSyncStudioPro
                 }
                 _deck.BeginLoop(beats);
                 _window.SetStatus($"{_name}: looping {beats} beats from here.");
+            }
+
+            /// <summary>v3.102 (Michael's ask): one click puts this deck back
+            /// to defaults — tempo, key, manual BPM, channel strip, loop,
+            /// scratch/slip. The song itself stays loaded and playing state
+            /// is untouched.</summary>
+            public async Task ResetDeckToDefaults()
+            {
+                _tempoSlider.Value = 0;                       // fires SetTempo → 0%
+                if (!string.IsNullOrWhiteSpace(_bpmBox.Text)) { _bpmBox.Text = ""; ApplyBpmBox(); }
+                if (KeyShiftSemitones != 0)
+                {
+                    KeyShiftSemitones = 0;
+                    _keySyncBtn.Background = PanelBtn;
+                    await ReRenderKeyBufferAsync();
+                    _window.RefreshKeyCompatibility();
+                }
+                if (_deck.LoopBeats != 0) SetLoop(0);
+                if (_scratchOn) SetScratch(false);
+                if (_deck.SlipMode) SetSlip(false);
+                SetChannelVolume(1.0);
+                _window.ResetChannelStripFor(_name == "DECK A");
+                _window.SetStatus($"{_name}: reset to defaults — tempo 0%, original key, EQ flat, gain + fader at unity, loop off.");
             }
 
             public void Refresh()
