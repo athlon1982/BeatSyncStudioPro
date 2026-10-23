@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.93 — Chat Song Requests (Twitch + YouTube)
+- **Viewers can now request songs from stream chat:** typing `!request Song Name` (or `!songrequest …`) in your Twitch or YouTube live chat lands in the same Listener Requests list as the web request page — each request shows where it came from.
+- **Setup lives in the Requests window** (new Chat Requests panel): Twitch needs only your channel name — the monitor watches chat read-only and anonymously, no Twitch login or password. YouTube needs the live video's ID plus your own free YouTube Data API key, saved encrypted on this PC; BeatSync finds the live chat from the video ID itself.
+- Requests from chat carry the viewer's name, respect the same waiting-list limits, and can be dismissed/cleared exactly like web requests. Twitch reconnects by itself if the connection drops; YouTube polls at the interval YouTube asks for and never replays old chat.
+
 ## Version 3.92 — Tunable Mic Auto-Duck
 - **The mic auto-duck is now a proper radio talk control.** It was already dipping the music when you talked; now it holds the dip through the natural pauses between words instead of letting the music surge back mid-sentence, then releases smoothly when you are done.
 - **Three duck depths:** Light (music at 50%), Radio (30%), and Deep (15%), selectable right under the mic controls.
