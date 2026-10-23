@@ -1872,6 +1872,18 @@ namespace BeatSyncStudioPro
         // v3.88: shared with the DJ window's live streaming — open (or
         // raise) the Output window, and report its on-screen rectangle
         // so the streamer can capture exactly that region.
+        // v3.94: stream overlay lines, pushed by the DJ window and held
+        // here so the Output window shows the latest values whenever it
+        // is (re)opened.
+        private string _overlayNow = "", _overlayListeners = "", _overlayRequest = "";
+        private bool _overlayVisible = true;
+
+        internal void SetStreamOverlay(string nowPlaying, string listeners, string latestRequest, bool visible)
+        {
+            _overlayNow = nowPlaying; _overlayListeners = listeners; _overlayRequest = latestRequest; _overlayVisible = visible;
+            _outputWindow?.ApplyOverlay(nowPlaying, listeners, latestRequest, visible);
+        }
+
         internal void ShowOutputWindow()
         {
             if (_outputWindow == null)
@@ -1879,6 +1891,7 @@ namespace BeatSyncStudioPro
                 _outputWindow = new OutputWindow(this) { Owner = this };
                 _outputWindow.Closed += (s, ev) => _outputWindow = null;
                 _outputWindow.Show();
+                _outputWindow.ApplyOverlay(_overlayNow, _overlayListeners, _overlayRequest, _overlayVisible);
             }
             else
             {

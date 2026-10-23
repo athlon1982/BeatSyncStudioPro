@@ -52,6 +52,14 @@
             <local:ProjectMHost x:Name="ProjectMView" Visibility="Collapsed"/>
             <TextBlock x:Name="IdleLabel" Text="BeatSync Studio Pro" Foreground="#2E3442" FontSize="28" FontWeight="Bold"
                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <Border x:Name="OverlayCard" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="18"
+                    Background="#B30B0E14" CornerRadius="10" Padding="14,10" MaxWidth="620" Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock x:Name="OverlayNow" Text="" Foreground="White" FontSize="17" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock x:Name="OverlayListeners" Text="" Foreground="#A0A5B5" FontSize="13" Margin="0,2,0,0"/>
+                    <TextBlock x:Name="OverlayRequest" Text="" Foreground="#E8C766" FontSize="13" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+            </Border>
         </Grid>
     </Grid>
 </Window>

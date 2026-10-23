@@ -410,6 +410,11 @@
                                     Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
                                     ToolTip="Go Live: stream the Output (visuals) window and the DJ mix to YouTube, Facebook, TikTok, or any RTMP address. Paste your stream key once — it stays encrypted on this PC."/>
                         </Grid>
+                        <Grid Margin="0,8,0,0">
+                            <Button x:Name="OverlayButton" Content="&#x1F4FA; Stream Overlay: ON" Click="OverlayButton_Click" Height="32" Style="{StaticResource HwButton}"
+                                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                    ToolTip="Stream overlay: a Now Playing card on the Output window — current song, Rad-Dad Radio listener count, and the latest listener request. It is part of the picture your stream sends out."/>
+                        </Grid>
                     </StackPanel>
                     <TextBlock x:Name="DjStatus" Text="Load a song on each deck and mix." Foreground="#A0A5B5" FontSize="11"
                                TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,8,0,0"/>

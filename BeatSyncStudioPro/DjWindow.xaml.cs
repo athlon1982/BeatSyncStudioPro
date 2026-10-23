@@ -81,6 +81,12 @@ namespace BeatSyncStudioPro
         private CompanionWindow? _companionWindow;
         private RequestsWindow? _requestsWindow;
         private ChatRequestMonitor _chatRequests = null!;
+        private bool _overlayOn = true;
+        private int _overlayTicks;
+        private int _overlayRounds;
+        private int _listenerCount = -1;
+        private bool _icecastBusy;
+        private static readonly System.Net.Http.HttpClient IcecastHttp = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(3) };
         private int _lastReqCount = -1;
         internal CompanionServer Companion => _companion;
         internal void StartCompanionServer() => _companion.Start(CompanionServer.LoadSettings().Port);
@@ -203,6 +209,7 @@ namespace BeatSyncStudioPro
                 SafeTick("companion", DrainCompanion);
                 SafeTick("setrec", SetRecordTick);
                 SafeTick("stream", StreamTick);
+                SafeTick("overlay", OverlayTick);
             };
             InitMidi();
             _timer.Start();
@@ -2129,6 +2136,53 @@ namespace BeatSyncStudioPro
             {
                 _streamLabel = label;
                 StreamButton.Content = label;
+            }
+        }
+
+        private void OverlayButton_Click(object sender, RoutedEventArgs e)
+        {
+            _overlayOn = !_overlayOn;
+            OverlayButton.Content = _overlayOn ? "\U0001F4FA Stream Overlay: ON" : "\U0001F4FA Stream Overlay: OFF";
+            _overlayTicks = 999; // refresh on the next tick
+            SetStatus(_overlayOn ? "📺 Stream overlay on — Now Playing shows on the Output window." : "📺 Stream overlay off.");
+        }
+
+        private void OverlayTick()
+        {
+            _overlayTicks++;
+            if (_overlayTicks < 20) return; // every ~2 seconds
+            _overlayTicks = 0;
+
+            string now = OverlayData.PickNowPlaying(
+                _deckA.IsPlaying, _deckA.Title, _deckB.IsPlaying, _deckB.Title, XfadeSlider.Value / 1000.0);
+            string listeners = _listenerCount >= 0
+                ? $"\U0001F3A7 {_listenerCount} listening on Rad-Dad Radio"
+                : "\U0001F3A7 Rad-Dad Radio";
+            string latest = "";
+            var reqs = _companion.SnapshotRequests();
+            if (reqs.Count > 0)
+            {
+                var r = reqs[reqs.Count - 1];
+                latest = "\U0001F4E8 Latest request: " + r.Song +
+                    (string.IsNullOrWhiteSpace(r.Name) ? "" : " — " + r.Name);
+            }
+            _owner.SetStreamOverlay(now, listeners, latest, _overlayOn);
+
+            _overlayRounds++;
+            if (!_icecastBusy && _overlayRounds % 7 == 1)
+            {
+                _icecastBusy = true;
+                _ = System.Threading.Tasks.Task.Run(async () =>
+                {
+                    try
+                    {
+                        string json = await IcecastHttp.GetStringAsync("http://127.0.0.1:8000/status-json.xsl");
+                        int n = OverlayData.ParseListenerCount(json);
+                        if (n >= 0) _listenerCount = n;
+                    }
+                    catch { }
+                    finally { _icecastBusy = false; }
+                });
             }
         }
 

@@ -70,6 +70,23 @@ namespace BeatSyncStudioPro
             Closed += (s, e) => { try { ProjectMView.Dispose(); } catch { } };
         }
 
+        // ---------------- Stream overlay (v3.94) ----------------
+
+        /// <summary>The DJ window pushes fresh overlay lines every few
+        /// seconds; empty lines hide, and the card hides when blank/off.</summary>
+        public void ApplyOverlay(string nowPlaying, string listeners, string latestRequest, bool visible)
+        {
+            if (!Dispatcher.CheckAccess()) { Dispatcher.BeginInvoke(() => ApplyOverlay(nowPlaying, listeners, latestRequest, visible)); return; }
+            OverlayNow.Text = string.IsNullOrWhiteSpace(nowPlaying) ? "" : "🎵 " + nowPlaying;
+            OverlayListeners.Text = listeners ?? "";
+            OverlayRequest.Text = latestRequest ?? "";
+            OverlayNow.Visibility = OverlayNow.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            OverlayListeners.Visibility = OverlayListeners.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            OverlayRequest.Visibility = OverlayRequest.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            OverlayCard.Visibility = visible && (OverlayNow.Text.Length > 0 || OverlayListeners.Text.Length > 0 || OverlayRequest.Text.Length > 0)
+                ? Visibility.Visible : Visibility.Collapsed;
+        }
+
         // ---------------- Sync with the main player ----------------
 
         private void SyncTick(object? sender, EventArgs e)
