@@ -1866,6 +1866,14 @@ namespace BeatSyncStudioPro
 
         private void BtnOutput_Click(object sender, RoutedEventArgs e)
         {
+            ShowOutputWindow();
+        }
+
+        // v3.88: shared with the DJ window's live streaming — open (or
+        // raise) the Output window, and report its on-screen rectangle
+        // so the streamer can capture exactly that region.
+        internal void ShowOutputWindow()
+        {
             if (_outputWindow == null)
             {
                 _outputWindow = new OutputWindow(this) { Owner = this };
@@ -1874,8 +1882,30 @@ namespace BeatSyncStudioPro
             }
             else
             {
+                if (_outputWindow.WindowState == WindowState.Minimized)
+                    _outputWindow.WindowState = WindowState.Normal;
                 _outputWindow.Activate();
             }
+        }
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct RECT { public int Left, Top, Right, Bottom; }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool IsIconic(IntPtr hWnd);
+
+        internal bool TryGetOutputWindowScreenRect(out int x, out int y, out int w, out int h)
+        {
+            x = 0; y = 0; w = 0; h = 0;
+            if (_outputWindow == null) return false;
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(_outputWindow).Handle;
+            if (hwnd == IntPtr.Zero || IsIconic(hwnd)) return false;
+            if (!GetWindowRect(hwnd, out RECT r)) return false;
+            x = r.Left; y = r.Top; w = r.Right - r.Left; h = r.Bottom - r.Top;
+            return w > 50 && h > 50;
         }
 
         // =========================

@@ -36,6 +36,9 @@ namespace BeatSyncStudioPro
         private readonly VolumeSampleProvider _xfadeB;
         private readonly VolumeSampleProvider _masterGain;
         private readonly RecordingSampleProvider _recorder;
+        private readonly StreamAudioSink _streamSink;
+        internal StreamEngine Streamer { get; }
+        private StreamWindow? _streamWindow;
         private readonly AudioTapSampleProvider _masterTap;
         private readonly DrawingVisual _masterVisual = new DrawingVisual();
         private RenderTargetBitmap? _masterBmp;
@@ -135,8 +138,21 @@ namespace BeatSyncStudioPro
             _micGain = new VolumeSampleProvider(ClipFxChain.Apply(_mic, _mic.Fx)) { Volume = 0f };
             finalMix.AddMixerInput(_micGain);
             _masterTap = new AudioTapSampleProvider(finalMix);
-            _recorder = new RecordingSampleProvider(_masterTap);
+            _streamSink = new StreamAudioSink(_masterTap);
+            _recorder = new RecordingSampleProvider(_streamSink);
             _owner.AttachDjMixer(_recorder);
+            // v3.88: live streaming (Output window video + master audio
+            // to RTMP via ffmpeg). The rect provider reads the Output
+            // window's screen rectangle from the main window.
+            Streamer = new StreamEngine(_streamSink, () =>
+                _owner.TryGetOutputWindowScreenRect(out int sx, out int sy, out int sw, out int sh)
+                    ? (true, sx, sy, sw, sh) : (false, 0, 0, 0, 0));
+            Streamer.EnsureOutputSurface = () => _owner.Dispatcher.Invoke(() => _owner.ShowOutputWindow());
+            Streamer.Failed += msg => Dispatcher.BeginInvoke(() =>
+            {
+                SetStatus("\U0001F534 Live stream stopped: " + msg);
+                RefreshStreamButton();
+            });
             djMaster.AddMixerInput(_sampler.Output);
             SamplerVolumeKnob.ValueChanged += (s, e) => _sampler.Output.Volume = (float)SamplerVolumeKnob.Value;
             BuildSamplerPads();
@@ -183,6 +199,7 @@ namespace BeatSyncStudioPro
                 SafeTick("mixer", MixerTick);
                 SafeTick("companion", DrainCompanion);
                 SafeTick("setrec", SetRecordTick);
+                SafeTick("stream", StreamTick);
             };
             InitMidi();
             _timer.Start();
@@ -200,7 +217,7 @@ namespace BeatSyncStudioPro
                 Left = wa.Left + Math.Max(0, (wa.Width - ActualWidth) / 2);
                 Top = wa.Top + Math.Max(0, (wa.Height - ActualHeight) / 2);
             };
-            Closed += (s, e) => { if (_setRecording) FinishSetRecording(); _timer.Stop(); _recorder.Stop(); _owner.DetachDjMixer(_recorder); _mic.Dispose(); _companion.Stop(); };
+            Closed += (s, e) => { if (_setRecording) FinishSetRecording(); _timer.Stop(); _recorder.Stop(); _owner.DetachDjMixer(_recorder); _mic.Dispose(); _companion.Stop(); Streamer.Stop(); };
         }
 
         // v3.40: snappy, long-lived hover help on every element in the window.
@@ -2070,6 +2087,36 @@ namespace BeatSyncStudioPro
                 _companionWindow.Show();
             }
             else _companionWindow.Activate();
+        }
+
+        private void StreamButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_streamWindow == null)
+            {
+                _streamWindow = new StreamWindow(Streamer) { Owner = this };
+                _streamWindow.Closed += (s2, e2) => _streamWindow = null;
+                _streamWindow.Show();
+            }
+            else _streamWindow.Activate();
+        }
+
+        private string _streamLabel = "";
+
+        private void StreamTick()
+        {
+            RefreshStreamButton();
+        }
+
+        private void RefreshStreamButton()
+        {
+            string label = Streamer.IsLive
+                ? $"\U0001F534 LIVE {(DateTime.UtcNow - Streamer.LiveSinceUtc):hh:mm:ss}"
+                : "\U0001F534 Go Live";
+            if (label != _streamLabel)
+            {
+                _streamLabel = label;
+                StreamButton.Content = label;
+            }
         }
 
         private void RequestsButton_Click(object sender, RoutedEventArgs e)
