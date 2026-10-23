@@ -118,6 +118,7 @@ namespace BeatSyncStudioPro
         private static readonly Brush KeyNeutralBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
         private double _fadeFrom, _fadeTo, _fadeElapsed, _fadeDuration = 8;
         private string _fxTarget = "";
+        private readonly DuckingController _ducking = new DuckingController();
 
         public DjWindow(MainWindow owner)
         {
@@ -2066,13 +2067,23 @@ namespace BeatSyncStudioPro
 
         private void MicTick()
         {
-            // Auto-duck: talking pulls the MUSIC down (never the mic), fast
-            // attack, slow release; otherwise the master slider rules.
-            bool ducking = _micOn && MicDuckBox.IsChecked == true && _mic.Level > 0.03f;
-            float target = ducking ? _musicLevel * 0.35f : _musicLevel;
-            float cur = _masterGain.Volume;
-            float factor = target < cur ? 0.5f : 0.12f;
-            _masterGain.Volume = cur + (target - cur) * factor;
+            // v3.92: the controller holds the duck through natural pauses
+            // between words, then releases smoothly. Depth is DJ-selectable.
+            float duckDepth = MicDuckDepthPicker.SelectedIndex switch
+            {
+                0 => 0.50f,
+                2 => 0.15f,
+                _ => 0.30f
+            };
+            _masterGain.Volume = _ducking.Update(
+                MicDuckBox.IsChecked == true, _micOn, _mic.Level, _musicLevel, duckDepth, 0.1f);
+            if (MicDuckState != null)
+            {
+                MicDuckState.Text = _ducking.IsDucking ? "DUCKING" : (_micOn ? "AUTO-DUCK READY" : "AUTO-DUCK OFF");
+                MicDuckState.Foreground = _ducking.IsDucking
+                    ? new SolidColorBrush(Color.FromRgb(0xE8, 0xC7, 0x66))
+                    : new SolidColorBrush(Color.FromRgb(0x59, 0x63, 0x7A));
+            }
             if (_micGain != null) _micGain.Volume = _micOn ? (float)MicLevelKnob.Value : 0f;
             if (MicMeterFill != null && MicMeterGrid != null)
                 MicMeterFill.Width = _micOn ? Math.Clamp(_mic.Level, 0f, 1f) * MicMeterGrid.ActualWidth : 0;
