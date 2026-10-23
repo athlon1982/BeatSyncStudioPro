@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.94 — Stream Overlay (Now Playing Card)
+- **The Output window now carries a stream overlay card** (bottom-left): the song that's actually audible (picked by which deck is playing and where the crossfader sits), the live Rad-Dad Radio listener count from the local Icecast server, and the latest listener request with the requester's name.
+- It updates itself every couple of seconds, hides lines that have nothing to say, and is part of the picture Go Live sends to YouTube/Twitch/Facebook — open the Output window and your viewers see what's playing and feel the requests landing.
+- **📺 Stream Overlay button** under Go Live turns the card on or off. If the Output window is opened later, it picks up the latest overlay automatically.
+
 ## Version 3.93 — Chat Song Requests (Twitch + YouTube)
 - **Viewers can now request songs from stream chat:** typing `!request Song Name` (or `!songrequest …`) in your Twitch or YouTube live chat lands in the same Listener Requests list as the web request page — each request shows where it came from.
 - **Setup lives in the Requests window** (new Chat Requests panel): Twitch needs only your channel name — the monitor watches chat read-only and anonymously, no Twitch login or password. YouTube needs the live video's ID plus your own free YouTube Data API key, saved encrypted on this PC; BeatSync finds the live chat from the video ID itself.
