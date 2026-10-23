@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.96 — Play-and-Encode (FLAC / MP3 / WAV, your spec)
+- **New 💾 ENCODE button on every deck:** encodes the song loaded on that deck to a file in the format YOU pick — **FLAC** (lossless), **MP3** (320 / 256 / 192 / 128 kbps), or **WAV** — at **44.1 kHz or 48 kHz**, 16- or 24-bit for FLAC/WAV.
+- **Built for your Suno songs:** stream a song from the Suno tab onto a deck, hit Encode, and the file is rendered from what the deck plays. **Suno's Download button is never used, so your monthly download quota is untouched.** It works for local files too — anything a deck can play, it can encode.
+- Encodes land in Music\BeatSync Encodes by default (pick any folder in the window); existing files are never overwritten — the new one gets a (2), (3)… name.
+
 ## Version 3.95 — Library Deep-Scan
 - **The Song Library's analyze button is now 🔍 Deep-Scan Library:** one click walks EVERY song in the library and fills in whatever analysis is missing — BPM, musical key, and (new) energy — writing BPM/key into the library entries and warming the energy cache.
 - **Why it matters:** the Set Builder's energy planner, the key-fit dots, and Suggest Next all read these results. After one deep-scan they answer instantly for your whole library instead of analyzing songs one at a time as you bump into them.
