@@ -3,6 +3,12 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.78 — Set Builder (Crates)
+- **Plan the set before you play it:** Tools → **🧺 Set Builder** opens the crate workshop. Create named crates (Friday Warm-Up, Parade Set, whatever), then click songs in your Song Library to add them — filter box up top, double-click adds too, duplicates are refused politely.
+- **Shape the order:** Up/Down buttons, Remove, and a **📈 Sort by BPM** that ramps the crate slowest → fastest for an energy build (songs you haven't analyzed yet go last, with a nudge to analyze them in the Library). The header always shows the running total: song count, full set length, and BPM range.
+- **Perform it in one click:** **▶ Queue Whole Crate on Deck A** (or B) drops the entire crate, in order, into that deck's track list — then Auto-play or Cruise performs your set while Record My Set captures it.
+- Crates are saved on this PC (they survive restarts), and each song keeps the BPM/key/length it had when you added it.
+
 ## Version 3.77 — Record My Set
 - **One click, whole set:** the new **🎙 Record My Set** button in the mixer starts recording instantly — no file dialog, no naming to think about mid-performance. The button counts up while you play (⏹ Stop Set (12:34)).
 - **It lands in Music\BeatSync Sets**, auto-named with the date and time (`Set 2026-10-22 8-45 PM.wav`).

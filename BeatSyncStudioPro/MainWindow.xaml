@@ -218,6 +218,7 @@
                 <MenuItem Header="🏛️ Internet Archive Music..." Click="BtnArchive_Click"/>
                 <MenuItem Header="🎵 Jamendo Music..." Click="BtnJamendo_Click"/>
                 <MenuItem Header="🎵 Song Library..." Click="BtnSongLibrary_Click"/>
+                <MenuItem Header="🧺 Set Builder..." Click="BtnSetBuilder_Click"/>
                 <Separator/>
                 <MenuItem Header="🥁 Patterns..." Click="BtnPatterns_Click"/>
                 <MenuItem Header="🎹 Piano Roll..." Click="BtnPianoRoll_Click"/>

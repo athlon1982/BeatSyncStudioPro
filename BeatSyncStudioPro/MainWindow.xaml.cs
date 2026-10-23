@@ -62,6 +62,7 @@ namespace BeatSyncStudioPro
         private OutputWindow? _outputWindow;
         private DjWindow? _djWindow;
         private SongLibraryWindow? _songLibraryWindow;
+        private SetBuilderWindow? _setBuilderWindow;
 
         /// <summary>Master-bus tap feeding the Output window's visualizations.</summary>
         public AudioTapSampleProvider? AudioTap { get; private set; }
@@ -1276,6 +1277,20 @@ namespace BeatSyncStudioPro
             }
         }
 
+        private void BtnSetBuilder_Click(object sender, RoutedEventArgs e)
+        {
+            if (_setBuilderWindow == null)
+            {
+                _setBuilderWindow = new SetBuilderWindow(this) { Owner = this };
+                _setBuilderWindow.Closed += (s, ev) => _setBuilderWindow = null;
+                _setBuilderWindow.Show();
+            }
+            else
+            {
+                _setBuilderWindow.Activate();
+            }
+        }
+
         /// <summary>Send a song from the 🎵 Song Library to a DJ deck —
         /// loaded right onto it, or appended to its track list. Opens
         /// the DJ board first when it isn't open yet.</summary>
@@ -1380,6 +1395,7 @@ namespace BeatSyncStudioPro
                 new("Mixer", "View", "Ctrl+M", () => BtnMixer_Click(this, ev)),
                 new("DJ Decks", "View", "Ctrl+Shift+D", () => BtnDj_Click(this, ev)),
                 new("Song Library…", "Tools", "", () => BtnSongLibrary_Click(this, ev)),
+                new("Set Builder…", "Tools", "", () => BtnSetBuilder_Click(this, ev)),
                 new("Output Window", "View", "Ctrl+Shift+O", () => BtnOutput_Click(this, ev)),
                 new("Monitor FX", "View", "Ctrl+Shift+M", () => BtnMonitorFx_Click(this, ev)),
                 new("Transcript…", "View", "", () => BtnTranscript_Click(this, ev)),

@@ -36,6 +36,13 @@ namespace BeatSyncStudioPro
         public string DisplayTitle => Title.Length > 0 ? Title : System.IO.Path.GetFileNameWithoutExtension(Path);
 
         [JsonIgnore]
+        public string SubLine =>
+            (Artist.Length > 0 ? Artist + " · " : "")
+            + (Bpm > 0 ? $"{Bpm:0.#} BPM" : "BPM ?")
+            + (Key.Length > 0 ? " · " + Key : "")
+            + (Seconds > 0 ? $" · {(int)Seconds / 60}:{(int)Seconds % 60:D2}" : "");
+
+        [JsonIgnore]
         public string LengthText => Seconds > 0 ? TimeSpan.FromSeconds(Seconds).ToString(@"m\:ss") : "";
 
         [JsonIgnore]
