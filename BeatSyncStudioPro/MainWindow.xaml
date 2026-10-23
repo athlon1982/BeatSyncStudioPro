@@ -166,7 +166,7 @@
                     <Image Source="/Assets/app-icon.png" Width="34" Height="34"/>
                     <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="19" FontWeight="Bold" Effect="{StaticResource GlowText}"><Run Text="BEATSYNC" Foreground="#FFFFFF"/><Run Text=" STUDIO PRO" Foreground="#1DB954"/></TextBlock>
                     <Border Background="#1B212E" BorderBrush="#C9A227" BorderThickness="1" CornerRadius="9" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="v3.65" FontSize="11" Foreground="#E8C766" FontWeight="Bold"/>
+                        <TextBlock x:Name="VersionChip" Text="v3.65" FontSize="11" Foreground="#E8C766" FontWeight="Bold"/>
                     </Border>
                 </StackPanel>
             </Grid>
@@ -215,6 +215,7 @@
                 <MenuItem Header="🌐 Freesound Sounds..." Click="BtnFreesound_Click"/>
                 <MenuItem Header="🏛️ Internet Archive Music..." Click="BtnArchive_Click"/>
                 <MenuItem Header="🎵 Jamendo Music..." Click="BtnJamendo_Click"/>
+                <MenuItem Header="🎵 Song Library..." Click="BtnSongLibrary_Click"/>
                 <Separator/>
                 <MenuItem Header="🥁 Patterns..." Click="BtnPatterns_Click"/>
                 <MenuItem Header="🎹 Piano Roll..." Click="BtnPianoRoll_Click"/>

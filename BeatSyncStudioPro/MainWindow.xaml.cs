@@ -61,6 +61,7 @@ namespace BeatSyncStudioPro
 
         private OutputWindow? _outputWindow;
         private DjWindow? _djWindow;
+        private SongLibraryWindow? _songLibraryWindow;
 
         /// <summary>Master-bus tap feeding the Output window's visualizations.</summary>
         public AudioTapSampleProvider? AudioTap { get; private set; }
@@ -219,6 +220,10 @@ namespace BeatSyncStudioPro
         public MainWindow()
         {
             InitializeComponent();
+            // The brand-bar version chip reads the REAL app version so
+            // it can never go stale again (it sat at v3.65 through 3.71).
+            var ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            if (ver != null) VersionChip.Text = $"v{ver.Major}.{ver.Minor}";
             InitializeAudioEngine();
             RenderTimeRulerHeaders();
             RenderStudioGridLanes();
@@ -1236,6 +1241,35 @@ namespace BeatSyncStudioPro
             }
         }
 
+        private void BtnSongLibrary_Click(object sender, RoutedEventArgs e)
+        {
+            if (_songLibraryWindow == null)
+            {
+                _songLibraryWindow = new SongLibraryWindow(this) { Owner = this };
+                _songLibraryWindow.Closed += (s, ev) => _songLibraryWindow = null;
+                _songLibraryWindow.Show();
+            }
+            else
+            {
+                _songLibraryWindow.Activate();
+            }
+        }
+
+        /// <summary>Send a song from the 🎵 Song Library to a DJ deck —
+        /// loaded right onto it, or appended to its track list. Opens
+        /// the DJ board first when it isn't open yet.</summary>
+        public bool SendSongToDeck(bool deckA, string path, bool queueOnly)
+        {
+            try
+            {
+                if (!System.IO.File.Exists(path)) return false;
+                BtnDj_Click(this, new RoutedEventArgs());
+                if (_djWindow == null) return false;
+                return queueOnly ? _djWindow.QueueOnDeck(deckA, path) : _djWindow.LoadOnDeck(deckA, path);
+            }
+            catch { return false; }
+        }
+
         private void BtnDj_Click(object sender, RoutedEventArgs e)
         {
             if (_djWindow == null)
@@ -1311,6 +1345,7 @@ namespace BeatSyncStudioPro
                 new("Toggle Snap to Beat", "Tracks", "", ToggleSnap),
                 new("Mixer", "View", "Ctrl+M", () => BtnMixer_Click(this, ev)),
                 new("DJ Decks", "View", "Ctrl+Shift+D", () => BtnDj_Click(this, ev)),
+                new("Song Library…", "Tools", "", () => BtnSongLibrary_Click(this, ev)),
                 new("Output Window", "View", "Ctrl+Shift+O", () => BtnOutput_Click(this, ev)),
                 new("Monitor FX", "View", "Ctrl+Shift+M", () => BtnMonitorFx_Click(this, ev)),
                 new("Transcript…", "View", "", () => BtnTranscript_Click(this, ev)),

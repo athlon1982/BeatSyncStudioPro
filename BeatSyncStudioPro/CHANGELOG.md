@@ -3,6 +3,13 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.72 — The Song Library: Your Songs, Sorted by Their Tags
+- **New 🎵 Song Library (Tools menu):** a proper crate for full songs, kept separate from the short-sounds library like you asked. Add a **folder** (it scans everything inside), a **ZIP** (the songs are pulled out and kept), or individual **files** — MP3, FLAC, WAV, OGG, M4A and more.
+- **ID tags read automatically:** title, artist, album, genre, year, and any BPM / key already tagged in the file — shown in a grid that **sorts by any column** (click a header: sort by BPM to line up a remix, by key, by artist…). A filter box narrows the list as you type, and picking a song shows its **cover art** and full tag details on the right.
+- **🔍 Analyze BPM + Key:** for songs whose tags don't carry them, one click runs the same BPM and key detectors the DJ decks use and fills them in — so the whole crate is remix-ready.
+- **Straight onto the decks:** ⬇ Load on Deck A / B (double-click a song works too), or ➕ add songs to a deck's track list without loading them. The DJ board opens automatically if it isn't open. The library remembers everything between sessions, and removing a song from the list never deletes the file.
+- **Small fix:** the gold version chip on the main window now reads the app's real version — it had been stuck showing v3.65.
+
 ## Version 3.71 — One Search Box for Every Source + Accounts & Keys
 - **One search box (🔎 Search Sounds & Music):** the search window now opens with a single search box and a scope picker — 🌐 All sources, 🔊 Sounds (Freesound), 🎵 Songs (Archive), 🎵 Songs (Jamendo), or 🎵 All songs. One search hunts everything you picked at once; the counts land in a summary line ("Freesound: 12 · Archive: 30 · Jamendo: 8") and the window jumps to the first tab with results. Each tab keeps its own results list, preview and Add to Library — the tabs' own search rows are retired, since the one box drives them all.
 - **🔑 Accounts & Keys tab:** the key tab is renamed and reorganized into plain sections — one per source — each saying exactly what it needs and what it costs: Internet Archive needs nothing (FREE, always ready), Freesound needs a free account + free API key, Jamendo needs a free developer account + free client ID. Each shows a live ✅ Connected / ⚠️ Not connected status. A "Coming in future updates" section notes Audius and Pixabay (both free keys) and is honest about the two that can't ever connect: Mixkit has no API, and Free Music Archive shut its API down.

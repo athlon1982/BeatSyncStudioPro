@@ -297,6 +297,27 @@ namespace BeatSyncStudioPro
 
         public void SetStatus(string text) => DjStatus.Text = text;
 
+        /// <summary>Load a song file straight onto a deck from outside
+        /// this window (the 🎵 Song Library). False when unreadable.</summary>
+        public bool LoadOnDeck(bool deckA, string path)
+        {
+            try
+            {
+                byte[] bytes = System.IO.File.ReadAllBytes(path);
+                (deckA ? _panelA : _panelB).LoadForMix(bytes, System.IO.Path.GetFileName(path));
+                return true;
+            }
+            catch { return false; }
+        }
+
+        /// <summary>Append a song file to a deck's track list from
+        /// outside this window (the 🎵 Song Library).</summary>
+        public bool QueueOnDeck(bool deckA, string path)
+        {
+            try { (deckA ? _panelA : _panelB).QueuePath(path); return true; }
+            catch { return false; }
+        }
+
         public void OpenFx(TrackFxSettings fx, string name)
         {
             if (_fxWindow == null || _fxTarget != name)
@@ -3693,6 +3714,16 @@ namespace BeatSyncStudioPro
             }
 
             internal System.Collections.Generic.IReadOnlyList<string> QueuePathsSnapshot => _queuePaths.ToArray();
+
+            /// <summary>Append one file to this deck's track list (the
+            /// 🎵 Song Library sends songs here).</summary>
+            internal void QueuePath(string path)
+            {
+                _queuePaths.Add(path);
+                RefreshQueueList();
+                if (_queueIndex < 0)
+                    _window.SetStatus($"{_name}: {_queuePaths.Count} song(s) queued — double-click one (or press Next) to load it.");
+            }
             internal string CurrentTitle => _deck.Title;
             internal bool IsPlayingDeck => _deck.IsPlaying;
             internal double RemainingSeconds => _deck.IsLoaded ? Math.Max(0, _deck.TotalSeconds - _deck.PositionSeconds) : 0;
