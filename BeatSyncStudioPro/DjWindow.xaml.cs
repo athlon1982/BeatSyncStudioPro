@@ -1320,7 +1320,7 @@ namespace BeatSyncStudioPro
                 content.Children.Add(title);
                 content.Children.Add(sub);
                 var btn = new Button { Content = content, Height = 54, Style = (Style)TryFindResource("HwButton"), Margin = new Thickness(3), Background = PadBaseBrush, Foreground = Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand };
-                btn.ToolTip = "Play this sound. Right-click the pad to assign a sound, rename it, or clear it — every pad is programmable.";
+                btn.ToolTip = "Play this sound — hit the pad again while it's playing to stop it. Right-click the pad to assign a sound, rename it, or clear it — every pad is programmable.";
                 btn.Click += (s, e) => TriggerPad(pad);
                 var menu = new ContextMenu();
                 var miAssign = new MenuItem { Header = "🎵 Assign sound…" };
@@ -1329,9 +1329,12 @@ namespace BeatSyncStudioPro
                 miRename.Click += (s, e) => RenamePad(pad);
                 var miClear = new MenuItem { Header = "🧹 Clear sound" };
                 miClear.Click += (s, e) => ClearPad(pad);
+                var miStop = new MenuItem { Header = "⏹ Stop" };
+                miStop.Click += (s, e) => _sampler.StopPad(pad);
                 menu.Items.Add(miAssign);
                 menu.Items.Add(miRename);
                 menu.Items.Add(miClear);
+                menu.Items.Add(miStop);
                 btn.ContextMenu = menu;
                 _padButtons[i] = btn;
                 _padSubs[i] = sub;
@@ -1404,6 +1407,14 @@ namespace BeatSyncStudioPro
             if (!_sampler.Slots[pad].HasSound)
             {
                 SetStatus($"Sampler pad {pad + 1} has no sound yet - right-click it to assign one.");
+                return;
+            }
+            // v3.76: a pad that's still playing STOPS when hit again —
+            // long loops and risers finally have an off switch.
+            if (_sampler.Slots[pad].IsPlaying)
+            {
+                _sampler.StopPad(pad);
+                SetStatus($"⏹ Sampler pad {pad + 1} stopped.");
                 return;
             }
             _owner.EnsureOutputRunning();

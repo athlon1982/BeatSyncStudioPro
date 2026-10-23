@@ -96,6 +96,13 @@ namespace BeatSyncStudioPro
         /// <summary>Cut a preview dead — for sounds that run long.</summary>
         public void StopPreview() => _previewSlot.Clear();
 
+        /// <summary>Cut a pad dead mid-play (v3.76) — pads toggle-stop
+        /// when hit again, and the right-click menu has a Stop item.</summary>
+        public void StopPad(int pad)
+        {
+            if (pad >= 0 && pad < Slots.Length) Slots[pad].Clear();
+        }
+
         /// <summary>True while a preview is actually sounding (drives the
         /// picker's Preview⇄Stop toggle button).</summary>
         public bool PreviewIsPlaying => _previewSlot.IsPlaying;

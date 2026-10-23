@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.76 — Sampler Pads Can Stop Now
+- **Hit a playing pad again and it stops.** One-shot pads used to be fire-and-forget — a long loop or riser, once triggered, played to the end no matter what. Now pads toggle: playing → hit it again → silence, with the pad's lit flash clearing itself. The pad right-click menu gains a **⏹ Stop** item too, and the pad tooltips say how it works.
+- The other stop paths were audited and confirmed working in this pass: the sound picker's Preview ⇄ Stop toggle (previews run through the sampler bus, stop cuts them dead), the main library's Preview ⇄ Stop, and **⏹ Stop Both Decks** in the mixer for mashup playback — it stops and rewinds both decks and ends Cruise if it's running.
+
 ## Version 3.75 — MIDI Controller Support
 - **Real hardware on the DJ board:** plug in any USB MIDI controller and drive the decks with it — the new **🎹 MIDI** button in the DJ board's top bar opens the setup window.
 - **What it drives:** Deck A/B Play-Pause and Cue, the crossfader, both channel faders, and all 8 sampler pads.
