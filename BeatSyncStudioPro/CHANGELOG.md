@@ -3,6 +3,13 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.89 — Set Energy Planner (+ Twitch)
+- **New in 🧺 Set Builder: the Set Energy planner.** Under the crate, a live chart draws the set's energy arc in crate order — each song's energy is **measured** (its actual loudness from decoding the file, blended with its tempo), not guessed. Songs are analyzed once and cached, so the chart is instant after the first look.
+- **Dots are colored by key fit** with the previous song: green = harmonic, yellow = workable, red = clash, gray = key unknown (Camelot). Reorder songs and the arc redraws immediately.
+- **The readout calls the shots:** where the set peaks (and how many minutes in), the biggest energy drop and where it happens, and whether the set builds or winds down.
+- **🔺 Ramp by Energy button:** orders the crate quietest → loudest from the measured scores — a ready-made build-up set. Unanalyzable songs keep their order at the end.
+- **Also: Twitch joins the Go Live destinations** (address prefilled; key from your Creator Dashboard → Settings → Stream), next to YouTube, Facebook, TikTok, and Custom.
+
 ## Version 3.88 — Go Live: Stream the Visuals
 - **New: 🔴 Go Live in the DJ window.** BeatSync can now stream itself: the Output (visuals) window — projectM and all — plus the DJ master mix, pushed live to **YouTube, Facebook, TikTok (LIVE Studio RTMP), or any custom RTMP address** through an ffmpeg encoder process.
 - **How it works, honestly:** the video is a capture of the Output window exactly as it sits on your screen (keep it visible and uncovered while live — anything covering it covers the stream); the audio is a tap on the master bus that can never stall the music (a backed-up stream drops samples, the mix never does). 720p at 30 fps by default, 480p one click away for an easier ride on the PC.

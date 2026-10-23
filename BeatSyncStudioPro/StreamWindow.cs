@@ -36,6 +36,7 @@ namespace BeatSyncStudioPro
         private static readonly (string Name, string Url, bool UrlEditable)[] Destinations =
         {
             ("YouTube", "rtmp://a.rtmp.youtube.com/live2", false),
+            ("Twitch", "rtmp://live.twitch.tv/app", false),
             ("Facebook", "rtmps://live-api-s.facebook.com:443/rtmp", false),
             ("TikTok", "", true),
             ("Custom RTMP", "", true)
@@ -80,6 +81,7 @@ namespace BeatSyncStudioPro
             {
                 Text = "TikTok: paste the RTMP address from LIVE Studio (eligible accounts only), then the key below. " +
                        "YouTube: address is filled in — just paste your stream key from YouTube Studio. " +
+                       "Twitch: key from your Creator Dashboard, Settings, Stream. " +
                        "Facebook: key from Live Producer.",
                 Foreground = new SolidColorBrush(Color.FromRgb(0xA0, 0xA5, 0xB5)),
                 FontSize = 11,
