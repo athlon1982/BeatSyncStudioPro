@@ -61,9 +61,14 @@
                             <Button Content="🎶 Add Files…" Click="AddFiles_Click" Margin="8,0,0,0" Padding="12,6"
                                     Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
                                     ToolTip="Add individual song files"/>
-                            <Button Content="🔍 Analyze BPM + Key" Click="Analyze_Click" Margin="16,0,0,0" Padding="12,6"
+                            <Button Content="🔍 Deep-Scan Library" Click="Analyze_Click" Margin="16,0,0,0" Padding="12,6"
                                     Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
-                                    ToolTip="For the selected songs (or every song missing them): detect BPM and musical key with the same detectors the DJ decks use, for songs whose tags don't carry them"/>
+                                    ToolTip="Deep-scan: walk EVERY song in the library and fill in whatever is missing — BPM, musical key, and energy — so the Set Builder planner, key-fit dots and Suggest Next answer instantly. Runs in the background; cancel any time, progress is kept."/>
+                            <ProgressBar x:Name="ScanProgress" Width="150" Height="10" Minimum="0" Maximum="100" Margin="10,0,0,0"
+                                         VerticalAlignment="Center" Visibility="Collapsed"/>
+                            <Button x:Name="ScanCancelButton" Content="⏹ Cancel Scan" Click="ScanCancel_Click" Margin="8,0,0,0" Padding="10,6"
+                                    Background="#7A2A2A" Foreground="White" BorderThickness="0" Cursor="Hand" Visibility="Collapsed"
+                                    ToolTip="Stop the deep-scan. Everything analyzed so far is kept."/>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Orientation="Horizontal">
                             <TextBlock Text="Filter:" VerticalAlignment="Center" Foreground="#A0A5B5" FontSize="11" Margin="0,0,6,0"/>

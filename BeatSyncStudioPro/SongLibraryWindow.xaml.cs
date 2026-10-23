@@ -178,29 +178,45 @@ namespace BeatSyncStudioPro
 
         // ---------- analyze ----------
 
+        private System.Threading.CancellationTokenSource? _scanCts;
+
         private async void Analyze_Click(object sender, RoutedEventArgs e)
         {
             if (_busy) return;
-            var targets = SelectedSongs().Where(s => s.Bpm <= 0 || s.Key.Length == 0).ToList();
-            if (targets.Count == 0)
-                targets = _songs.Where(s => s.Bpm <= 0 || s.Key.Length == 0).ToList();
-            if (targets.Count == 0)
-            {
-                StatusText.Text = "Every song already has a BPM and a key — nothing to analyze.";
-                return;
-            }
             _busy = true;
-            int done = 0, filled = 0;
-            foreach (var t in targets)
+            _scanCts = new System.Threading.CancellationTokenSource();
+            ScanProgress.Visibility = Visibility.Visible;
+            ScanProgress.Value = 0;
+            ScanCancelButton.Visibility = Visibility.Visible;
+            var progress = new Progress<(int Done, int Total, string Title)>(p =>
             {
-                StatusText.Text = $"Analyzing {++done} of {targets.Count}: {t.DisplayTitle}…";
-                if (await SongLibraryStore.AnalyzeAsync(t)) filled++;
+                ScanProgress.Value = p.Total > 0 ? p.Done * 100.0 / p.Total : 0;
+                StatusText.Text = $"Deep-scanning {p.Done} of {p.Total}: {p.Title}…";
+            });
+            try
+            {
+                var r = await LibraryDeepScan.ScanAsync(progress, _scanCts.Token);
+                SongGrid.Items.Refresh();
+                StatusText.Text = r.Cancelled
+                    ? $"Deep-scan stopped — progress kept. {r.Completed} song(s) completed before stopping."
+                    : $"Deep-scan done — {r.Completed} song(s) analyzed (BPM {r.BpmFilled} new, key {r.KeyFilled} new, energy ready on {r.EnergyFilled}), " +
+                      $"{r.AlreadyDone} already complete, {r.Skipped} skipped (file missing or unreadable).";
             }
-            _busy = false;
-            SongLibraryStore.Save(_songs.ToList());
-            SongGrid.Items.Refresh();
-            StatusText.Text = $"Analysis done — filled BPM / key on {filled} of {targets.Count} song(s).";
+            catch (Exception ex)
+            {
+                StatusText.Text = "Deep-scan hit a problem: " + ex.Message;
+            }
+            finally
+            {
+                _busy = false;
+                _scanCts?.Dispose();
+                _scanCts = null;
+                ScanProgress.Visibility = Visibility.Collapsed;
+                ScanCancelButton.Visibility = Visibility.Collapsed;
+            }
         }
+
+        private void ScanCancel_Click(object sender, RoutedEventArgs e) => _scanCts?.Cancel();
 
         // ---------- decks ----------
 
