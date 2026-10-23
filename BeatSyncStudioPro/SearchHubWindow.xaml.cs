@@ -21,6 +21,7 @@ namespace BeatSyncStudioPro
         private readonly ArchiveSearchControl _ia;
         private readonly JamendoSearchControl _jm;
         private readonly AudiusSearchControl _au;
+        private readonly PixabaySearchControl _px;
 
         public SearchHubWindow(MainWindow owner, int startTab)
         {
@@ -29,23 +30,28 @@ namespace BeatSyncStudioPro
             _ia = new ArchiveSearchControl(owner);
             _jm = new JamendoSearchControl(owner);
             _au = new AudiusSearchControl(owner);
+            _px = new PixabaySearchControl(owner);
             FsTab.Content = _fs;
             IaTab.Content = _ia;
             JamTab.Content = _jm;
             AuTab.Content = _au;
+            PxTab.Content = _px;
             KeyBox.Password = FreesoundSearchControl.LoadKey();
             _fs.KeyProvider = () => KeyBox.Password;
             JamKeyBox.Password = JamendoSearchControl.LoadKey();
             _jm.KeyProvider = () => JamKeyBox.Password;
+            PxKeyBox.Password = PixabaySearchControl.LoadKey();
+            _px.KeyProvider = () => PxKeyBox.Password;
             // v3.71: the hub's one search box drives all three panels, so
             // each panel's own header + search row hides itself.
             _fs.HideOwnChrome();
             _ia.HideOwnChrome();
             _jm.HideOwnChrome();
             _au.HideOwnChrome();
+            _px.HideOwnChrome();
             RefreshAccountStatus();
-            Tabs.SelectedIndex = startTab is 1 or 2 or 3 ? startTab : 0;
-            Closed += (s, e) => { _fs.StopPreview(); _ia.StopPreview(); _jm.StopPreview(); _au.StopPreview(); };
+            Tabs.SelectedIndex = startTab is 1 or 2 or 3 or 4 ? startTab : 0;
+            Closed += (s, e) => { _fs.StopPreview(); _ia.StopPreview(); _jm.StopPreview(); _au.StopPreview(); _px.StopPreview(); };
         }
 
         /// <summary>Jump to a tab when the hub is re-opened from a menu.</summary>
@@ -87,6 +93,24 @@ namespace BeatSyncStudioPro
             catch (Exception ex) { JamKeyStatusText.Text = "Couldn't save the client ID: " + ex.Message; }
         }
 
+        private void PixabaySignup_Click(object sender, RoutedEventArgs e)
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://pixabay.com/api/docs/") { UseShellExecute = true }); }
+            catch { }
+            PxKeyStatusText.Text = "Opened pixabay.com/api/docs in your browser — sign in there (free account), and your API key is shown right on that page. Copy it, paste it here, Save Key.";
+        }
+
+        private void SavePxKey_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                PixabaySearchControl.SaveKey(PxKeyBox.Password.Trim());
+                PxKeyStatusText.Text = PxKeyBox.Password.Length > 0 ? "Key saved ✓ — the search box at the top of this window now hunts Pixabay too." : "Key cleared.";
+                RefreshAccountStatus();
+            }
+            catch (Exception ex) { PxKeyStatusText.Text = "Couldn't save the key: " + ex.Message; }
+        }
+
         // ---------- v3.71: unified search + account status ----------
 
         private void RefreshAccountStatus()
@@ -99,6 +123,10 @@ namespace BeatSyncStudioPro
             JmAcctStatus.Text = jmOk
                 ? "✅ Connected — your client ID is saved on this PC."
                 : "⚠️ Not connected yet — paste your free client ID below and press Save ID.";
+            bool pxOk = PixabaySearchControl.LoadKey().Length > 0;
+            PxAcctStatus.Text = pxOk
+                ? "✅ Connected — your key is saved on this PC."
+                : "⚠️ Not connected yet — paste your free API key below and press Save Key.";
         }
 
         private async void HubSearch_Click(object sender, RoutedEventArgs e) => await HubSearchAsync();
@@ -118,17 +146,19 @@ namespace BeatSyncStudioPro
             }
             int scope = HubScopePicker.SelectedIndex;
             bool wantFs = scope is 0 or 1;
-            bool wantIa = scope is 0 or 2 or 5;
-            bool wantJm = scope is 0 or 3 or 5;
-            bool wantAu = scope is 0 or 4 or 5;
+            bool wantIa = scope is 0 or 2 or 6;
+            bool wantJm = scope is 0 or 3 or 6;
+            bool wantAu = scope is 0 or 4 or 6;
+            bool wantPx = scope is 0 or 5 or 6;
 
             HubSearchButton.IsEnabled = false;
             HubStatusText.Text = "Searching…";
-            int fsN = -1, iaN = -1, jmN = -1, auN = -1;
+            int fsN = -1, iaN = -1, jmN = -1, auN = -1, pxN = -1;
             try { if (wantFs) fsN = await _fs.HubSearchAsync(q); } catch { fsN = 0; }
             try { if (wantIa) iaN = await _ia.HubSearchAsync(q); } catch { iaN = 0; }
             try { if (wantJm) jmN = await _jm.HubSearchAsync(q); } catch { jmN = 0; }
             try { if (wantAu) auN = await _au.HubSearchAsync(q); } catch { auN = 0; }
+            try { if (wantPx) pxN = await _px.HubSearchAsync(q); } catch { pxN = 0; }
             HubSearchButton.IsEnabled = true;
 
             var parts = new List<string>();
@@ -136,11 +166,14 @@ namespace BeatSyncStudioPro
             if (iaN >= 0) parts.Add($"Archive: {iaN}");
             if (jmN >= 0) parts.Add($"Jamendo: {jmN}");
             if (auN >= 0) parts.Add($"Audius: {auN}");
+            if (pxN >= 0) parts.Add($"Pixabay: {pxN}");
             string summary = string.Join(" · ", parts) + " — results are in the tabs below.";
             if (wantFs && fsN == 0 && FreesoundSearchControl.LoadKey().Length == 0)
                 summary += " Freesound found nothing because no API key is saved yet — add your free key in 🔑 Accounts & Keys.";
             if (wantJm && jmN == 0 && JamendoSearchControl.LoadKey().Length == 0)
                 summary += " Jamendo found nothing because no client ID is saved yet — add your free ID in 🔑 Accounts & Keys.";
+            if (wantPx && pxN == 0 && PixabaySearchControl.LoadKey().Length == 0)
+                summary += " Pixabay found nothing because no API key is saved yet — add your free key in 🔑 Accounts & Keys.";
             HubStatusText.Text = summary;
 
             // Land on the first tab that found something.
@@ -148,10 +181,12 @@ namespace BeatSyncStudioPro
             else if (iaN > 0) Tabs.SelectedIndex = 1;
             else if (jmN > 0) Tabs.SelectedIndex = 2;
             else if (auN > 0) Tabs.SelectedIndex = 3;
+            else if (pxN > 0) Tabs.SelectedIndex = 4;
             else if (wantFs) Tabs.SelectedIndex = 0;
             else if (wantIa) Tabs.SelectedIndex = 1;
             else if (wantJm) Tabs.SelectedIndex = 2;
             else if (wantAu) Tabs.SelectedIndex = 3;
+            else if (wantPx) Tabs.SelectedIndex = 4;
         }
     }
 }

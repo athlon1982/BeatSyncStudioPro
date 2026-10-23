@@ -32,7 +32,8 @@
                 <ComboBoxItem Content="🎵 Songs — Archive"/>
                 <ComboBoxItem Content="🎵 Songs — Jamendo"/>
                 <ComboBoxItem Content="🎧 Songs — Audius"/>
-                <ComboBoxItem Content="🎵 All songs (Archive + Jamendo + Audius)"/>
+                <ComboBoxItem Content="🎼 Songs — Pixabay"/>
+                <ComboBoxItem Content="🎵 All songs (Archive + Jamendo + Audius + Pixabay)"/>
             </ComboBox>
             <Button x:Name="HubSearchButton" Grid.Column="2" Content="🔎 Search" Click="HubSearch_Click" Margin="8,0,0,0" Padding="16,6"
                     Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
@@ -45,6 +46,7 @@
             <TabItem x:Name="IaTab" Header="🎵 Music &amp; Recordings — Archive" Foreground="White"/>
             <TabItem x:Name="JamTab" Header="🎵 More Music — Jamendo" Foreground="White"/>
             <TabItem x:Name="AuTab" Header="🎧 More Music — Audius" Foreground="White"/>
+            <TabItem x:Name="PxTab" Header="🎼 More Music — Pixabay" Foreground="White"/>
             <TabItem Header="🔑 Accounts &amp; Keys" Foreground="White">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="10">
@@ -107,9 +109,32 @@
 
                     <Border BorderBrush="#2A3446" BorderThickness="0,1,0,0" Margin="0,18,0,0" Padding="0,14,0,0">
                         <StackPanel>
-                            <TextBlock Text="Coming in future updates" FontWeight="Bold" Foreground="White"/>
-                            <TextBlock Text="Pixabay Music — needs a free API key. FREE. (Not connected yet.)"
+                            <TextBlock Text="Pixabay" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="Needs: a free Pixabay account — your API key is shown on pixabay.com/api/docs when you're signed in. FREE — the key never costs anything. It's stored encrypted on this PC and only ever sent to pixabay.com. Music there is royalty-free (Pixabay Content License — no credit required)."
                                        Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                            <TextBlock x:Name="PxAcctStatus" Margin="0,6,0,0" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                            <Grid Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="API key" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#A0A5B5"/>
+                                <PasswordBox x:Name="PxKeyBox" Grid.Column="1" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="6,4"
+                                             ToolTip="Your free Pixabay API key from pixabay.com/api/docs"/>
+                                <Button Grid.Column="2" Content="Save Key" Click="SavePxKey_Click" Margin="8,0,0,0" Padding="12,4"
+                                        Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                            </Grid>
+                            <Button Content="🆕 Get a Pixabay API key (free)" Click="PixabaySignup_Click" HorizontalAlignment="Left" Margin="0,14,0,0" Padding="12,6"
+                                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                    ToolTip="Opens pixabay.com/api/docs — sign in and your key is shown on that page"/>
+                            <TextBlock x:Name="PxKeyStatusText" Margin="0,12,0,0" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border BorderBrush="#2A3446" BorderThickness="0,1,0,0" Margin="0,18,0,0" Padding="0,14,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Coming in future updates" FontWeight="Bold" Foreground="White"/>
                             <TextBlock Text="Mixkit — ⚠️ Mixkit has no API at all, so it can't be connected."
                                        Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
                             <TextBlock Text="Free Music Archive — ⚠️ FMA shut its API down, so it can't be connected."

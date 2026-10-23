@@ -2863,7 +2863,7 @@ namespace BeatSyncStudioPro
             if (_searchHub != null)
             {
                 _searchHub.Activate();
-                if (tab is >= 0 and <= 3) _searchHub.SelectTab(tab);
+                if (tab is >= 0 and <= 4) _searchHub.SelectTab(tab);
                 return;
             }
             _searchHub = new SearchHubWindow(this, tab) { Owner = this };
@@ -2880,6 +2880,9 @@ namespace BeatSyncStudioPro
 
         // v3.79: Audius joins the hub as the fourth source (tab 3).
         private void BtnAudius_Click(object sender, RoutedEventArgs e) => OpenSearchHub(3);
+
+        // v3.80: Pixabay joins the hub as the fifth source (tab 4).
+        private void BtnPixabay_Click(object sender, RoutedEventArgs e) => OpenSearchHub(4);
 
         private SoundPackWindow? _soundPackWindow;
         private void BtnSoundPack_Click(object sender, RoutedEventArgs e)

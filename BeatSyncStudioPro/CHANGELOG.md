@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.80 — Pixabay Joins the Search Hub
+- **A fifth source:** 🎼 **Pixabay** — royalty-free music under the Pixabay Content License (free to use, no credit required) — is wired into 🔎 Search Sounds & Music like the others: its own tab, a scope in the picker, "All sources" / "All songs" coverage, and a Tools → 🎼 Pixabay Music shortcut.
+- **Your free key, stored like the others:** Pixabay's audio API needs a free API key (shown on pixabay.com/api/docs when you're signed in). Paste it into 🔑 Accounts & Keys — it's stored encrypted on this PC, sent only to pixabay.com, and the panel stays honest before it's saved, exactly like Jamendo.
+- One transparency note: Pixabay doesn't publish the audio API's response format in its public docs, so the panel reads the reply defensively across the field names the Pixabay API family uses — and if a reply ever arrives in an unrecognized shape, the status line says so plainly instead of inventing results.
+
 ## Version 3.79 — Audius Joins the Search Hub
 - **A fourth music source, zero setup:** 🎧 **Audius** — the artist-run streaming co-op — is now a full citizen of 🔎 Search Sounds & Music: its own tab, a scope in the search picker, and part of "All sources" and "All songs". Audius's public API asks for no key and no account (just an app name), so it works the moment you open the window — the 🔑 Accounts & Keys tab says so, correcting the old "coming soon" note.
 - **Preview streams, downloads where artists allow them:** ▶ Preview streams the track (the app resolves Audius's stream redirect first so previews actually play). ⬇ Add to Library pulls the artist's own download in its original format where the artist enabled downloads — the results list marks those with ⬇ — and a stream copy otherwise; either way it's filed into your library, categorized, with the artist credited in the status line.
