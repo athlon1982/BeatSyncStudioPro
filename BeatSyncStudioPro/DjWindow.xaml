@@ -425,6 +425,11 @@
                                     Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
                                     ToolTip="Event Mode: a big-button screen for live events — Now Playing, giant Play/Pause and Next Song, crossfader jumps, a giant mic switch and the radio drops. Nothing else to hit by mistake in the dark."/>
                         </Grid>
+                        <Grid Margin="0,8,0,0">
+                            <Button x:Name="RadioButton" Content="&#x1F4E1; Internet Radio" Click="RadioButton_Click" Height="32" Style="{StaticResource HwButton}"
+                                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                    ToolTip="Internet Radio: listen to live online stations through the DJ mix — Rock 94.5 and Z97.1 from Rutland are built in, plus your own Rad-Dad Radio. Add any station with a direct stream address."/>
+                        </Grid>
                     </StackPanel>
                     <TextBlock x:Name="DjStatus" Text="Load a song on each deck and mix." Foreground="#A0A5B5" FontSize="11"
                                TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,8,0,0"/>

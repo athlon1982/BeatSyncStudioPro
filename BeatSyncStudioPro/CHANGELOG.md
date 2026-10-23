@@ -3,6 +3,12 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.99 — Internet Radio (Listen Live)
+- **New 📡 Internet Radio** (button under Event Mode in the DJ board): listen to live online radio stations through the DJ mix — the station plays over the board and lands in Record Mix, Record My Set and the live stream like everything else.
+- **Your local stations are built in:** **Rock 94.5 — WDVT** (Rutland classic rock) and **Z97.1 — WZRT** (Rutland Top 40), using the direct streams from the stations' own web players (found and verified live), plus **Rad-Dad Radio**, your own Icecast. Double-click a station to play it.
+- **Now playing, from the station itself:** when a stream carries ICY song titles, the window shows the song the station is playing right now, updating as songs change.
+- **Add any station:** name + direct stream address, saved to your station list. Remove works too. Playback is buffered on its own thread, so a network hiccup plays a moment of silence instead of ever glitching the mix.
+
 ## Version 3.98 — Event Mode
 - **New 🎉 Event Mode** (button under Radio Drops in the DJ board): a full-screen, big-button control surface for running a live event — the haunt, the parade, a party — built for the dark and for gloves.
 - **What's on it, and nothing else:** Now Playing with progress, one giant **Play/Pause**, a giant **Next Song** (with the next track's name under it), three crossfader jumps (Deck A / Both / Deck B), a giant **Mic** live/mute switch, and the 8 **radio drops** (which duck the music, same as the Drops board).

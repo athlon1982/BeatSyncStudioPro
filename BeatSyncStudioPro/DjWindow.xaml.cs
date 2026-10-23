@@ -97,6 +97,9 @@ namespace BeatSyncStudioPro
         private readonly SamplerEngine _drops = new SamplerEngine();
         private float _dropsDuckFactor = 1f;
         private DropsWindow? _dropsWindow;
+        // v3.99: internet radio — plays live stations through the DJ master
+        private readonly RadioPlayer _radio = new RadioPlayer();
+        private RadioWindow? _radioWindow;
         private EventModeWindow? _eventWindow;
         private System.Collections.Generic.Dictionary<int, DropDef>? _dropDefs;
         private readonly System.Collections.Generic.Dictionary<int, float[]> _dropSamples = new System.Collections.Generic.Dictionary<int, float[]>();
@@ -172,6 +175,7 @@ namespace BeatSyncStudioPro
             });
             djMaster.AddMixerInput(_sampler.Output);
             djMaster.AddMixerInput(_drops.Output);
+            djMaster.AddMixerInput(_radio.Output);
             _drops.Output.Volume = 1.0f;
             SamplerVolumeKnob.ValueChanged += (s, e) => _sampler.Output.Volume = (float)SamplerVolumeKnob.Value;
             BuildSamplerPads();
@@ -2259,6 +2263,17 @@ namespace BeatSyncStudioPro
                 _eventWindow.Show();
             }
             else _eventWindow.Activate();
+        }
+
+        private void RadioButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_radioWindow == null)
+            {
+                _radioWindow = new RadioWindow(_radio) { Owner = this };
+                _radioWindow.Closed += (s2, e2) => _radioWindow = null;
+                _radioWindow.Show();
+            }
+            else _radioWindow.Activate();
         }
 
         private void DropsButton_Click(object sender, RoutedEventArgs e)
