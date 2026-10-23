@@ -3,6 +3,13 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.88 — Go Live: Stream the Visuals
+- **New: 🔴 Go Live in the DJ window.** BeatSync can now stream itself: the Output (visuals) window — projectM and all — plus the DJ master mix, pushed live to **YouTube, Facebook, TikTok (LIVE Studio RTMP), or any custom RTMP address** through an ffmpeg encoder process.
+- **How it works, honestly:** the video is a capture of the Output window exactly as it sits on your screen (keep it visible and uncovered while live — anything covering it covers the stream); the audio is a tap on the master bus that can never stall the music (a backed-up stream drops samples, the mix never does). 720p at 30 fps by default, 480p one click away for an easier ride on the PC.
+- **Stream keys, handled right:** paste a key once per destination; it's stored **DPAPI-encrypted on this PC only** and never shown again. YouTube and Facebook addresses are prefilled; TikTok takes the RTMP address from LIVE Studio (TikTok only gives those to eligible accounts).
+- **The DJ button shows the truth:** while live it reads 🔴 LIVE with the elapsed time; if the encoder ever dies, the status line says why (full log kept at stream-log.txt in the app data folder).
+- **ffmpeg note:** streaming needs ffmpeg (free). If it's missing, this window offers a one-click download; on Michael's PC it's already installed in BeatSyncTools.
+
 ## Version 3.87 — Listener Requests for Rad-Dad Radio
 - **New: a public request page for the radio.** While the Companion server runs, anyone who can reach this PC at port 8765 /request gets a Rad-Dad Radio page: your name (optional), a song request, and a shoutout/dedication. Send, and it lands in the studio instantly — no account, no password (the DJ controls stay locked behind the companion password as always).
 - **Requests live in the DJ window.** The new **📨 Requests** button (under the mic section, next to Companion) shows a live count of waiting requests and opens the requests window: song, who sent it, when, and the shoutout in gold italics. ✔ Done clears a request once played; Clear All wipes the list (with a confirm). Requests are saved to disk, so they survive an app restart.
