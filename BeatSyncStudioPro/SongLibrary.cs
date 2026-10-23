@@ -202,7 +202,7 @@ namespace BeatSyncStudioPro
             return changed;
         }
 
-        private static float[]? DecodeMono(byte[] bytes, string type)
+        internal static float[]? DecodeMono(byte[] bytes, string type)
         {
             try
             {

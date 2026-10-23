@@ -318,6 +318,14 @@ namespace BeatSyncStudioPro
             catch { return false; }
         }
 
+        /// <summary>Load in-memory audio (a streamed song) onto a deck —
+        /// the 🎵 Song Library's Suno tab sends streams here.</summary>
+        public bool LoadBytesOnDeck(bool deckA, byte[] bytes, string name)
+        {
+            try { return (deckA ? _panelA : _panelB).LoadForMix(bytes, name); }
+            catch { return false; }
+        }
+
         public void OpenFx(TrackFxSettings fx, string name)
         {
             if (_fxWindow == null || _fxTarget != name)

@@ -3,6 +3,12 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.73 — Your Suno Songs, On the Decks (Streamed, Never Downloaded)
+- **New ☀️ Suno tab in the Song Library:** press **🔄 Sync My Suno Songs** and the library reads your Suno library from the built-in browser (sign in once in the browser strip at the bottom — it's the same sign-in the My Songs window uses). It finds your songs, then checks your public profile to mark each one **Published** or **Draft**. Covers, titles and status all land in the grid, and the list is kept on this PC between sessions.
+- **⬇ Stream to Deck A / B:** a Suno song loads straight onto a DJ deck by *streaming* — the exact same audio stream Suno's own web player plays, fetched into memory. It never uses Suno's Download button and never touches your download quota. Double-click does it too, and 🔍 Analyze reads BPM + key off the stream so you can plan the mix first.
+- **🎧 Spotify tab:** the honest state of play, spelled out in the app — Spotify's audio can't run through any DJ mixer (platform rule), but playlist *track lists* can be imported for set planning once you've made a free Spotify developer app (five minutes, steps in the tab). Say the word when you've got the keys and the import gets built in.
+- Nothing is baked in: the Suno tab shows whoever is signed in — your account, your songs, including the unpublished ones.
+
 ## Version 3.72 — The Song Library: Your Songs, Sorted by Their Tags
 - **New 🎵 Song Library (Tools menu):** a proper crate for full songs, kept separate from the short-sounds library like you asked. Add a **folder** (it scans everything inside), a **ZIP** (the songs are pulled out and kept), or individual **files** — MP3, FLAC, WAV, OGG, M4A and more.
 - **ID tags read automatically:** title, artist, album, genre, year, and any BPM / key already tagged in the file — shown in a grid that **sorts by any column** (click a header: sort by BPM to line up a remix, by key, by artist…). A filter box narrows the list as you type, and picking a song shows its **cover art** and full tag details on the right.

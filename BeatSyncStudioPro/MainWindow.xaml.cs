@@ -1270,6 +1270,19 @@ namespace BeatSyncStudioPro
             catch { return false; }
         }
 
+        /// <summary>Send in-memory audio (a streamed Suno song) to a DJ
+        /// deck. Opens the DJ board first when it isn't open yet.</summary>
+        public bool SendBytesToDeck(bool deckA, byte[] bytes, string name)
+        {
+            try
+            {
+                BtnDj_Click(this, new RoutedEventArgs());
+                if (_djWindow == null) return false;
+                return _djWindow.LoadBytesOnDeck(deckA, bytes, name);
+            }
+            catch { return false; }
+        }
+
         private void BtnDj_Click(object sender, RoutedEventArgs e)
         {
             if (_djWindow == null)
