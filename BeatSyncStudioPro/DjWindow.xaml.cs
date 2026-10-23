@@ -76,6 +76,8 @@ namespace BeatSyncStudioPro
         private readonly System.Collections.Concurrent.ConcurrentQueue<string> _companionQueue = new System.Collections.Concurrent.ConcurrentQueue<string>();
         private volatile string _companionStateJson = "{}";
         private CompanionWindow? _companionWindow;
+        private RequestsWindow? _requestsWindow;
+        private int _lastReqCount = -1;
         internal CompanionServer Companion => _companion;
         internal void StartCompanionServer() => _companion.Start(CompanionServer.LoadSettings().Port);
         internal void StopCompanionServer() => _companion.Stop();
@@ -2070,6 +2072,17 @@ namespace BeatSyncStudioPro
             else _companionWindow.Activate();
         }
 
+        private void RequestsButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_requestsWindow == null)
+            {
+                _requestsWindow = new RequestsWindow(_companion) { Owner = this };
+                _requestsWindow.Closed += (s2, e2) => _requestsWindow = null;
+                _requestsWindow.Show();
+            }
+            else _requestsWindow.Activate();
+        }
+
         private void DrainCompanion()
         {
             while (_companionQueue.TryDequeue(out var json))
@@ -2099,6 +2112,12 @@ namespace BeatSyncStudioPro
                 catch { }
             }
             _companionStateJson = BuildCompanionState();
+            int pendingReq = _companion.PendingRequestCount;
+            if (pendingReq != _lastReqCount)
+            {
+                _lastReqCount = pendingReq;
+                RequestsButton.Content = pendingReq == 0 ? "\U0001F4E8 Requests" : $"\U0001F4E8 Requests ({pendingReq})";
+            }
         }
 
         private string BuildCompanionState()
@@ -2106,8 +2125,20 @@ namespace BeatSyncStudioPro
             static string Esc(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
             string Deck(DeckPanel p) => FormattableString.Invariant(
                 $"{{\"title\":\"{Esc(p.CurrentTitle)}\",\"playing\":{(p.IsPlayingDeck ? "true" : "false")},\"pos\":{p.DeckPositionSeconds:0.0},\"dur\":{p.DeckTotalSeconds:0.0},\"key\":\"{Esc(p.KeyDisplayText)}\",\"next\":\"{Esc(p.NextUpTitle)}\",\"q\":\"{Esc(p.QueueInfoText)}\"}}");
+            string ReqJson()
+            {
+                var list = _companion.SnapshotRequests();
+                var sb = new System.Text.StringBuilder("[");
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var r = list[i];
+                    if (i > 0) sb.Append(',');
+                    sb.Append(FormattableString.Invariant($"{{\"id\":{r.Id},\"name\":\"{Esc(r.Name)}\",\"song\":\"{Esc(r.Song)}\",\"shoutout\":\"{Esc(r.Shoutout)}\"}}"));
+                }
+                return sb.Append(']').ToString();
+            }
             return FormattableString.Invariant(
-                $"{{\"a\":{Deck(_panelA)},\"b\":{Deck(_panelB)},\"xfader\":{XfadeSlider.Value:0},\"master\":{DjMasterKnob.Value * 100:0},\"cruise\":{(_cruiseOn ? "true" : "false")},\"mic\":{(_micOn ? "true" : "false")}}}");
+                $"{{\"a\":{Deck(_panelA)},\"b\":{Deck(_panelB)},\"xfader\":{XfadeSlider.Value:0},\"master\":{DjMasterKnob.Value * 100:0},\"cruise\":{(_cruiseOn ? "true" : "false")},\"mic\":{(_micOn ? "true" : "false")},\"req\":{ReqJson()}}}");
         }
 
         private void StopBothButton_Click(object sender, RoutedEventArgs e)

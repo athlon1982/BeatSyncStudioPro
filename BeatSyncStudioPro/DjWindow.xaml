@@ -384,6 +384,11 @@
                                     Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
                                     ToolTip="Phone Companion: control the decks from your phone over Wi-Fi or Tailscale (play/cue, crossfader, sampler, cruise, mic). Opens the companion settings and start/stop window."/>
                         </Grid>
+                        <Grid Margin="0,8,0,0">
+                            <Button x:Name="RequestsButton" Content="&#x1F4E8; Requests" Click="RequestsButton_Click" Height="32" Style="{StaticResource HwButton}"
+                                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                    ToolTip="Listener requests from the Rad-Dad Radio request page. While the Companion server runs, listeners open the request page at this PC's address, port 8765, /request. The button shows how many are waiting."/>
+                        </Grid>
                     </StackPanel>
                     <TextBlock x:Name="DjStatus" Text="Load a song on each deck and mix." Foreground="#A0A5B5" FontSize="11"
                                TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,8,0,0"/>
