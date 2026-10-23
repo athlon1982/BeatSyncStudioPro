@@ -53,6 +53,14 @@ namespace BeatSyncStudioPro
         }
         private static readonly Brush SpectrumBgBrush = new SolidColorBrush(Color.FromRgb(0x0B, 0x0D, 0x13));
         private static readonly Brush[] SpectrumBrushes = BuildSpectrumBrushes();
+        // ---------- v3.75: MIDI controller ----------
+        private MidiEngine? _midiEngine;
+        private Dictionary<string, MidiBinding> _midiMap = new Dictionary<string, MidiBinding>();
+        private MidiSettingsWindow? _midiWindow;
+
+        public event Action<string>? MidiActivity;
+        public event Action<string, int, int, int>? MidiRaw;
+
         private readonly DeckPanel _panelA;
         private readonly DeckPanel _panelB;
         private readonly DispatcherTimer _timer;
@@ -154,6 +162,7 @@ namespace BeatSyncStudioPro
             _companion.CommandReceived += json => _companionQueue.Enqueue(json);
             _companion.StateJsonProvider = () => _companionStateJson;
             _timer.Tick += (s, e) => { _panelA.Refresh(); _panelB.Refresh(); CruiseTick(); SamplerFlashTick(); MicTick(); MixerTick(); DrainCompanion(); };
+            InitMidi();
             _timer.Start();
             TuneToolTips(this);
 
@@ -324,6 +333,93 @@ namespace BeatSyncStudioPro
         {
             try { return (deckA ? _panelA : _panelB).LoadForMix(bytes, name); }
             catch { return false; }
+        }
+
+        // ---------- v3.75: MIDI controller ----------
+
+        private void InitMidi()
+        {
+            _midiMap = MidiStore.EffectiveBindings();
+            var settings = MidiStore.LoadSettings();
+            if (settings.Enabled && settings.DeviceIndex >= 0)
+                StartMidiEngine(settings.DeviceIndex);
+            Closed += (s, e) => { _midiEngine?.Dispose(); _midiEngine = null; };
+        }
+
+        private bool StartMidiEngine(int deviceIndex)
+        {
+            _midiEngine?.Dispose();
+            _midiEngine = new MidiEngine();
+            _midiEngine.Message += OnMidiMessage;
+            return _midiEngine.Start(deviceIndex);
+        }
+
+        private void OnMidiMessage(string kind, int channel, int number, int value)
+        {
+            string line = kind == "note"
+                ? $"Note {number} · channel {channel} · velocity {value}"
+                : $"CC {number} · channel {channel} · value {value}";
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                MidiRaw?.Invoke(kind, channel, number, value);
+                MidiActivity?.Invoke(line);
+                DispatchMidi(kind, channel, number, value);
+            }));
+        }
+
+        private void DispatchMidi(string kind, int channel, int number, int value)
+        {
+            foreach (var kv in _midiMap)
+            {
+                var b = kv.Value;
+                if (b.Kind != kind || b.Number != number) continue;
+                if (b.Channel != 0 && b.Channel != channel) continue;
+                string id = kv.Key;
+                if (id == "mix.crossfader") XfadeSlider.Value = value / 127.0 * 1000.0;
+                else if (id == "mix.faderA") ChAFader.Value = value / 127.0 * 1000.0;
+                else if (id == "mix.faderB") ChBFader.Value = value / 127.0 * 1000.0;
+                else if (kind == "note" && id == "deckA.play") _panelA.MidiPlayPause();
+                else if (kind == "note" && id == "deckA.cue") _panelA.MidiCue();
+                else if (kind == "note" && id == "deckB.play") _panelB.MidiPlayPause();
+                else if (kind == "note" && id == "deckB.cue") _panelB.MidiCue();
+                else if (kind == "note" && id.StartsWith("pad.") && int.TryParse(id.Substring(4), out int pn) && pn >= 1 && pn <= 8) TriggerPad(pn - 1);
+            }
+        }
+
+        public Dictionary<string, MidiBinding> CurrentMidiMap() => _midiMap;
+
+        public MidiStore.Settings CurrentMidiSettings() => MidiStore.LoadSettings();
+
+        public void SetMidiBinding(string actionId, MidiBinding? binding)
+        {
+            var overrides = MidiStore.LoadOverrides();
+            if (binding == null) overrides.Remove(actionId);
+            else overrides[actionId] = binding;
+            MidiStore.SaveOverrides(overrides);
+            _midiMap = MidiStore.EffectiveBindings();
+        }
+
+        public bool ApplyMidiSettings(int deviceIndex, bool enabled)
+        {
+            MidiStore.SaveSettings(new MidiStore.Settings { DeviceIndex = deviceIndex, Enabled = enabled });
+            if (!enabled)
+            {
+                _midiEngine?.Dispose();
+                _midiEngine = null;
+                return false;
+            }
+            return StartMidiEngine(deviceIndex);
+        }
+
+        private void MidiButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_midiWindow == null)
+            {
+                _midiWindow = new MidiSettingsWindow(this) { Owner = this };
+                _midiWindow.Closed += (s, ev) => _midiWindow = null;
+                _midiWindow.Show();
+            }
+            else _midiWindow.Activate();
         }
 
         public void OpenFx(TrackFxSettings fx, string name)
@@ -4097,6 +4193,9 @@ namespace BeatSyncStudioPro
                 double frac = Math.Clamp(e.GetPosition(_waveCanvas).X / w, 0, 1);
                 _deck.PositionSeconds = frac * _deck.TotalSeconds;
             }
+
+            internal void MidiPlayPause() => PlayPause();
+            internal void MidiCue() => Cue();
 
             private void PlayPause()
             {

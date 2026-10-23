@@ -187,7 +187,12 @@
                         ToolTip="Live spectrum of the whole mix (both decks + sampler + mic) — what the audience hears. Click to change the spectrum density (fat / normal / fine bars).">
                     <Image x:Name="MasterSpectrumImage" Stretch="Fill" Margin="6,3"/>
                 </Border>
-                <TextBlock Grid.Column="2" Text="● LIVE MIX" Foreground="#1DB954" FontWeight="Bold" FontSize="11" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="● LIVE MIX" Foreground="#1DB954" FontWeight="Bold" FontSize="11" VerticalAlignment="Center"/>
+                    <Button Content="🎹 MIDI" Click="MidiButton_Click" Margin="12,0,0,0" Padding="10,3"
+                            Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
+                            ToolTip="Set up a MIDI controller — decks, crossfader, channel faders and sampler pads on real hardware, with Learn for every control"/>
+                </StackPanel>
             </Grid>
         </Border>
 

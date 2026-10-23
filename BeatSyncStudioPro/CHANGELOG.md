@@ -3,6 +3,12 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.75 — MIDI Controller Support
+- **Real hardware on the DJ board:** plug in any USB MIDI controller and drive the decks with it — the new **🎹 MIDI** button in the DJ board's top bar opens the setup window.
+- **What it drives:** Deck A/B Play-Pause and Cue, the crossfader, both channel faders, and all 8 sampler pads.
+- **Learn for everything:** every control has a **Learn** button — press it, touch the button / pad / fader on your controller, and it's bound (channel included), saved on this PC for good. Reset returns any row to its default. Sensible defaults ship in the box (notes 36–47, CC 31 crossfader, CC 17/18 faders), so many controllers do something useful before you teach it anything.
+- **Live monitor:** the setup window shows every message your controller sends, and the board stays live while it's open — move a fader on the hardware, watch the crossfader move on screen.
+
 ## Version 3.74 — Autosave + Crash Recovery
 - **Your work now saves itself:** every 2 minutes, if the project actually changed, BeatSync quietly writes an autosave — a real .bsp project file, written by the exact same code as Save As. No popups, no interruptions, and it skips the write when nothing changed so big projects don't churn the disk.
 - **Crash recovery:** if the app (or the PC) goes down mid-session, the next launch knows — and offers the autosave back with one click: "Restore it?" Your normally-saved projects are never touched. Closing the app properly clears the autosave away, so the offer only ever appears after a genuinely bad exit.
