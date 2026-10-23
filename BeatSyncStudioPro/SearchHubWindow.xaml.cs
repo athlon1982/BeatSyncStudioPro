@@ -22,6 +22,7 @@ namespace BeatSyncStudioPro
         private readonly JamendoSearchControl _jm;
         private readonly AudiusSearchControl _au;
         private readonly PixabaySearchControl _px;
+        private readonly MixkitPanel _mk;
 
         public SearchHubWindow(MainWindow owner, int startTab)
         {
@@ -31,11 +32,13 @@ namespace BeatSyncStudioPro
             _jm = new JamendoSearchControl(owner);
             _au = new AudiusSearchControl(owner);
             _px = new PixabaySearchControl(owner);
+            _mk = new MixkitPanel(owner);
             FsTab.Content = _fs;
             IaTab.Content = _ia;
             JamTab.Content = _jm;
             AuTab.Content = _au;
             PxTab.Content = _px;
+            MkTab.Content = _mk;
             KeyBox.Password = FreesoundSearchControl.LoadKey();
             _fs.KeyProvider = () => KeyBox.Password;
             JamKeyBox.Password = JamendoSearchControl.LoadKey();
@@ -50,7 +53,7 @@ namespace BeatSyncStudioPro
             _au.HideOwnChrome();
             _px.HideOwnChrome();
             RefreshAccountStatus();
-            Tabs.SelectedIndex = startTab is 1 or 2 or 3 or 4 ? startTab : 0;
+            Tabs.SelectedIndex = startTab is 1 or 2 or 3 or 4 or 5 ? startTab : 0;
             Closed += (s, e) => { _fs.StopPreview(); _ia.StopPreview(); _jm.StopPreview(); _au.StopPreview(); _px.StopPreview(); };
         }
 

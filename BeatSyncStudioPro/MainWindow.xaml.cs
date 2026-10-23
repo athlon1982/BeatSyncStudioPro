@@ -2863,7 +2863,7 @@ namespace BeatSyncStudioPro
             if (_searchHub != null)
             {
                 _searchHub.Activate();
-                if (tab is >= 0 and <= 4) _searchHub.SelectTab(tab);
+                if (tab is >= 0 and <= 5) _searchHub.SelectTab(tab);
                 return;
             }
             _searchHub = new SearchHubWindow(this, tab) { Owner = this };
@@ -2883,6 +2883,10 @@ namespace BeatSyncStudioPro
 
         // v3.80: Pixabay joins the hub as the fifth source (tab 4).
         private void BtnPixabay_Click(object sender, RoutedEventArgs e) => OpenSearchHub(4);
+
+        // v3.81: Mixkit gets a hub tab (5) too — an explainer + browser
+        // route, since Mixkit has no API and its terms forbid scraping.
+        private void BtnMixkit_Click(object sender, RoutedEventArgs e) => OpenSearchHub(5);
 
         private SoundPackWindow? _soundPackWindow;
         private void BtnSoundPack_Click(object sender, RoutedEventArgs e)

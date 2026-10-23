@@ -219,6 +219,7 @@
                 <MenuItem Header="🎵 Jamendo Music..." Click="BtnJamendo_Click"/>
                 <MenuItem Header="🎧 Audius Music..." Click="BtnAudius_Click"/>
                 <MenuItem Header="🎼 Pixabay Music..." Click="BtnPixabay_Click"/>
+                <MenuItem Header="🎚 Mixkit..." Click="BtnMixkit_Click"/>
                 <MenuItem Header="🎵 Song Library..." Click="BtnSongLibrary_Click"/>
                 <MenuItem Header="🧺 Set Builder..." Click="BtnSetBuilder_Click"/>
                 <Separator/>

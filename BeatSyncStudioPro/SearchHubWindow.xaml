@@ -47,6 +47,7 @@
             <TabItem x:Name="JamTab" Header="🎵 More Music — Jamendo" Foreground="White"/>
             <TabItem x:Name="AuTab" Header="🎧 More Music — Audius" Foreground="White"/>
             <TabItem x:Name="PxTab" Header="🎼 More Music — Pixabay" Foreground="White"/>
+            <TabItem x:Name="MkTab" Header="🎚 Mixkit" Foreground="White"/>
             <TabItem Header="🔑 Accounts &amp; Keys" Foreground="White">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="10">
@@ -135,8 +136,6 @@
                     <Border BorderBrush="#2A3446" BorderThickness="0,1,0,0" Margin="0,18,0,0" Padding="0,14,0,0">
                         <StackPanel>
                             <TextBlock Text="Coming in future updates" FontWeight="Bold" Foreground="White"/>
-                            <TextBlock Text="Mixkit — ⚠️ Mixkit has no API at all, so it can't be connected."
-                                       Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
                             <TextBlock Text="Free Music Archive — ⚠️ FMA shut its API down, so it can't be connected."
                                        Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
                         </StackPanel>

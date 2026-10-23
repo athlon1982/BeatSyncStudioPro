@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.81 — Mixkit: The Honest Answer
+- **Mixkit gets a tab — an explainer, not a scraper.** Checked against primary sources (Oct 22, 2026): Mixkit has **no API at all** (its /api and /developers addresses are 404; there is no api.mixkit.co), and its User Terms expressly forbid scripts or bots accessing or downloading its catalog. A search panel would have to scrape the site — prohibited — so BeatSync doesn't build one. Same standard as Free Music Archive.
+- The 🎚 **Mixkit** tab (and Tools → 🎚 Mixkit) says all that plainly and offers the legitimate one-click-longer route: **open Mixkit's free music in your browser**, download there like any visitor, then import the files through the Song Library / Sound Library importers you already have.
+- If Mixkit ever ships a public API, this tab becomes a real search panel.
+
 ## Version 3.80 — Pixabay Joins the Search Hub
 - **A fifth source:** 🎼 **Pixabay** — royalty-free music under the Pixabay Content License (free to use, no credit required) — is wired into 🔎 Search Sounds & Music like the others: its own tab, a scope in the picker, "All sources" / "All songs" coverage, and a Tools → 🎼 Pixabay Music shortcut.
 - **Your free key, stored like the others:** Pixabay's audio API needs a free API key (shown on pixabay.com/api/docs when you're signed in). Paste it into 🔑 Accounts & Keys — it's stored encrypted on this PC, sent only to pixabay.com, and the panel stays honest before it's saved, exactly like Jamendo.
