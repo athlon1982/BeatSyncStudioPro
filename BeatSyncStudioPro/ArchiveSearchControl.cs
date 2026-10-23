@@ -259,9 +259,10 @@ namespace BeatSyncStudioPro
                 StatusText.Text = $"Downloading {t.TrackName}… watch it in the ⬇ Downloads window (View menu).";
                 byte[] bytes = await DownloadManager.DownloadBytesAsync(t.Url, t.TrackName);
                 string fileName = Sanitize(t.TrackName) + ".mp3";
-                string category = SoundCategorizer.Infer(t.TrackName + " " + QueryBox.Text);
-                string stored = _owner.AddToLibraryOnly(bytes, fileName, category);
-                StatusText.Text = $"✅ Added '{stored}' to your library under {SoundCategorizer.Icon(category)} {category}. License: {t.License}; from archive.org/details/{t.Identifier}" + (t.Creator.Length > 0 ? $" — credit: {t.Creator}." : ".");
+                string stored = _owner.AddSongToLibrary(bytes, fileName);
+                StatusText.Text = stored.Length > 0
+                    ? $"✅ Added '{stored}' to your 🎵 Song Library — it's in the track list now, ready for the decks. License: {t.License}; from archive.org/details/{t.Identifier}" + (t.Creator.Length > 0 ? $" — credit: {t.Creator}." : ".")
+                    : "Add failed: the song couldn't be saved into the library folder.";
             }
             catch (OperationCanceledException) { StatusText.Text = "Download cancelled."; }
             catch (Exception ex) { StatusText.Text = "Add failed: " + ex.Message; }

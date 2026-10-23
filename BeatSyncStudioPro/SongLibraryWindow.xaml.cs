@@ -55,6 +55,8 @@ namespace BeatSyncStudioPro
             _view.Filter = FilterPredicate;
             SongGrid.ItemsSource = _view;
             UpdateCount();
+            LibDirText.Text = SongLibraryStore.LibraryDir;
+            CopyImportsBox.IsChecked = SongLibraryStore.CopyImports;
             foreach (var s in SunoLibraryStore.Load()) _sunoSongs.Add(s);
             SunoGrid.ItemsSource = _sunoSongs;
             UpdateSunoCount();
@@ -107,6 +109,7 @@ namespace BeatSyncStudioPro
             _busy = true;
             StatusText.Text = "Scanning folder — reading ID tags…";
             string root = dlg.FolderName;
+            bool copy = SongLibraryStore.CopyImports;
             var found = await Task.Run(() =>
             {
                 var list = new List<LibrarySong>();
@@ -115,7 +118,8 @@ namespace BeatSyncStudioPro
                     foreach (var f in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
                     {
                         if (!SongLibraryStore.IsAudioPath(f)) continue;
-                        var entry = SongLibraryStore.ScanFile(f);
+                        string finalPath = copy ? SongLibraryStore.CopyIntoLibrary(f) : f;
+                        var entry = SongLibraryStore.ScanFile(finalPath);
                         if (entry != null) list.Add(entry);
                     }
                 }
@@ -157,10 +161,15 @@ namespace BeatSyncStudioPro
             if (dlg.ShowDialog() != true) return;
             _busy = true;
             StatusText.Text = "Reading ID tags…";
+            bool copy = SongLibraryStore.CopyImports;
             var found = new List<LibrarySong>();
             foreach (var f in dlg.FileNames)
             {
-                var entry = await Task.Run(() => SongLibraryStore.ScanFile(f));
+                var entry = await Task.Run(() =>
+                {
+                    string finalPath = copy ? SongLibraryStore.CopyIntoLibrary(f) : f;
+                    return SongLibraryStore.ScanFile(finalPath);
+                });
                 if (entry != null) found.Add(entry);
             }
             _busy = false;
@@ -234,6 +243,72 @@ namespace BeatSyncStudioPro
             SongLibraryStore.Save(_songs.ToList());
             UpdateCount();
             StatusText.Text = $"Removed {sel.Count} song(s) from the library list. The files themselves were not deleted.";
+        }
+
+        // ---------- the library folder (v3.82) ----------
+
+        private void ChangeDir_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFolderDialog { Title = "Pick the folder BeatSync keeps its music library in — new songs land here" };
+            if (dlg.ShowDialog() != true) return;
+            SongLibraryStore.LibraryDir = dlg.FolderName;
+            SongLibraryStore.EnsureLibraryDir();
+            LibDirText.Text = SongLibraryStore.LibraryDir;
+            StatusText.Text = $"Library folder set to {SongLibraryStore.LibraryDir}. Songs already in the library stay where they are; new adds land in the new folder.";
+        }
+
+        private void OpenDir_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string dir = SongLibraryStore.EnsureLibraryDir();
+                Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
+            }
+            catch (Exception ex) { StatusText.Text = "Couldn't open the folder: " + ex.Message; }
+        }
+
+        private void CopyImports_Changed(object sender, RoutedEventArgs e)
+        {
+            if (CopyImportsBox.IsChecked.HasValue)
+                SongLibraryStore.CopyImports = CopyImportsBox.IsChecked.Value;
+        }
+
+        /// <summary>Delete selected songs for real — Michael's rule:
+        /// the app ALWAYS asks first, and only files inside the
+        /// library folder get deleted; outside files are only
+        /// removed from the list.</summary>
+        private void DeleteFile_Click(object sender, RoutedEventArgs e)
+        {
+            var sel = SelectedSongs();
+            if (sel.Count == 0) { StatusText.Text = "Pick the song(s) to delete first."; return; }
+            int inDir = sel.Count(s => SongLibraryStore.IsInLibraryDir(s.Path));
+            int outside = sel.Count - inDir;
+            string msg = "";
+            if (inDir > 0)
+                msg = $"Delete {inDir} song(s) from your library AND delete their files from the library folder?\n\nThis cannot be undone.";
+            if (outside > 0)
+                msg += (msg.Length > 0 ? "\n\n" : "") + $"{outside} selected song(s) live outside the library folder — those will only be removed from the list; their files stay where they are.";
+            if (msg.Length == 0)
+                msg = $"Remove {sel.Count} song(s) from the library list? Their files stay where they are.";
+            if (MessageBox.Show(this, msg, "Delete from library", MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK)
+            {
+                StatusText.Text = "Delete cancelled — nothing was touched.";
+                return;
+            }
+            int files = 0;
+            foreach (var s in sel)
+            {
+                _songs.Remove(s);
+                if (SongLibraryStore.IsInLibraryDir(s.Path))
+                {
+                    try { File.Delete(s.Path); files++; } catch { }
+                }
+            }
+            SongLibraryStore.Save(_songs.ToList());
+            UpdateCount();
+            StatusText.Text = files > 0
+                ? $"Deleted {sel.Count} song(s) from the library — {files} file(s) deleted from the library folder."
+                : $"Removed {sel.Count} song(s) from the library list. No files were deleted (they live outside the library folder).";
         }
 
         // ---------- details pane ----------

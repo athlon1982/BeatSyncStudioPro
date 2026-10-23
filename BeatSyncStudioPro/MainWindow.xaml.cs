@@ -1537,6 +1537,17 @@ namespace BeatSyncStudioPro
             return name;
         }
 
+        /// <summary>Add a downloaded full song to the 🎵 Song Library
+        /// (v3.82): the file lands in the app's own library folder (the
+        /// one picked in the Song Library window) and the song appears
+        /// in the library's track list. Returns the stored file name,
+        /// or "" when it couldn't be added.</summary>
+        public string AddSongToLibrary(byte[] bytes, string fileName)
+        {
+            var entry = SongLibraryStore.AddBytesToLibrary(bytes, fileName);
+            return entry != null ? System.IO.Path.GetFileName(entry.Path) : "";
+        }
+
         /// <summary>Add a rendered pattern WAV to the library and drop it on track 1 at the start. Returns the final name.</summary>
         public string AddRenderedPatternToTimeline(byte[] wavBytes, string desiredName)
         {

@@ -26,10 +26,26 @@
                 <Grid Margin="4">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <Grid Margin="0,8,0,0">
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="📁 Library folder:" VerticalAlignment="Center" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBlock x:Name="LibDirText" Margin="6,0,0,0" VerticalAlignment="Center" Foreground="White" FontSize="11"
+                                   ToolTip="BeatSync's own music library: every song you add — from search, files, folders, ZIPs — lands in this folder, and the track list below is the list of everything in the library."/>
+                        <Button Content="Change…" Click="ChangeDir_Click" Margin="10,0,0,0" Padding="10,4"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                ToolTip="Pick a different folder for the library. Songs already added stay where they are; new songs go to the new folder."/>
+                        <Button Content="📂 Open" Click="OpenDir_Click" Margin="6,0,0,0" Padding="10,4"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                ToolTip="Open the library folder in Explorer"/>
+                        <CheckBox x:Name="CopyImportsBox" Content="Copy imports into the library folder" Margin="16,0,0,0" VerticalAlignment="Center"
+                                  Foreground="#A0A5B5" FontSize="11" Checked="CopyImports_Changed" Unchecked="CopyImports_Changed"
+                                  ToolTip="When on, Add Folder / Add Files COPY the songs into the library folder so the library is self-contained. When off, songs are listed where they already live."/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="1" Margin="0,8,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
@@ -56,7 +72,7 @@
                         </StackPanel>
                     </Grid>
 
-                    <Grid Grid.Row="1" Margin="0,10,0,0">
+                    <Grid Grid.Row="2" Margin="0,10,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="250"/>
@@ -99,6 +115,9 @@
                                 <Button Content="🗑 Remove" Click="Remove_Click" Margin="16,0,0,0" Padding="12,6"
                                         Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
                                         ToolTip="Remove the selected song(s) from the library list. The files themselves are never deleted."/>
+                                <Button Content="🗑 Delete File…" Click="DeleteFile_Click" Margin="8,0,0,0" Padding="12,6"
+                                        Background="#5C2320" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                        ToolTip="Remove the selected song(s) from the library AND delete their files from the library folder. The app always asks you to confirm first — nothing is ever deleted without your OK."/>
                             </StackPanel>
                         </Grid>
 

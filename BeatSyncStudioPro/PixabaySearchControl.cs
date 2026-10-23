@@ -237,9 +237,10 @@ namespace BeatSyncStudioPro
                 string ext = Path.GetExtension(new Uri(t.Url).LocalPath);
                 if (ext is not (".mp3" or ".wav" or ".flac" or ".m4a" or ".ogg")) ext = ".mp3";
                 string fileName = Sanitize((t.Artist.Length > 0 ? t.Artist + " - " : "") + t.Title) + ext;
-                string category = SoundCategorizer.Infer(t.Title + " " + QueryBox.Text);
-                string stored = _owner.AddToLibraryOnly(bytes, fileName, category);
-                StatusText.Text = $"✅ Added '{stored}' to your library under {SoundCategorizer.Icon(category)} {category}. Pixabay Content License (free to use, no credit required){(t.Artist.Length > 0 ? "; by " + t.Artist : "")} on pixabay.com.";
+                string stored = _owner.AddSongToLibrary(bytes, fileName);
+                StatusText.Text = stored.Length > 0
+                    ? $"✅ Added '{stored}' to your 🎵 Song Library — it's in the track list now, ready for the decks. Pixabay Content License (free to use, no credit required){(t.Artist.Length > 0 ? "; by " + t.Artist : "")} on pixabay.com."
+                    : "Add failed: the song couldn't be saved into the library folder.";
             }
             catch (OperationCanceledException) { StatusText.Text = "Download cancelled."; }
             catch (Exception ex) { StatusText.Text = "Add failed: " + ex.Message; }

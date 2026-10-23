@@ -3,6 +3,12 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.82 — The App's Own Music Library
+- **Fixed: songs added from search never showed up in the track list.** The Search Hub's Add buttons (Archive, Audius, Jamendo, Pixabay) were filing full songs into the *sound* library (the sampler's clips), so they never appeared in the 🎵 Song Library — and couldn't be sent to decks or crates from there. They now add to the Song Library properly, and the status line says so.
+- **BeatSync now keeps its own music library folder.** Every song you add — from search, Add Files, Add Folder, ZIPs — lands as a file in ONE library folder, and the Song Library's track list is the list of everything in it. The folder shows at the top of the 🎵 Song Library (📁 Local Songs); **Change…** picks a different one (default: Music\BeatSync Library), **📂 Open** opens it in Explorer.
+- **Imports drop into the folder.** "Copy imports into the library folder" (on by default): Add Folder / Add Files copy the songs into the library folder so the library is self-contained; ZIPs unpack there too. Untick it to list songs where they already live instead. Adding the same song twice never makes a duplicate file or a duplicate list entry.
+- **Delete, with a confirmation — always.** 🗑 **Delete File…** removes selected songs from the library and deletes their files from the library folder — but only after the app shows exactly what will happen and you confirm. Songs whose files live outside the library folder are only removed from the list (their files are never touched), and the confirm dialog says so. The old 🗑 Remove (list-only, files never deleted) is still there.
+
 ## Version 3.81 — Mixkit: The Honest Answer
 - **Mixkit gets a tab — an explainer, not a scraper.** Checked against primary sources (Oct 22, 2026): Mixkit has **no API at all** (its /api and /developers addresses are 404; there is no api.mixkit.co), and its User Terms expressly forbid scripts or bots accessing or downloading its catalog. A search panel would have to scrape the site — prohibited — so BeatSync doesn't build one. Same standard as Free Music Archive.
 - The 🎚 **Mixkit** tab (and Tools → 🎚 Mixkit) says all that plainly and offers the legitimate one-click-longer route: **open Mixkit's free music in your browser**, download there like any visitor, then import the files through the Song Library / Sound Library importers you already have.

@@ -159,7 +159,7 @@ namespace BeatSyncStudioPro
             {
                 string baseName = System.IO.Path.GetFileNameWithoutExtension(zipPath);
                 foreach (char c in System.IO.Path.GetInvalidFileNameChars()) baseName = baseName.Replace(c, '_');
-                string dir = System.IO.Path.Combine(ExtractRoot, baseName);
+                string dir = System.IO.Path.Combine(EnsureLibraryDir(), baseName);
                 Directory.CreateDirectory(dir);
                 using var zip = ZipFile.OpenRead(zipPath);
                 foreach (var ze in zip.Entries)
@@ -177,6 +177,148 @@ namespace BeatSyncStudioPro
             }
             catch { /* a bad zip just yields nothing */ }
             return found;
+        }
+
+        // ---------- the app's own music library folder (v3.82) ----------
+        // Michael's ask: BeatSync keeps its OWN library — every song
+        // added lands as a file in ONE folder he picks (default:
+        // Music\BeatSync Library), and the Song Library's track list
+        // is the list of everything that's been added.
+
+        private sealed class LibrarySettings
+        {
+            public string LibraryDir { get; set; } = "";
+            public bool CopyImports { get; set; } = true;
+        }
+
+        private static string SettingsPath => System.IO.Path.Combine(AppDir, "library-settings.json");
+        private static LibrarySettings? _settings;
+
+        private static LibrarySettings Settings
+        {
+            get
+            {
+                if (_settings != null) return _settings;
+                try
+                {
+                    if (File.Exists(SettingsPath))
+                        _settings = JsonSerializer.Deserialize<LibrarySettings>(File.ReadAllText(SettingsPath));
+                }
+                catch { /* fall through to defaults */ }
+                return _settings ??= new LibrarySettings();
+            }
+        }
+
+        private static void SaveSettings()
+        {
+            try
+            {
+                Directory.CreateDirectory(AppDir);
+                File.WriteAllText(SettingsPath,
+                    JsonSerializer.Serialize(Settings, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch { /* a failed save must never crash the app */ }
+        }
+
+        public static string DefaultLibraryDir => System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), "BeatSync Library");
+
+        public static string LibraryDir
+        {
+            get => Settings.LibraryDir.Length > 0 ? Settings.LibraryDir : DefaultLibraryDir;
+            set { Settings.LibraryDir = value ?? ""; SaveSettings(); }
+        }
+
+        public static bool CopyImports
+        {
+            get => Settings.CopyImports;
+            set { Settings.CopyImports = value; SaveSettings(); }
+        }
+
+        public static string EnsureLibraryDir()
+        {
+            string dir = LibraryDir;
+            try { Directory.CreateDirectory(dir); } catch { }
+            return dir;
+        }
+
+        public static bool IsInLibraryDir(string path)
+        {
+            try
+            {
+                string full = System.IO.Path.GetFullPath(path);
+                string dir = System.IO.Path.GetFullPath(LibraryDir).TrimEnd('\\', '/') + "\\";
+                return full.StartsWith(dir, StringComparison.OrdinalIgnoreCase);
+            }
+            catch { return false; }
+        }
+
+        private static string SanitizeFileName(string name)
+        {
+            foreach (char c in System.IO.Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+            name = name.Trim();
+            return name.Length == 0 ? "song" : name;
+        }
+
+        /// <summary>Where a new file with this name goes in the library
+        /// folder: the name itself when free, the existing file when an
+        /// identical-size copy is already there, else "name (2).ext".</summary>
+        private static string UniqueTargetPath(string fileName, long length)
+        {
+            string dir = EnsureLibraryDir();
+            string clean = SanitizeFileName(fileName);
+            string candidate = System.IO.Path.Combine(dir, clean);
+            if (!File.Exists(candidate)) return candidate;
+            try { if (new FileInfo(candidate).Length == length) return candidate; } catch { }
+            string stem = System.IO.Path.GetFileNameWithoutExtension(clean);
+            string ext = System.IO.Path.GetExtension(clean);
+            for (int i = 2; i < 100; i++)
+            {
+                string alt = System.IO.Path.Combine(dir, $"{stem} ({i}){ext}");
+                if (!File.Exists(alt)) return alt;
+            }
+            return candidate;
+        }
+
+        /// <summary>Copy an existing file into the library folder.
+        /// Returns the library path — or the original path when the
+        /// copy can't happen, so the caller can still register it.</summary>
+        public static string CopyIntoLibrary(string sourcePath)
+        {
+            try
+            {
+                if (IsInLibraryDir(sourcePath)) return sourcePath;
+                long len = new FileInfo(sourcePath).Length;
+                string target = UniqueTargetPath(System.IO.Path.GetFileName(sourcePath), len);
+                if (!File.Exists(target))
+                    File.Copy(sourcePath, target, overwrite: false);
+                return target;
+            }
+            catch { return sourcePath; }
+        }
+
+        /// <summary>Add downloaded bytes as a song in the library: the
+        /// file lands in the library folder, its tags are scanned, and
+        /// the entry joins the saved index the Song Library window
+        /// shows. Returns the entry, null when it couldn't be done.</summary>
+        public static LibrarySong? AddBytesToLibrary(byte[] bytes, string fileName)
+        {
+            try
+            {
+                string target = UniqueTargetPath(fileName, bytes.LongLength);
+                if (!(File.Exists(target) && new FileInfo(target).Length == bytes.LongLength))
+                    File.WriteAllBytes(target, bytes);
+                var entry = ScanFile(target);
+                if (entry == null) return null;
+                var all = Load();
+                if (!all.Any(s => string.Equals(s.Path, target, StringComparison.OrdinalIgnoreCase)))
+                {
+                    all.Add(entry);
+                    Save(all);
+                }
+                return entry;
+            }
+            catch { return null; }
         }
 
         /// <summary>Fill in BPM + key where they're missing: tags first
