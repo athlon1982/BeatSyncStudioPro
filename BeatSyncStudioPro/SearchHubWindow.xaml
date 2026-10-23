@@ -31,18 +31,20 @@
                 <ComboBoxItem Content="🔊 Sounds — Freesound"/>
                 <ComboBoxItem Content="🎵 Songs — Archive"/>
                 <ComboBoxItem Content="🎵 Songs — Jamendo"/>
-                <ComboBoxItem Content="🎵 All songs (Archive + Jamendo)"/>
+                <ComboBoxItem Content="🎧 Songs — Audius"/>
+                <ComboBoxItem Content="🎵 All songs (Archive + Jamendo + Audius)"/>
             </ComboBox>
             <Button x:Name="HubSearchButton" Grid.Column="2" Content="🔎 Search" Click="HubSearch_Click" Margin="8,0,0,0" Padding="16,6"
                     Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
         </Grid>
         <TextBlock x:Name="HubStatusText" Grid.Row="3" Margin="0,8,0,0" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"
-                   Text="🔊 Sounds = short stuff (drum hits, loops, effects — Freesound). 🎵 Songs = full tracks (Internet Archive needs no key; Jamendo needs a free client ID)."/>
+                   Text="🔊 Sounds = short stuff (drum hits, loops, effects — Freesound). 🎵 Songs = full tracks (Internet Archive and Audius need no key at all; Jamendo needs a free client ID)."/>
 
         <TabControl x:Name="Tabs" Grid.Row="4" Margin="0,10,0,0" Background="#1E222B" BorderBrush="#2A3446">
             <TabItem x:Name="FsTab" Header="🔊 Sounds &amp; Samples — Freesound" Foreground="White"/>
             <TabItem x:Name="IaTab" Header="🎵 Music &amp; Recordings — Archive" Foreground="White"/>
             <TabItem x:Name="JamTab" Header="🎵 More Music — Jamendo" Foreground="White"/>
+            <TabItem x:Name="AuTab" Header="🎧 More Music — Audius" Foreground="White"/>
             <TabItem Header="🔑 Accounts &amp; Keys" Foreground="White">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="10">
@@ -97,9 +99,15 @@
 
                     <Border BorderBrush="#2A3446" BorderThickness="0,1,0,0" Margin="0,18,0,0" Padding="0,14,0,0">
                         <StackPanel>
+                            <TextBlock Text="Audius" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="Needs: nothing at all — Audius's public API asks for no key and no account. FREE. Always ready — just search the 🎧 Audius tab. Downloads show up only on tracks where the artist enabled them."
+                                       Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border BorderBrush="#2A3446" BorderThickness="0,1,0,0" Margin="0,18,0,0" Padding="0,14,0,0">
+                        <StackPanel>
                             <TextBlock Text="Coming in future updates" FontWeight="Bold" Foreground="White"/>
-                            <TextBlock Text="Audius — needs a free developer API key. FREE. (Not connected yet.)"
-                                       Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"/>
                             <TextBlock Text="Pixabay Music — needs a free API key. FREE. (Not connected yet.)"
                                        Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
                             <TextBlock Text="Mixkit — ⚠️ Mixkit has no API at all, so it can't be connected."

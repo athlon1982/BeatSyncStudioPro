@@ -20,6 +20,7 @@ namespace BeatSyncStudioPro
         private readonly FreesoundSearchControl _fs;
         private readonly ArchiveSearchControl _ia;
         private readonly JamendoSearchControl _jm;
+        private readonly AudiusSearchControl _au;
 
         public SearchHubWindow(MainWindow owner, int startTab)
         {
@@ -27,9 +28,11 @@ namespace BeatSyncStudioPro
             _fs = new FreesoundSearchControl(owner);
             _ia = new ArchiveSearchControl(owner);
             _jm = new JamendoSearchControl(owner);
+            _au = new AudiusSearchControl(owner);
             FsTab.Content = _fs;
             IaTab.Content = _ia;
             JamTab.Content = _jm;
+            AuTab.Content = _au;
             KeyBox.Password = FreesoundSearchControl.LoadKey();
             _fs.KeyProvider = () => KeyBox.Password;
             JamKeyBox.Password = JamendoSearchControl.LoadKey();
@@ -39,9 +42,10 @@ namespace BeatSyncStudioPro
             _fs.HideOwnChrome();
             _ia.HideOwnChrome();
             _jm.HideOwnChrome();
+            _au.HideOwnChrome();
             RefreshAccountStatus();
-            Tabs.SelectedIndex = startTab is 1 or 2 ? startTab : 0;
-            Closed += (s, e) => { _fs.StopPreview(); _ia.StopPreview(); _jm.StopPreview(); };
+            Tabs.SelectedIndex = startTab is 1 or 2 or 3 ? startTab : 0;
+            Closed += (s, e) => { _fs.StopPreview(); _ia.StopPreview(); _jm.StopPreview(); _au.StopPreview(); };
         }
 
         /// <summary>Jump to a tab when the hub is re-opened from a menu.</summary>
@@ -114,21 +118,24 @@ namespace BeatSyncStudioPro
             }
             int scope = HubScopePicker.SelectedIndex;
             bool wantFs = scope is 0 or 1;
-            bool wantIa = scope is 0 or 2 or 4;
-            bool wantJm = scope is 0 or 3 or 4;
+            bool wantIa = scope is 0 or 2 or 5;
+            bool wantJm = scope is 0 or 3 or 5;
+            bool wantAu = scope is 0 or 4 or 5;
 
             HubSearchButton.IsEnabled = false;
             HubStatusText.Text = "Searching…";
-            int fsN = -1, iaN = -1, jmN = -1;
+            int fsN = -1, iaN = -1, jmN = -1, auN = -1;
             try { if (wantFs) fsN = await _fs.HubSearchAsync(q); } catch { fsN = 0; }
             try { if (wantIa) iaN = await _ia.HubSearchAsync(q); } catch { iaN = 0; }
             try { if (wantJm) jmN = await _jm.HubSearchAsync(q); } catch { jmN = 0; }
+            try { if (wantAu) auN = await _au.HubSearchAsync(q); } catch { auN = 0; }
             HubSearchButton.IsEnabled = true;
 
             var parts = new List<string>();
             if (fsN >= 0) parts.Add($"Freesound: {fsN}");
             if (iaN >= 0) parts.Add($"Archive: {iaN}");
             if (jmN >= 0) parts.Add($"Jamendo: {jmN}");
+            if (auN >= 0) parts.Add($"Audius: {auN}");
             string summary = string.Join(" · ", parts) + " — results are in the tabs below.";
             if (wantFs && fsN == 0 && FreesoundSearchControl.LoadKey().Length == 0)
                 summary += " Freesound found nothing because no API key is saved yet — add your free key in 🔑 Accounts & Keys.";
@@ -140,9 +147,11 @@ namespace BeatSyncStudioPro
             if (fsN > 0) Tabs.SelectedIndex = 0;
             else if (iaN > 0) Tabs.SelectedIndex = 1;
             else if (jmN > 0) Tabs.SelectedIndex = 2;
+            else if (auN > 0) Tabs.SelectedIndex = 3;
             else if (wantFs) Tabs.SelectedIndex = 0;
             else if (wantIa) Tabs.SelectedIndex = 1;
             else if (wantJm) Tabs.SelectedIndex = 2;
+            else if (wantAu) Tabs.SelectedIndex = 3;
         }
     }
 }

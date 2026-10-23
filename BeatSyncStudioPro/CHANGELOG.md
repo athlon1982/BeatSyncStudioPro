@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.79 — Audius Joins the Search Hub
+- **A fourth music source, zero setup:** 🎧 **Audius** — the artist-run streaming co-op — is now a full citizen of 🔎 Search Sounds & Music: its own tab, a scope in the search picker, and part of "All sources" and "All songs". Audius's public API asks for no key and no account (just an app name), so it works the moment you open the window — the 🔑 Accounts & Keys tab says so, correcting the old "coming soon" note.
+- **Preview streams, downloads where artists allow them:** ▶ Preview streams the track (the app resolves Audius's stream redirect first so previews actually play). ⬇ Add to Library pulls the artist's own download in its original format where the artist enabled downloads — the results list marks those with ⬇ — and a stream copy otherwise; either way it's filed into your library, categorized, with the artist credited in the status line.
+- Tools menu gains **🎧 Audius Music...**, opening the hub right on the Audius tab.
+
 ## Version 3.78 — Set Builder (Crates)
 - **Plan the set before you play it:** Tools → **🧺 Set Builder** opens the crate workshop. Create named crates (Friday Warm-Up, Parade Set, whatever), then click songs in your Song Library to add them — filter box up top, double-click adds too, duplicates are refused politely.
 - **Shape the order:** Up/Down buttons, Remove, and a **📈 Sort by BPM** that ramps the crate slowest → fastest for an energy build (songs you haven't analyzed yet go last, with a nudge to analyze them in the Library). The header always shows the running total: song count, full set length, and BPM range.

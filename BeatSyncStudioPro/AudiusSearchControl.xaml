@@ -1,0 +1,40 @@
+<UserControl x:Class="BeatSyncStudioPro.AudiusSearchControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="#1E222B" Foreground="#FFFFFF">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="HeadText" Text="🎧 Full songs from independent artists on audius.co — the artist-run streaming co-op. No account, no API key: it just works. Downloads appear only where the artist enabled them."
+                   Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+
+        <Grid x:Name="QueryRow" Grid.Row="1" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="QueryBox" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8,6"
+                     KeyDown="QueryBox_KeyDown" ToolTip="song title, artist, or a genre like 'hip-hop', 'electronic', 'lofi'…"/>
+            <Button x:Name="SearchButton" Grid.Column="1" Content="🔎 Search" Click="Search_Click" Margin="8,0,0,0" Padding="16,6"
+                    Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+        </Grid>
+
+        <ListBox x:Name="ResultsList" Grid.Row="2" Margin="0,10,0,0" Background="#14171E" Foreground="White" BorderBrush="#333"/>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,10,0,0">
+            <Button Content="▶ Preview" Click="Preview_Click" Padding="14,6"
+                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="⬇ Add to Library" Click="Add_Click" Margin="8,0,0,0" Padding="14,6"
+                    Background="#2A303C" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+        </StackPanel>
+
+        <TextBlock Grid.Row="4" x:Name="StatusText" Margin="0,8,0,0" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"
+                   Text="Search audius.co's catalog of independent music. Songs stream for preview; ⬇ adds the track to your library (the artist's own download where they enabled one)."/>
+    </Grid>
+</UserControl>

@@ -217,6 +217,7 @@
                 <MenuItem Header="🌐 Freesound Sounds..." Click="BtnFreesound_Click"/>
                 <MenuItem Header="🏛️ Internet Archive Music..." Click="BtnArchive_Click"/>
                 <MenuItem Header="🎵 Jamendo Music..." Click="BtnJamendo_Click"/>
+                <MenuItem Header="🎧 Audius Music..." Click="BtnAudius_Click"/>
                 <MenuItem Header="🎵 Song Library..." Click="BtnSongLibrary_Click"/>
                 <MenuItem Header="🧺 Set Builder..." Click="BtnSetBuilder_Click"/>
                 <Separator/>
