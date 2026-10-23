@@ -80,6 +80,7 @@ namespace BeatSyncStudioPro
         private volatile string _companionStateJson = "{}";
         private CompanionWindow? _companionWindow;
         private RequestsWindow? _requestsWindow;
+        private ChatRequestMonitor _chatRequests = null!;
         private int _lastReqCount = -1;
         internal CompanionServer Companion => _companion;
         internal void StartCompanionServer() => _companion.Start(CompanionServer.LoadSettings().Port);
@@ -149,6 +150,7 @@ namespace BeatSyncStudioPro
                 _owner.TryGetOutputWindowScreenRect(out int sx, out int sy, out int sw, out int sh)
                     ? (true, sx, sy, sw, sh) : (false, 0, 0, 0, 0));
             Streamer.EnsureOutputSurface = () => _owner.Dispatcher.Invoke(() => _owner.ShowOutputWindow());
+            _chatRequests = new ChatRequestMonitor(_companion);
             Streamer.Failed += msg => Dispatcher.BeginInvoke(() =>
             {
                 SetStatus("\U0001F534 Live stream stopped: " + msg);
@@ -218,7 +220,7 @@ namespace BeatSyncStudioPro
                 Left = wa.Left + Math.Max(0, (wa.Width - ActualWidth) / 2);
                 Top = wa.Top + Math.Max(0, (wa.Height - ActualHeight) / 2);
             };
-            Closed += (s, e) => { if (_setRecording) FinishSetRecording(); _timer.Stop(); _recorder.Stop(); _owner.DetachDjMixer(_recorder); _mic.Dispose(); _companion.Stop(); Streamer.Stop(); };
+            Closed += (s, e) => { if (_setRecording) FinishSetRecording(); _timer.Stop(); _recorder.Stop(); _owner.DetachDjMixer(_recorder); _mic.Dispose(); _companion.Stop(); Streamer.Stop(); _chatRequests?.Dispose(); };
         }
 
         // v3.40: snappy, long-lived hover help on every element in the window.
@@ -2134,7 +2136,7 @@ namespace BeatSyncStudioPro
         {
             if (_requestsWindow == null)
             {
-                _requestsWindow = new RequestsWindow(_companion) { Owner = this };
+                _requestsWindow = new RequestsWindow(_companion, _chatRequests) { Owner = this };
                 _requestsWindow.Closed += (s2, e2) => _requestsWindow = null;
                 _requestsWindow.Show();
             }

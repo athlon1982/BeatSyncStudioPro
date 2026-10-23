@@ -98,6 +98,7 @@ namespace BeatSyncStudioPro
             public string Name { get; set; } = "";
             public string Song { get; set; } = "";
             public string Shoutout { get; set; } = "";
+            public string Source { get; set; } = "Web";
             public DateTime WhenUtc { get; set; }
         }
 
@@ -176,7 +177,7 @@ namespace BeatSyncStudioPro
 
         /// <summary>Store a listener request. Returns "" when stored,
         /// else a short reason: "rate", "full", or "empty".</summary>
-        public string AddRequest(string name, string song, string shoutout, string remoteIp)
+        public string AddRequest(string name, string song, string shoutout, string remoteIp, string source = "Web")
         {
             EnsureRequestsLoaded();
             lock (_reqLock)
@@ -192,6 +193,7 @@ namespace BeatSyncStudioPro
                     Name = name.Trim(),
                     Song = song.Trim(),
                     Shoutout = shoutout.Trim(),
+                    Source = string.IsNullOrWhiteSpace(source) ? "Web" : source.Trim(),
                     WhenUtc = DateTime.UtcNow
                 });
                 SaveRequestsLocked();
