@@ -415,6 +415,11 @@
                                     Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
                                     ToolTip="Stream overlay: a Now Playing card on the Output window — current song, Rad-Dad Radio listener count, and the latest listener request. It is part of the picture your stream sends out."/>
                         </Grid>
+                        <Grid Margin="0,8,0,0">
+                            <Button x:Name="DropsButton" Content="&#x1F4FB; Radio Drops" Click="DropsButton_Click" Height="32" Style="{StaticResource HwButton}"
+                                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                    ToolTip="Radio Drops: a board of big pads for station IDs, tags and promos. Assign any sound to a pad (right-click it in the board) — it plays over the mix and the music dips under it automatically."/>
+                        </Grid>
                     </StackPanel>
                     <TextBlock x:Name="DjStatus" Text="Load a song on each deck and mix." Foreground="#A0A5B5" FontSize="11"
                                TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,8,0,0"/>

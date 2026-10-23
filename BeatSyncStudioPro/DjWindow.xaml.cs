@@ -93,6 +93,10 @@ namespace BeatSyncStudioPro
         internal void StopCompanionServer() => _companion.Stop();
         // Sampler (v3.27)
         private readonly SamplerEngine _sampler = new SamplerEngine();
+        // v3.97: radio drops — a second sampler bus, only for station IDs/promos
+        private readonly SamplerEngine _drops = new SamplerEngine();
+        private float _dropsDuckFactor = 1f;
+        private DropsWindow? _dropsWindow;
         private readonly Button[] _padButtons = new Button[SamplerEngine.PadCount];
         private readonly TextBlock[] _padSubs = new TextBlock[SamplerEngine.PadCount];
         private readonly TextBlock[] _padTitles = new TextBlock[SamplerEngine.PadCount];
@@ -163,6 +167,8 @@ namespace BeatSyncStudioPro
                 RefreshStreamButton();
             });
             djMaster.AddMixerInput(_sampler.Output);
+            djMaster.AddMixerInput(_drops.Output);
+            _drops.Output.Volume = 1.0f;
             SamplerVolumeKnob.ValueChanged += (s, e) => _sampler.Output.Volume = (float)SamplerVolumeKnob.Value;
             BuildSamplerPads();
             // v3.46: stem compute picker (Auto / GPU / CPU) — the app-wide
@@ -2086,6 +2092,13 @@ namespace BeatSyncStudioPro
             };
             _masterGain.Volume = _ducking.Update(
                 MicDuckBox.IsChecked == true, _micOn, _mic.Level, _musicLevel, duckDepth, 0.1f);
+            // v3.97: a sounding radio drop ducks the music too (composed
+            // multiplicatively, so mic-duck and drop-duck never fight —
+            // this method is the only writer of the music gain).
+            bool dropPlaying = false;
+            foreach (var slot in _drops.Slots) if (slot.IsPlaying) { dropPlaying = true; break; }
+            _dropsDuckFactor = DropsDuck.Ease(_dropsDuckFactor, dropPlaying);
+            if (_dropsDuckFactor < 0.999f) _masterGain.Volume *= _dropsDuckFactor;
             if (MicDuckState != null)
             {
                 MicDuckState.Text = _ducking.IsDucking ? "DUCKING" : (_micOn ? "AUTO-DUCK READY" : "AUTO-DUCK OFF");
@@ -2137,6 +2150,17 @@ namespace BeatSyncStudioPro
                 _streamLabel = label;
                 StreamButton.Content = label;
             }
+        }
+
+        private void DropsButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_dropsWindow == null)
+            {
+                _dropsWindow = new DropsWindow(_drops, msg => SetStatus(msg)) { Owner = this };
+                _dropsWindow.Closed += (s2, e2) => _dropsWindow = null;
+                _dropsWindow.Show();
+            }
+            else _dropsWindow.Activate();
         }
 
         private void OverlayButton_Click(object sender, RoutedEventArgs e)
