@@ -106,7 +106,7 @@ namespace BeatSyncStudioPro
             var header = new TextBlock
             {
                 Text = "Big pads for your station IDs, tags and promos. Click a pad to play it — the music dips " +
-                       "under it automatically. Right-click a pad to assign a sound (any WAV/MP3 — record your " +
+                       "under it automatically. Click an empty pad to give it a sound (any WAV/MP3 — record your " +
                        "own ID with the mic and save it as a file), rename it, or clear it.",
                 Foreground = Muted, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10)
             };
@@ -213,7 +213,11 @@ namespace BeatSyncStudioPro
             if (!slot.HasSound && _padSamples.TryGetValue(pad, out var cached)) { slot.Load(cached); }
             if (!slot.HasSound)
             {
-                SetStatus($"'{_defs[pad].Name}' has no sound yet — right-click the pad and Assign sound…");
+                // v3.101: an empty pad used to just print a faint status line,
+                // which reads as "the drops don't do anything". Now the click
+                // itself opens the picker — one click and you're assigning.
+                SetStatus($"'{_defs[pad].Name}' has no sound yet — pick one now:");
+                Assign(pad);
                 return;
             }
             _engine.Trigger(pad);
@@ -306,7 +310,7 @@ namespace BeatSyncStudioPro
                 {
                     Text = _engine.Slots[i].HasSound
                         ? (string.IsNullOrWhiteSpace(def.Path) ? "sound loaded" : System.IO.Path.GetFileName(def.Path))
-                        : "right-click: assign sound",
+                        : "click: assign a sound",
                     FontSize = 10.5, Foreground = Muted, HorizontalAlignment = HorizontalAlignment.Center,
                     TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 150
                 });

@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.101 — Radio Drops: Empty Pads Explain Themselves
+- **Fix for "the radio drops don't do anything":** the pads ship unassigned on purpose (they're for YOUR voice tags), but clicking an empty pad only printed a faint status line — so they looked broken. Now **clicking an empty pad opens the sound picker immediately**: pick any WAV/MP3 and that pad is live. The pads also say "click: assign a sound" on their face.
+- **Event Mode says it out loud too:** tapping an unassigned drop there now flashes a big amber warning naming the pad and where to assign its sound, instead of silence.
+
 ## Version 3.100 — Vermont Station Directory + Search
 - **Find Stations, built into the Internet Radio window:** a **Vermont directory** of 14 stations, every one stream-tested live before it made the list — Rutland's Rock 94.5, Z97.1 and Cat Country 105.3, Vermont Public (News, Classical, Jazz, BBC), WDEV Waterbury, The Point Montpelier, WRUV Burlington, WGDR Plainfield, WMRW Warren, Alt Vintage, and your own Rad-Dad Radio. Each is listed by **name and location**, as asked.
 - **Search three ways:** by station name, by town, or by style (country, jazz, rock…). An empty search browses the whole state.

@@ -24,7 +24,7 @@ namespace BeatSyncStudioPro
         public required Func<bool> MicOn { get; init; }
         public required Action NextSong { get; init; }
         public required Func<string> NextUpTitle { get; init; }
-        public required Action<int> TriggerDrop { get; init; }
+        public required Func<int, bool> TriggerDrop { get; init; }
         public required Func<int, bool> DropPlaying { get; init; }
         public required Func<int, string> DropName { get; init; }
     }
@@ -72,6 +72,8 @@ namespace BeatSyncStudioPro
         private readonly TextBlock _nextLabel = new TextBlock();
         private readonly Button _micBtn = new Button();
         private readonly Button[] _dropBtns = new Button[SamplerEngine.PadCount];
+        private readonly TextBlock _dropHint = new TextBlock();
+        private int _dropHintTicks;
         private readonly Button _xfA = new Button();
         private readonly Button _xfBoth = new Button();
         private readonly Button _xfB = new Button();
@@ -179,11 +181,16 @@ namespace BeatSyncStudioPro
                     Background = Panel, Foreground = Brushes.White, BorderThickness = new Thickness(0),
                     Cursor = System.Windows.Input.Cursors.Hand
                 };
-                b.Click += (s, e) => { _h.TriggerDrop(pad); Refresh(); };
+                b.Click += (s, e) => { if (!_h.TriggerDrop(pad)) ShowDropHint(_h.DropName(pad)); Refresh(); };
                 _dropBtns[i] = b;
                 dropsGrid.Children.Add(b);
             }
             root.Children.Add(dropsGrid);
+            _dropHint.FontSize = 16;
+            _dropHint.Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0xC1, 0x07));
+            _dropHint.FontWeight = FontWeights.Bold;
+            _dropHint.Margin = new Thickness(4, 0, 0, 10);
+            root.Children.Add(_dropHint);
 
             var exit = new Button
             {
@@ -197,6 +204,7 @@ namespace BeatSyncStudioPro
             Content = new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
 
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+            // (created here; Tick wired below with Refresh)
             _timer.Tick += (s, e) => Refresh();
             _timer.Start();
             Closed += (s, e) => _timer.Stop();
@@ -233,8 +241,15 @@ namespace BeatSyncStudioPro
             return $"{(int)t.TotalMinutes}:{t.Seconds:00}";
         }
 
+        private void ShowDropHint(string padName)
+        {
+            _dropHint.Text = $"⚠ '{padName}' has no sound yet — assign sounds on the Radio Drops board (DJ board → 📻 Radio Drops).";
+            _dropHintTicks = 12; // ~3 s at the 250 ms refresh tick
+        }
+
         private void Refresh()
         {
+            if (_dropHintTicks > 0 && --_dropHintTicks == 0) _dropHint.Text = "";
             _clock.Text = DateTime.Now.ToString("h:mm tt");
             var a = _h.DeckA();
             var b = _h.DeckB();

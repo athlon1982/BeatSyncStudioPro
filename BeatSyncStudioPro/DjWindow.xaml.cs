@@ -2185,14 +2185,15 @@ namespace BeatSyncStudioPro
                 _drops.Slots[pad].Load(samples);
         }
 
-        private void EventTriggerDrop(int pad)
+        private bool EventTriggerDrop(int pad)
         {
             EnsureDropsLoaded();
             var slot = _drops.Slots[pad];
-            if (slot.IsPlaying) { _drops.StopPad(pad); RearmDrop(pad); return; }
+            if (slot.IsPlaying) { _drops.StopPad(pad); RearmDrop(pad); return true; }
             if (!slot.HasSound && _dropSamples.TryGetValue(pad, out var cached)) slot.Load(cached);
-            if (slot.HasSound) { _drops.Trigger(pad); SetStatus($"📻 Drop: {EventDropName(pad)}"); }
-            else SetStatus($"📻 '{EventDropName(pad)}' has no sound yet — assign one in the Radio Drops board.");
+            if (slot.HasSound) { _drops.Trigger(pad); SetStatus($"📻 Drop: {EventDropName(pad)}"); return true; }
+            SetStatus($"📻 '{EventDropName(pad)}' has no sound yet — assign one in the Radio Drops board.");
+            return false;
         }
 
         private string EventDropName(int pad)
