@@ -27,6 +27,7 @@ namespace BeatSyncStudioPro
         private CancellationTokenSource? _cts;
         private CancellationTokenSource? _storyCts;
         private CancellationTokenSource? _optCts;
+        private CancellationTokenSource? _rwCts;
 
         private static readonly Dictionary<string, string> InfoByProvider = new Dictionary<string, string>
         {
@@ -448,6 +449,121 @@ namespace BeatSyncStudioPro
             }
         }
 
+        // ---- 🔄 Lyrics Rewriter (AI Toolkit, part 3) ----
+        // Same provider/model plumbing as the 🎤 Song, 📖 Story and
+        // ✨ Optimizer tabs. A rewrite is a NEW draft — same idea, new
+        // words — not a polish of the original lines.
+
+        private string BuildRewritePrompt(string lyrics, string goal, string direction)
+        {
+            string directionPart = direction.Length > 0 ? $"Direction: {direction}. " : "";
+            return "Rewrite these song lyrics for Rad-Dad, a Vermont country-rap (boom-rap) artist — heavy 808 bass, honest small-town Vermont life, family, trucks, hard work, no explicit content. " +
+                   $"Rewrite goal: {goal}. " + directionPart +
+                   "Write a fresh draft with new wording and imagery; keep the song singable and the section structure the original calls for. " +
+                   $"Original lyrics: {lyrics}. " +
+                   "Output ONLY in this exact shape, no commentary outside these sections, and do not stop until you have written BOTH sections — the [STYLE] line is required, not optional:\n" +
+                   "[LYRICS]\nThe full rewritten lyrics with section labels like [Verse 1], [Chorus], [Verse 2], [Bridge], [Outro] as the rewrite calls for.\n" +
+                   "[STYLE]\nOne line: a style prompt describing this song's sound (genre, instruments, tempo feel, vocal style).";
+        }
+
+        private void FillRewrittenResults(string reply)
+        {
+            string lyrics = reply, style = "";
+            int lyricsIdx = reply.IndexOf("[LYRICS]", StringComparison.OrdinalIgnoreCase);
+            int styleIdx = reply.IndexOf("[STYLE]", StringComparison.OrdinalIgnoreCase);
+            if (lyricsIdx >= 0 || styleIdx >= 0)
+            {
+                int lyricsStart = lyricsIdx >= 0 ? lyricsIdx + "[LYRICS]".Length : 0;
+                int lyricsEnd = styleIdx >= 0 ? styleIdx : reply.Length;
+                lyrics = lyricsEnd > lyricsStart ? reply.Substring(lyricsStart, lyricsEnd - lyricsStart).Trim() : "";
+                if (styleIdx >= 0)
+                {
+                    int styleStart = styleIdx + "[STYLE]".Length;
+                    style = reply.Length > styleStart ? reply.Substring(styleStart).Trim() : "";
+                }
+            }
+            RwOutLyricsBox.Text = lyrics;
+            RwStyleBox.Text = style.Length > 0 ? style : "No style line came back — your standing style still applies: boom-rap, heavy 808 sub-bass, hard-hitting bass.";
+        }
+
+        private async void RwGenerate_Click(object sender, RoutedEventArgs e)
+        {
+            string lyrics = RwLyricsBox.Text.Trim();
+            if (lyrics.Length == 0)
+            {
+                RwStatusText.Text = "Paste some lyrics first.";
+                return;
+            }
+            string goal = (RwGoalPicker.Text ?? "").Trim();
+            string direction = RwDirectionBox.Text.Trim();
+            string model = (ModelPicker.Text ?? "").Trim();
+            _settings.Model = model;
+            _settings.ProviderId = Current.Id;
+            _settings.Save();
+
+            var provider = Current;
+            _rwCts = new CancellationTokenSource();
+            RwGenerateBtn.IsEnabled = false;
+            RwCancelBtn.IsEnabled = true;
+            RwStatusText.Text = $"Asking {provider.DisplayName} — free and local models can take a minute…";
+            try
+            {
+                string reply = await provider.ChatAsync(model, BuildRewritePrompt(lyrics, goal, direction), _rwCts.Token);
+                FillRewrittenResults(reply);
+                RwStatusText.Text = "Done — edit the rewritten lyrics, then hit 🎤 Make THESE Lyrics into a Song to add your style, voice and a beat.";
+            }
+            catch (OperationCanceledException)
+            {
+                RwStatusText.Text = "Cancelled.";
+            }
+            catch (Exception ex)
+            {
+                RwStatusText.Text = "Error: " + ex.Message;
+            }
+            finally
+            {
+                RwGenerateBtn.IsEnabled = true;
+                RwCancelBtn.IsEnabled = false;
+                _rwCts?.Dispose();
+                _rwCts = null;
+            }
+        }
+
+        private void RwCancel_Click(object sender, RoutedEventArgs e) => _rwCts?.Cancel();
+
+        private void RwCopy_Click(object sender, RoutedEventArgs e)
+        {
+            if (RwOutLyricsBox.Text.Length > 0)
+            {
+                Clipboard.SetText(RwOutLyricsBox.Text);
+                RwStatusText.Text = "Rewritten lyrics copied ✓";
+            }
+        }
+
+        private void RwMakeSong_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(RwOutLyricsBox.Text))
+            {
+                RwStatusText.Text = "Rewrite some lyrics first — then this button carries them into Create Song with your style and voice ready.";
+                return;
+            }
+            if (_createSong != null) { _createSong.Activate(); return; }
+            // Same carry-over as the 🎤 Song, 📖 Story and ✨ Optimizer tabs.
+            // Wrapped: a window-open error must never take the whole app down.
+            try
+            {
+                _createSong = new CreateSongWindow(_owner, RwOutLyricsBox.Text,
+                    "hip-hop, boom-rap, heavy 808 sub-bass, hard-hitting bass, country rap, Vermont") { Owner = this };
+                _createSong.Closed += (s, ev) => _createSong = null;
+                _createSong.Show();
+            }
+            catch (Exception ex)
+            {
+                _createSong = null;
+                RwStatusText.Text = "Create Song couldn't open: " + ex.Message;
+            }
+        }
+
         private void ReplicateSignup_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/signin");
 
         private void ReplicateToken_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/account/api-tokens");
@@ -816,6 +932,7 @@ namespace BeatSyncStudioPro
             _cts?.Cancel();
             _storyCts?.Cancel();
             _optCts?.Cancel();
+            _rwCts?.Cancel();
             base.OnClosed(e);
         }
     }

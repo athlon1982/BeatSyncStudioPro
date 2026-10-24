@@ -379,6 +379,94 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="🔄 Lyrics Rewriter" Foreground="White">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Give lyrics a fresh take — same idea, new words. Uses the provider &amp; model from the 🎤 Song tab. Your voice stays Rad-Dad boom-rap." Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+
+                    <Grid Grid.Row="1" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Rewrite goal" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="RwGoalPicker" Grid.Column="1" SelectedIndex="0">
+                            <ComboBoxItem Content="Fresh take — same story, new words"/>
+                            <ComboBoxItem Content="Different mood — same story"/>
+                            <ComboBoxItem Content="Shorter and punchier"/>
+                            <ComboBoxItem Content="Bigger chorus"/>
+                            <ComboBoxItem Content="More Vermont country-rap edge"/>
+                        </ComboBox>
+                    </Grid>
+
+                    <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                        <TextBlock Text="Direction (optional — e.g. keep the truck line, make the chorus bigger)" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="RwDirectionBox" Height="40" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="3" Margin="0,10,0,0">
+                        <TextBlock Text="Original lyrics" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="RwLyricsBox" Height="110" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="4" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="RwGenerateBtn" Content="🔄 Rewrite Lyrics" Click="RwGenerate_Click" Height="36" Width="150"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                        <Button x:Name="RwCancelBtn" Grid.Column="1" Content="Cancel" Click="RwCancel_Click" Height="36" Width="80" Margin="8,0,0,0"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" IsEnabled="False"/>
+                        <TextBlock x:Name="RwStatusText" Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                    </Grid>
+
+                    <Grid Grid.Row="5" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="Rewritten lyrics (yours to edit)" Foreground="#A0A5B5" FontSize="11"/>
+                            <TextBox x:Name="RwOutLyricsBox" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Style line" Foreground="#A0A5B5" FontSize="11"/>
+                            <TextBox x:Name="RwStyleBox" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Grid.Row="6" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Content="📋 Copy Rewritten Lyrics" Click="RwCopy_Click" Padding="14,6" VerticalAlignment="Center"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        <TextBlock Grid.Column="1" Text="A rewrite is a new draft, not a polish — the Optimizer tab is the one that keeps your lines."
+                                   Foreground="#666666" FontSize="10" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                        <Button Grid.Column="2" Content="🎤 Make THESE Lyrics into a Song →" Click="RwMakeSong_Click" Height="40" Padding="20,6"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" FontSize="13" BorderThickness="0" Cursor="Hand"
+                                ToolTip="Take these lyrics into Create Song — pick the style, voice, sliders and an auto-made beat, then Generate Song"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
             <TabItem Header="🎬 Video" Foreground="White">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="4,2,4,4">
