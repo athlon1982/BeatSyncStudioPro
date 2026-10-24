@@ -5,6 +5,8 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using System.Windows.Media.Imaging;
+using Microsoft.Win32;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -31,6 +33,8 @@ namespace BeatSyncStudioPro
         private CancellationTokenSource? _rwCts;
         private CancellationTokenSource? _ytCts;
         private CancellationTokenSource? _hitCts;
+        private CancellationTokenSource? _visCts;
+        private string _visImageBase64 = "";
         private string _ytTitle = "";
         private string _ytAuthor = "";
 
@@ -851,6 +855,174 @@ namespace BeatSyncStudioPro
             }
         }
 
+        // ---- 👁️ Vision to Style (AI Toolkit, part 6) ----
+        // TWO steps, because the small local vision model can't do both
+        // jobs in one call (proven 2026-10-24: moondream describes the
+        // image fine but stops after the first output section instead
+        // of writing all four). Step 1: local Ollama moondream LOOKS at
+        // the image and describes it. Step 2: the provider/model picked
+        // in the 🎤 Song tab WRITES the style, title and mood tags from
+        // that description — the same section format the text models
+        // already follow in every other tab. The image stays on this PC
+        // (local Ollama) and is sent to moondream as base64.
+
+        private void VisPick_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFileDialog
+            {
+                Filter = "Images|*.png;*.jpg;*.jpeg;*.webp;*.bmp",
+                Title = "Pick an image to turn into a style"
+            };
+            if (dlg.ShowDialog() != true) return;
+            byte[] bytes;
+            try { bytes = File.ReadAllBytes(dlg.FileName); }
+            catch (Exception ex) { VisStatusText.Text = "Couldn't read that file: " + ex.Message; return; }
+            if (bytes.Length > 20 * 1024 * 1024)
+            {
+                VisStatusText.Text = "That image is too big (over 20 MB) — pick a smaller one.";
+                return;
+            }
+            _visImageBase64 = Convert.ToBase64String(bytes);
+            try
+            {
+                var img = new BitmapImage();
+                using (var ms = new MemoryStream(bytes))
+                {
+                    img.BeginInit();
+                    img.CacheOption = BitmapCacheOption.OnLoad;
+                    img.StreamSource = ms;
+                    img.EndInit();
+                    img.Freeze();
+                }
+                VisPreview.Source = img;
+            }
+            catch { VisPreview.Source = null; }
+            VisPathText.Text = System.IO.Path.GetFileName(dlg.FileName);
+            VisStatusText.Text = "Image ready — pick a vision model (moondream) in the 🎤 Song tab, then hit 👁️ Read Image → Style.";
+        }
+
+        private string BuildVisStylePrompt(string description, string notes)
+        {
+            string notesPart = notes.Length > 0 ? $" Notes from the user: {notes}." : "";
+            return "You are a music creative director. A listener described a picture like this: " + description + notesPart +
+                   " Write a style prompt, a title idea, and mood tags for a NEW original song in this picture's mood, and repeat the description as the analysis. " +
+                   "Output ONLY in this exact shape, in this order, no commentary outside these sections, and do not stop until you have written ALL FOUR sections — all are required, not optional:\n" +
+                   "[ANALYSIS]\nA short description of the picture: scene, subjects, colors, light, mood.\n" +
+                   "[STYLE]\nOne style prompt for a song generator, in the mood of this picture.\n" +
+                   "[TITLE]\nOne song title idea.\n" +
+                   "[MOOD]\nComma-separated mood tags for the song.";
+        }
+
+        private void FillVisResults(string reply)
+        {
+            VisAnalysisBox.Text = HitSection(reply, "[ANALYSIS]", "[STYLE]");
+            VisStyleBox.Text = HitSection(reply, "[STYLE]", "[TITLE]");
+            VisTitleBox.Text = HitSection(reply, "[TITLE]", "[MOOD]");
+            VisMoodBox.Text = HitSection(reply, "[MOOD]", null);
+            if (VisAnalysisBox.Text.Length == 0 && VisStyleBox.Text.Length == 0
+                && VisTitleBox.Text.Length == 0 && VisMoodBox.Text.Length == 0)
+            {
+                VisStatusText.Text = "The read didn't come back in the expected shape — try again, and make sure a vision model is picked.";
+            }
+        }
+
+        private async void VisGenerate_Click(object sender, RoutedEventArgs e)
+        {
+            if (_visImageBase64.Length == 0)
+            {
+                VisStatusText.Text = "Pick an image first.";
+                return;
+            }
+            string notes = VisNotesBox.Text.Trim();
+            string model = (ModelPicker.Text ?? "").Trim();
+            _settings.Model = model;
+            _settings.ProviderId = Current.Id;
+            _settings.Save();
+
+            var provider = Current;
+            _visCts = new CancellationTokenSource();
+            VisGenerateBtn.IsEnabled = false;
+            VisCancelBtn.IsEnabled = true;
+            VisStatusText.Text = "moondream is looking at the image…";
+            try
+            {
+                // Step 1: moondream looks (local Ollama, always this model).
+                var ollama = new OllamaProvider();
+                string description = await ollama.ChatWithImageAsync("moondream:1.8b",
+                    "Describe this image briefly: scene, subjects, colors, light, mood.", _visImageBase64, _visCts.Token);
+                // Guard: moondream sometimes answers empty on the CPU-only
+                // Dell (seen once 2026-10-24). Never claim it "saw" the
+                // picture on an empty answer — fail plainly instead.
+                if (string.IsNullOrWhiteSpace(description))
+                    throw new InvalidOperationException("moondream came back empty — try again; if it keeps happening, restart Ollama on the Dell.");
+                // Step 2: the picked model writes from that description.
+                VisStatusText.Text = $"moondream saw it — now {provider.DisplayName} is writing the style…";
+                string reply = await provider.ChatAsync(model, BuildVisStylePrompt(description, notes), _visCts.Token);
+                FillVisResults(reply);
+                if (VisStyleBox.Text.Length > 0)
+                    VisStatusText.Text = "Done — edit the style, then hit 🎤 Use This Style in Create Song to build on it.";
+            }
+            catch (OperationCanceledException)
+            {
+                VisStatusText.Text = "Cancelled.";
+            }
+            catch (Exception ex)
+            {
+                VisStatusText.Text = "Error: " + ex.Message;
+            }
+            finally
+            {
+                VisGenerateBtn.IsEnabled = true;
+                VisCancelBtn.IsEnabled = false;
+                _visCts?.Dispose();
+                _visCts = null;
+            }
+        }
+
+        private void VisCancel_Click(object sender, RoutedEventArgs e) => _visCts?.Cancel();
+
+        private void VisCopyStyle_Click(object sender, RoutedEventArgs e)
+        {
+            if (VisStyleBox.Text.Length > 0)
+            {
+                Clipboard.SetText(VisStyleBox.Text);
+                VisStatusText.Text = "Style prompt copied ✓";
+            }
+        }
+
+        private void VisCopyTitle_Click(object sender, RoutedEventArgs e)
+        {
+            if (VisTitleBox.Text.Length > 0)
+            {
+                Clipboard.SetText(VisTitleBox.Text);
+                VisStatusText.Text = "Title copied ✓";
+            }
+        }
+
+        private void VisMakeSong_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(VisStyleBox.Text))
+            {
+                VisStatusText.Text = "Read an image first — then this button carries the style into Create Song with the lyrics left blank for you to fill.";
+                return;
+            }
+            if (_createSong != null) { _createSong.Activate(); return; }
+            // The image-born style goes in as the style; lyrics stay blank
+            // on purpose — the style is borrowed, the words must be his.
+            // Wrapped: a window-open error must never take the whole app down.
+            try
+            {
+                _createSong = new CreateSongWindow(_owner, "", VisStyleBox.Text) { Owner = this };
+                _createSong.Closed += (s, ev) => _createSong = null;
+                _createSong.Show();
+            }
+            catch (Exception ex)
+            {
+                _createSong = null;
+                VisStatusText.Text = "Create Song couldn't open: " + ex.Message;
+            }
+        }
+
         private void ReplicateSignup_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/signin");
 
         private void ReplicateToken_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/account/api-tokens");
@@ -1222,6 +1394,7 @@ namespace BeatSyncStudioPro
             _rwCts?.Cancel();
             _ytCts?.Cancel();
             _hitCts?.Cancel();
+            _visCts?.Cancel();
             base.OnClosed(e);
         }
     }
