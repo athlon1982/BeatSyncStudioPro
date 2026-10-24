@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.105 — AI Toolkit, Part 3: Lyrics Rewriter
+- **New 🔄 Lyrics Rewriter tab in the AI Lab** (third of the AI Toolkit, built one tool at a time): paste lyrics, pick a **Rewrite goal** (fresh take, different mood, shorter and punchier, bigger chorus, more Vermont country-rap edge) and add an optional **Direction** note (like "keep the truck line"), and the AI writes a new draft — same idea, new words — plus a **style line**.
+- **Same plumbing as the tabs before it:** the provider and model pickers from the 🎤 Song tab, so local Ollama, OpenCode's free models, or your OpenAI-compatible services all work with no new setup. The rewritten lyrics are yours to edit, with **📋 Copy Rewritten Lyrics** and **🎤 Make THESE Lyrics into a Song**, which carries them into Create Song with your standing boom-rap style and voice ready. A rewrite is a new draft, not a polish — the ✨ Optimizer tab is the one that keeps your lines.
+
 ## Version 3.104 — AI Toolkit, Part 2: Lyrics Optimizer
 - **New ✨ Lyrics Optimizer tab in the AI Lab** (second of the AI Toolkit, built one tool at a time): paste lyrics you already have, add **Meta Tags** (style tags like melancholic piano, swelling strings, mid-tempo, 90 BPM) and **Vocal Coaching** notes (delivery like clear male vocal, emotive, building intensity), and the AI polishes them — same story and meaning, tighter flow, rhyme and singability — plus an **optimized style line**.
 - **Same plumbing as Story to Lyrics:** the provider and model pickers from the 🎤 Song tab, so local Ollama, OpenCode's free models, or your OpenAI-compatible services all work with no new setup. The optimized lyrics are yours to edit, with **📋 Copy Optimized Lyrics** and **🎤 Make THESE Lyrics into a Song**, which carries them into Create Song with your standing boom-rap style and voice ready.
