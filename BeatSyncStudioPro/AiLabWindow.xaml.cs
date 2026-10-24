@@ -25,6 +25,7 @@ namespace BeatSyncStudioPro
         private bool _computeLoading;
         private List<IAiProvider> _providers = new List<IAiProvider>();
         private CancellationTokenSource? _cts;
+        private CancellationTokenSource? _storyCts;
 
         private static readonly Dictionary<string, string> InfoByProvider = new Dictionary<string, string>
         {
@@ -198,6 +199,135 @@ namespace BeatSyncStudioPro
             {
                 _createSong = null;
                 StatusText.Text = "Create Song couldn't open: " + ex.Message;
+            }
+        }
+
+        // ---- 📖 Story to Lyrics (AI Toolkit, part 1) ----
+        // Same provider/model plumbing as the 🎤 Song tab; the story, genre,
+        // mood and structure shape the draft, and the answer is split back
+        // into lyrics + a style suggestion + title ideas.
+
+        private static string ComboText(ComboBox box, string fallback)
+        {
+            if (box.SelectedItem is ComboBoxItem item && item.Content is string text) return text;
+            return fallback;
+        }
+
+        private string BuildStoryPrompt(string story, string genre, string mood, string structure)
+        {
+            return "Write a complete song for Rad-Dad, a Vermont country-rap (boom-rap) artist — heavy 808 bass, honest small-town Vermont life, family, trucks, hard work, no explicit content. " +
+                   $"The song is {genre} in feel and {mood} in mood. Song structure: {structure}. " +
+                   $"Story / concept: {story}. " +
+                   "Output ONLY in this exact shape, no commentary outside these sections:\n" +
+                   "[LYRICS]\nFull lyrics with section labels like [Verse 1], [Chorus], [Verse 2], [Bridge], [Outro] as the structure calls for.\n" +
+                   "[STYLE]\nOne line: a style prompt describing this song's sound (genre, instruments, tempo feel, vocal style).\n" +
+                   "[TITLES]\nFive original title ideas, one per line, numbered.";
+        }
+
+        private void FillStoryResults(string reply)
+        {
+            string lyrics = reply, style = "", titles = "";
+            int lyricsIdx = reply.IndexOf("[LYRICS]", StringComparison.OrdinalIgnoreCase);
+            int styleIdx = reply.IndexOf("[STYLE]", StringComparison.OrdinalIgnoreCase);
+            int titlesIdx = reply.IndexOf("[TITLES]", StringComparison.OrdinalIgnoreCase);
+            if (lyricsIdx >= 0 || styleIdx >= 0 || titlesIdx >= 0)
+            {
+                int lyricsStart = lyricsIdx >= 0 ? lyricsIdx + "[LYRICS]".Length : 0;
+                int lyricsEnd = styleIdx >= 0 ? styleIdx : (titlesIdx >= 0 ? titlesIdx : reply.Length);
+                lyrics = lyricsEnd > lyricsStart ? reply.Substring(lyricsStart, lyricsEnd - lyricsStart).Trim() : "";
+                if (styleIdx >= 0)
+                {
+                    int styleStart = styleIdx + "[STYLE]".Length;
+                    int styleEnd = titlesIdx >= 0 && titlesIdx > styleIdx ? titlesIdx : reply.Length;
+                    style = styleEnd > styleStart ? reply.Substring(styleStart, styleEnd - styleStart).Trim() : "";
+                }
+                if (titlesIdx >= 0)
+                {
+                    int titlesStart = titlesIdx + "[TITLES]".Length;
+                    titles = reply.Length > titlesStart ? reply.Substring(titlesStart).Trim() : "";
+                }
+            }
+            StoryLyricsBox.Text = lyrics;
+            StoryStyleBox.Text = style.Length > 0 ? style : "No style line came back — your standing style still applies: boom-rap, heavy 808 sub-bass, hard-hitting bass.";
+            StoryTitlesBox.Text = titles;
+        }
+
+        private async void StoryGenerate_Click(object sender, RoutedEventArgs e)
+        {
+            string story = StoryBox.Text.Trim();
+            if (story.Length == 0)
+            {
+                StoryStatusText.Text = "Type a story or idea first.";
+                return;
+            }
+            string genre = ComboText(GenrePicker, "Boom-Rap (Rad-Dad style)");
+            string mood = ComboText(MoodPicker, "Nostalgic");
+            string structure = ComboText(StructurePicker, "Verse-Chorus-Verse-Chorus-Bridge-Chorus-Outro");
+            string model = (ModelPicker.Text ?? "").Trim();
+            _settings.Model = model;
+            _settings.ProviderId = Current.Id;
+            _settings.Save();
+
+            var provider = Current;
+            _storyCts = new CancellationTokenSource();
+            StoryGenerateBtn.IsEnabled = false;
+            StoryCancelBtn.IsEnabled = true;
+            StoryStatusText.Text = $"Asking {provider.DisplayName} — free and local models can take a minute…";
+            try
+            {
+                string reply = await provider.ChatAsync(model, BuildStoryPrompt(story, genre, mood, structure), _storyCts.Token);
+                FillStoryResults(reply);
+                StoryStatusText.Text = "Done — edit the lyrics, then hit 🎤 Make THESE Lyrics into a Song to add your style, voice and a beat.";
+            }
+            catch (OperationCanceledException)
+            {
+                StoryStatusText.Text = "Cancelled.";
+            }
+            catch (Exception ex)
+            {
+                StoryStatusText.Text = "Error: " + ex.Message;
+            }
+            finally
+            {
+                StoryGenerateBtn.IsEnabled = true;
+                StoryCancelBtn.IsEnabled = false;
+                _storyCts?.Dispose();
+                _storyCts = null;
+            }
+        }
+
+        private void StoryCancel_Click(object sender, RoutedEventArgs e) => _storyCts?.Cancel();
+
+        private void StoryCopy_Click(object sender, RoutedEventArgs e)
+        {
+            if (StoryLyricsBox.Text.Length > 0)
+            {
+                Clipboard.SetText(StoryLyricsBox.Text);
+                StoryStatusText.Text = "Lyrics copied ✓";
+            }
+        }
+
+        private void StoryMakeSong_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(StoryLyricsBox.Text))
+            {
+                StoryStatusText.Text = "Generate some lyrics first — then this button carries them into Create Song with your style and voice ready.";
+                return;
+            }
+            if (_createSong != null) { _createSong.Activate(); return; }
+            // Same carry-over as the 🎤 Song tab, but from the story draft.
+            // Wrapped: a window-open error must never take the whole app down.
+            try
+            {
+                _createSong = new CreateSongWindow(_owner, StoryLyricsBox.Text,
+                    "hip-hop, boom-rap, heavy 808 sub-bass, hard-hitting bass, country rap, Vermont") { Owner = this };
+                _createSong.Closed += (s, ev) => _createSong = null;
+                _createSong.Show();
+            }
+            catch (Exception ex)
+            {
+                _createSong = null;
+                StoryStatusText.Text = "Create Song couldn't open: " + ex.Message;
             }
         }
 
@@ -567,6 +697,7 @@ namespace BeatSyncStudioPro
         protected override void OnClosed(EventArgs e)
         {
             _cts?.Cancel();
+            _storyCts?.Cancel();
             base.OnClosed(e);
         }
     }

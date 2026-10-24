@@ -185,6 +185,116 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="📖 Story to Lyrics" Foreground="White">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Turn a story or idea into full lyrics. Uses the provider &amp; model from the 🎤 Song tab. Your voice stays Rad-Dad boom-rap — genre and mood shape the story's feel." Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+
+                    <Grid Grid.Row="1" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Genre" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="GenrePicker" Grid.Column="1" SelectedIndex="0">
+                            <ComboBoxItem Content="Boom-Rap (Rad-Dad style)"/>
+                            <ComboBoxItem Content="Country Rap"/>
+                            <ComboBoxItem Content="Americana / Indie Folk"/>
+                            <ComboBoxItem Content="Hip-Hop"/>
+                            <ComboBoxItem Content="Pop"/>
+                            <ComboBoxItem Content="Rock"/>
+                            <ComboBoxItem Content="Trap"/>
+                            <ComboBoxItem Content="Lo-Fi"/>
+                        </ComboBox>
+                        <TextBlock Text="Mood" FontWeight="Bold" VerticalAlignment="Center" Margin="14,0,8,0" Grid.Column="2"/>
+                        <ComboBox x:Name="MoodPicker" Grid.Column="3" SelectedIndex="0">
+                            <ComboBoxItem Content="Nostalgic"/>
+                            <ComboBoxItem Content="Happy"/>
+                            <ComboBoxItem Content="Melancholic"/>
+                            <ComboBoxItem Content="Hype"/>
+                            <ComboBoxItem Content="Reflective"/>
+                            <ComboBoxItem Content="Heartfelt"/>
+                            <ComboBoxItem Content="Party"/>
+                        </ComboBox>
+                        <TextBlock Text="Structure" FontWeight="Bold" VerticalAlignment="Center" Margin="14,0,8,0" Grid.Column="4"/>
+                        <ComboBox x:Name="StructurePicker" Grid.Column="5" SelectedIndex="0">
+                            <ComboBoxItem Content="Verse-Chorus-Verse-Chorus-Bridge-Chorus-Outro"/>
+                            <ComboBoxItem Content="Verse-Chorus-Verse-Chorus-Bridge-Chorus"/>
+                            <ComboBoxItem Content="Verse-Chorus-Verse-Chorus"/>
+                            <ComboBoxItem Content="Verse-Pre-Chorus-Chorus-Verse-Chorus"/>
+                            <ComboBoxItem Content="AI decides"/>
+                        </ComboBox>
+                    </Grid>
+
+                    <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                        <TextBlock Text="Story / concept / idea" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="StoryBox" Height="74" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="3" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="StoryGenerateBtn" Content="✨ Generate Song" Click="StoryGenerate_Click" Height="36" Width="150"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                        <Button x:Name="StoryCancelBtn" Grid.Column="1" Content="Cancel" Click="StoryCancel_Click" Height="36" Width="80" Margin="8,0,0,0"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" IsEnabled="False"/>
+                        <TextBlock x:Name="StoryStatusText" Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                    </Grid>
+
+                    <Grid Grid.Row="4" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="Lyrics (yours to edit)" Foreground="#A0A5B5" FontSize="11"/>
+                            <TextBox x:Name="StoryLyricsBox" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Style suggestion" Foreground="#A0A5B5" FontSize="11"/>
+                            <TextBox x:Name="StoryStyleBox" Height="80" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                            <TextBlock Text="Suggested titles" Foreground="#A0A5B5" FontSize="11" Margin="0,10,0,0"/>
+                            <TextBox x:Name="StoryTitlesBox" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Grid.Row="5" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Content="📋 Copy Lyrics" Click="StoryCopy_Click" Padding="14,6" VerticalAlignment="Center"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        <TextBlock Grid.Column="1" Text="Lyrics carry your Rad-Dad voice — edit anything before it becomes a song."
+                                   Foreground="#666666" FontSize="10" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                        <Button Grid.Column="2" Content="🎤 Make THESE Lyrics into a Song →" Click="StoryMakeSong_Click" Height="40" Padding="20,6"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" FontSize="13" BorderThickness="0" Cursor="Hand"
+                                ToolTip="Take these lyrics into Create Song — pick the style, voice, sliders and an auto-made beat, then Generate Song"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
             <TabItem Header="🎬 Video" Foreground="White">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="4,2,4,4">
