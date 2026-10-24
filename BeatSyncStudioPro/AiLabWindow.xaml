@@ -295,6 +295,90 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="✨ Lyrics Optimizer" Foreground="White">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Polish lyrics you already have. Uses the provider &amp; model from the 🎤 Song tab. Your voice stays Rad-Dad boom-rap — meta tags and vocal coaching shape the polish." Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+
+                    <Grid Grid.Row="1" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="Meta tags (style tags, e.g. melancholic piano, swelling strings, mid-tempo, 90 BPM)" Foreground="#A0A5B5" FontSize="11"/>
+                            <TextBox x:Name="MetaTagsBox" Height="40" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Vocal coaching (delivery notes, e.g. clear male vocal, emotive, building intensity)" Foreground="#A0A5B5" FontSize="11"/>
+                            <TextBox x:Name="VocalBox" Height="40" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                        <TextBlock Text="Lyrics to polish" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="OptLyricsBox" Height="110" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="3" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="OptGenerateBtn" Content="✨ Optimize Lyrics" Click="OptGenerate_Click" Height="36" Width="150"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                        <Button x:Name="OptCancelBtn" Grid.Column="1" Content="Cancel" Click="OptCancel_Click" Height="36" Width="80" Margin="8,0,0,0"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" IsEnabled="False"/>
+                        <TextBlock x:Name="OptStatusText" Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                    </Grid>
+
+                    <Grid Grid.Row="4" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="Optimized lyrics (yours to edit)" Foreground="#A0A5B5" FontSize="11"/>
+                            <TextBox x:Name="OptOutLyricsBox" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Optimized style line" Foreground="#A0A5B5" FontSize="11"/>
+                            <TextBox x:Name="OptStyleBox" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Grid.Row="5" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Content="📋 Copy Optimized Lyrics" Click="OptCopy_Click" Padding="14,6" VerticalAlignment="Center"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        <TextBlock Grid.Column="1" Text="The story and meaning stay yours — only the flow, rhyme and singability get tightened."
+                                   Foreground="#666666" FontSize="10" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                        <Button Grid.Column="2" Content="🎤 Make THESE Lyrics into a Song →" Click="OptMakeSong_Click" Height="40" Padding="20,6"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" FontSize="13" BorderThickness="0" Cursor="Hand"
+                                ToolTip="Take these lyrics into Create Song — pick the style, voice, sliders and an auto-made beat, then Generate Song"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
             <TabItem Header="🎬 Video" Foreground="White">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="4,2,4,4">
