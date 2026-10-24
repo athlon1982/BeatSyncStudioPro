@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.106 — AI Toolkit, Part 4: Youtube to Style
+- **New ▶️ Youtube to Style tab in the AI Lab** (fourth of the AI Toolkit, built one tool at a time): paste a YouTube link, hit **🔍 Read Video**, and BeatSync pulls the video's title and creator — **no YouTube key needed** (it uses YouTube's free oEmbed lookup). Add optional notes about what you hear (instruments, tempo, mood, what it's about), and the AI writes a **style prompt** plus a **lyrics concept** for a NEW song in that style.
+- **The style is the sound; the concept is only an idea — no lyrics are copied from the video.** The style prompt and concept are yours to edit, with **📋 Copy Style**, **📋 Copy Concept**, and **🎤 Use This Style in Create Song**, which carries the extracted style into Create Song with the lyrics left blank for you to fill — so the style is yours and the words are yours. If a link can't be read (private video, bad link, no network), the tab says so plainly and you can still generate from your notes alone.
+
 ## Version 3.105 — AI Toolkit, Part 3: Lyrics Rewriter
 - **New 🔄 Lyrics Rewriter tab in the AI Lab** (third of the AI Toolkit, built one tool at a time): paste lyrics, pick a **Rewrite goal** (fresh take, different mood, shorter and punchier, bigger chorus, more Vermont country-rap edge) and add an optional **Direction** note (like "keep the truck line"), and the AI writes a new draft — same idea, new words — plus a **style line**.
 - **Same plumbing as the tabs before it:** the provider and model pickers from the 🎤 Song tab, so local Ollama, OpenCode's free models, or your OpenAI-compatible services all work with no new setup. The rewritten lyrics are yours to edit, with **📋 Copy Rewritten Lyrics** and **🎤 Make THESE Lyrics into a Song**, which carries them into Create Song with your standing boom-rap style and voice ready. A rewrite is a new draft, not a polish — the ✨ Optimizer tab is the one that keeps your lines.
