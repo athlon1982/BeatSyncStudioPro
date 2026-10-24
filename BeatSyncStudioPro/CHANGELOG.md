@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.107 — AI Toolkit, Part 5: Hit Analyzer
+- **New 📊 Hit Analyzer tab in the AI Lab** (fifth of the AI Toolkit, built one tool at a time): paste lyrics, add optional style/genre context, and the AI scores the song **out of 100**, names **what's working**, flags the **issues found**, gives a **genre trends read**, and hands back a **polished draft with the fixes applied** — yours to edit, with **📋 Copy Polished Lyrics** and **🎤 Make THESE Lyrics into a Song** into Create Song with your standing boom-rap style and voice ready.
+- **Said plainly:** the score is the AI's opinion on the lyrics as written — not a chart prediction and not streaming data — and the trends read is the model's genre knowledge, not live chart data.
+
 ## Version 3.106 — AI Toolkit, Part 4: Youtube to Style
 - **New ▶️ Youtube to Style tab in the AI Lab** (fourth of the AI Toolkit, built one tool at a time): paste a YouTube link, hit **🔍 Read Video**, and BeatSync pulls the video's title and creator — **no YouTube key needed** (it uses YouTube's free oEmbed lookup). Add optional notes about what you hear (instruments, tempo, mood, what it's about), and the AI writes a **style prompt** plus a **lyrics concept** for a NEW song in that style.
 - **The style is the sound; the concept is only an idea — no lyrics are copied from the video.** The style prompt and concept are yours to edit, with **📋 Copy Style**, **📋 Copy Concept**, and **🎤 Use This Style in Create Song**, which carries the extracted style into Create Song with the lyrics left blank for you to fill — so the style is yours and the words are yours. If a link can't be read (private video, bad link, no network), the tab says so plainly and you can still generate from your notes alone.
