@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.103 — AI Toolkit, Part 1: Story to Lyrics
+- **New 📖 Story to Lyrics tab in the AI Lab** (first of the AI Toolkit, built one tool at a time): type a story, concept or idea, pick a **Genre**, a **Mood** and a **Song Structure**, and the AI writes the full song — lyrics plus a **style suggestion** and **suggested titles**, laid out the way the reference toolkit does it.
+- **It reuses the AI Lab you already have:** the provider and model pickers from the 🎤 Song tab, so local Ollama, OpenCode's free models, or your OpenAI-compatible services all work with no new setup. The lyrics box is yours to edit, with **📋 Copy Lyrics** and **🎤 Make THESE Lyrics into a Song**, which carries them into Create Song with your standing boom-rap style and voice ready.
+- **Your voice stays yours:** every draft is written as Rad-Dad boom-rap — heavy 808, honest small-town Vermont life, family, trucks, hard work, no explicit content. Genre and mood shape the story's feel; they don't replace your style.
+
 ## Version 3.102 — Deck Visuals Fixed + Reset-to-Defaults
 - **The deck visuals actually dance now.** Root cause found by testing the live board: the deck spectrum's auto-gain floor was 6x higher than the (working) top master strip's, so every one of the 12 visual styles rendered squashed into the bottom quarter of its strip and looked dead. The deck scaling now matches the master strip's proven recipe, the radial style reaches the full strip height, and the Spectrum+Peaks caps fall at a visible rate instead of lingering.
 - **New per-deck "Reset" button** (top-right of each deck, beside Tags): one click restores tempo 0%, the original key (any key shift rendered back), clears a hand-typed BPM, flattens the channel EQ, puts gain + fader back at unity, and turns loop / scratch / slip off. The song stays loaded.
