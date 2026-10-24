@@ -30,6 +30,7 @@ namespace BeatSyncStudioPro
         private CancellationTokenSource? _optCts;
         private CancellationTokenSource? _rwCts;
         private CancellationTokenSource? _ytCts;
+        private CancellationTokenSource? _hitCts;
         private string _ytTitle = "";
         private string _ytAuthor = "";
 
@@ -724,6 +725,132 @@ namespace BeatSyncStudioPro
             }
         }
 
+        // ---- 📊 Hit Analyzer (AI Toolkit, part 5) ----
+        // Same provider/model plumbing as the tabs before it. The model
+        // scores the lyrics, names strengths, flags issues, reads genre
+        // trends from its own knowledge, and returns a polished draft
+        // with the fixes applied. The score is an AI opinion, never a
+        // chart prediction; the trends read is genre knowledge, never
+        // live chart data. Both are labeled as such in the UI.
+
+        private static string HitSection(string reply, string marker, string? nextMarker)
+        {
+            int start = reply.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (start < 0) return "";
+            start += marker.Length;
+            int end = nextMarker != null ? reply.IndexOf(nextMarker, start, StringComparison.OrdinalIgnoreCase) : reply.Length;
+            if (end < 0) end = reply.Length;
+            return end > start ? reply.Substring(start, end - start).Trim() : "";
+        }
+
+        private string BuildHitPrompt(string lyrics, string style)
+        {
+            string stylePart = style.Length > 0 ? $" The song is meant to be {style}." : "";
+            return "You are a hit-song analyst. Analyze these lyrics for commercial potential as a song." + stylePart +
+                   " Be specific and honest — a weak hook, a muddled story, or lines that are hard to sing cost points. " +
+                   $"Lyrics: {lyrics}. " +
+                   "Output ONLY in this exact shape, in this order, no commentary outside these sections, and do not stop until you have written ALL FIVE sections — all are required, not optional:\n" +
+                   "[SCORE]\nA single number from 0 to 100.\n" +
+                   "[STRENGTHS]\nShort list of what is working.\n" +
+                   "[ISSUES]\nShort list of detected issues holding the song back.\n" +
+                   "[TRENDS]\nA short read on what works in this genre right now (hook-first writing, short intros, chorus length, and similar craft trends).\n" +
+                   "[POLISHED]\nThe full lyrics with the issues fixed, with section labels like [Verse 1], [Chorus], [Verse 2], [Bridge], [Outro] as the song calls for.";
+        }
+
+        private void FillHitResults(string reply)
+        {
+            string scoreRaw = HitSection(reply, "[SCORE]", "[STRENGTHS]");
+            string digits = new string(scoreRaw.Where(char.IsDigit).ToArray());
+            HitScoreText.Text = digits.Length > 0 ? $"Score: {digits} / 100" : "Score: — / 100";
+            HitStrengthsBox.Text = HitSection(reply, "[STRENGTHS]", "[ISSUES]");
+            HitIssuesBox.Text = HitSection(reply, "[ISSUES]", "[TRENDS]");
+            HitTrendsBox.Text = HitSection(reply, "[TRENDS]", "[POLISHED]");
+            HitPolishedBox.Text = HitSection(reply, "[POLISHED]", null);
+            if (digits.Length == 0 && HitStrengthsBox.Text.Length == 0 && HitIssuesBox.Text.Length == 0
+                && HitTrendsBox.Text.Length == 0 && HitPolishedBox.Text.Length == 0)
+            {
+                HitStatusText.Text = "The analysis didn't come back in the expected shape — try again.";
+            }
+        }
+
+        private async void HitAnalyze_Click(object sender, RoutedEventArgs e)
+        {
+            string lyrics = HitLyricsBox.Text.Trim();
+            if (lyrics.Length == 0)
+            {
+                HitStatusText.Text = "Paste some lyrics first.";
+                return;
+            }
+            string style = HitStyleBox.Text.Trim();
+            string model = (ModelPicker.Text ?? "").Trim();
+            _settings.Model = model;
+            _settings.ProviderId = Current.Id;
+            _settings.Save();
+
+            var provider = Current;
+            _hitCts = new CancellationTokenSource();
+            HitAnalyzeBtn.IsEnabled = false;
+            HitCancelBtn.IsEnabled = true;
+            HitStatusText.Text = $"Asking {provider.DisplayName} — free and local models can take a minute…";
+            try
+            {
+                string reply = await provider.ChatAsync(model, BuildHitPrompt(lyrics, style), _hitCts.Token);
+                FillHitResults(reply);
+                if (HitPolishedBox.Text.Length > 0)
+                    HitStatusText.Text = "Done — edit the polished draft, then hit 🎤 Make THESE Lyrics into a Song to add your style, voice and a beat.";
+            }
+            catch (OperationCanceledException)
+            {
+                HitStatusText.Text = "Cancelled.";
+            }
+            catch (Exception ex)
+            {
+                HitStatusText.Text = "Error: " + ex.Message;
+            }
+            finally
+            {
+                HitAnalyzeBtn.IsEnabled = true;
+                HitCancelBtn.IsEnabled = false;
+                _hitCts?.Dispose();
+                _hitCts = null;
+            }
+        }
+
+        private void HitCancel_Click(object sender, RoutedEventArgs e) => _hitCts?.Cancel();
+
+        private void HitCopy_Click(object sender, RoutedEventArgs e)
+        {
+            if (HitPolishedBox.Text.Length > 0)
+            {
+                Clipboard.SetText(HitPolishedBox.Text);
+                HitStatusText.Text = "Polished lyrics copied ✓";
+            }
+        }
+
+        private void HitMakeSong_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(HitPolishedBox.Text))
+            {
+                HitStatusText.Text = "Analyze some lyrics first — then this button carries the polished draft into Create Song with your style and voice ready.";
+                return;
+            }
+            if (_createSong != null) { _createSong.Activate(); return; }
+            // Same carry-over as the 🎤 Song, 📖 Story, ✨ Optimizer and 🔄 Rewriter tabs.
+            // Wrapped: a window-open error must never take the whole app down.
+            try
+            {
+                _createSong = new CreateSongWindow(_owner, HitPolishedBox.Text,
+                    "hip-hop, boom-rap, heavy 808 sub-bass, hard-hitting bass, country rap, Vermont") { Owner = this };
+                _createSong.Closed += (s, ev) => _createSong = null;
+                _createSong.Show();
+            }
+            catch (Exception ex)
+            {
+                _createSong = null;
+                HitStatusText.Text = "Create Song couldn't open: " + ex.Message;
+            }
+        }
+
         private void ReplicateSignup_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/signin");
 
         private void ReplicateToken_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/account/api-tokens");
@@ -1094,6 +1221,7 @@ namespace BeatSyncStudioPro
             _optCts?.Cancel();
             _rwCts?.Cancel();
             _ytCts?.Cancel();
+            _hitCts?.Cancel();
             base.OnClosed(e);
         }
     }

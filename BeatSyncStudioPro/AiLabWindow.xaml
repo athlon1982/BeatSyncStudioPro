@@ -551,6 +551,99 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="📊 Hit Analyzer" Foreground="White">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="130"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="How strong is this song, really? The AI scores the lyrics, names what's working, flags the issues, reads the genre trends, and hands back a polished draft with the fixes applied." Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+
+                    <StackPanel Grid.Row="1" Margin="0,10,0,0">
+                        <TextBlock Text="Lyrics to analyze" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="HitLyricsBox" Height="100" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                        <TextBlock Text="Style / genre context (optional — e.g. boom-rap, 90 BPM, radio single)" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="HitStyleBox" Height="36" Margin="0,4,0,0" VerticalContentAlignment="Center"
+                                 Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="3" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="HitAnalyzeBtn" Content="📊 Analyze Hit Potential" Click="HitAnalyze_Click" Height="36" Width="180"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                        <Button x:Name="HitCancelBtn" Grid.Column="1" Content="Cancel" Click="HitCancel_Click" Height="36" Width="80" Margin="8,0,0,0"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" IsEnabled="False"/>
+                        <TextBlock x:Name="HitStatusText" Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                    </Grid>
+
+                    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,12,0,0">
+                        <TextBlock x:Name="HitScoreText" Text="Score: — / 100" FontSize="20" FontWeight="Bold" Foreground="#1DB954" VerticalAlignment="Center"/>
+                        <TextBlock Text="The score is the AI's opinion on the lyrics as written — not a chart prediction and not streaming data."
+                                   Foreground="#666666" FontSize="10" VerticalAlignment="Center" Margin="14,0,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="5" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="What's working" Foreground="#A0A5B5" FontSize="11"/>
+                            <TextBox x:Name="HitStrengthsBox" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap" IsReadOnly="True"
+                                     VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="0,0,8,0">
+                            <TextBlock Text="Issues found" Foreground="#A0A5B5" FontSize="11"/>
+                            <TextBox x:Name="HitIssuesBox" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap" IsReadOnly="True"
+                                     VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Genre trends read" Foreground="#A0A5B5" FontSize="11"/>
+                            <TextBox x:Name="HitTrendsBox" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap" IsReadOnly="True"
+                                     VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Grid.Row="6" Margin="0,10,0,0">
+                        <TextBlock Text="Polished draft — the fixes applied (yours to edit)" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="HitPolishedBox" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="7" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Content="📋 Copy Polished Lyrics" Click="HitCopy_Click" Padding="14,6" VerticalAlignment="Center"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        <TextBlock Grid.Column="1" Text="The trends read is the model's genre knowledge, not live chart data."
+                                   Foreground="#666666" FontSize="10" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                        <Button Grid.Column="2" Content="🎤 Make THESE Lyrics into a Song →" Click="HitMakeSong_Click" Height="40" Padding="20,6"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" FontSize="13" BorderThickness="0" Cursor="Hand"
+                                ToolTip="Take the polished lyrics into Create Song — pick the style, voice, sliders and an auto-made beat, then Generate Song"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
             <TabItem Header="🎬 Video" Foreground="White">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="4,2,4,4">
