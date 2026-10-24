@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.104 — AI Toolkit, Part 2: Lyrics Optimizer
+- **New ✨ Lyrics Optimizer tab in the AI Lab** (second of the AI Toolkit, built one tool at a time): paste lyrics you already have, add **Meta Tags** (style tags like melancholic piano, swelling strings, mid-tempo, 90 BPM) and **Vocal Coaching** notes (delivery like clear male vocal, emotive, building intensity), and the AI polishes them — same story and meaning, tighter flow, rhyme and singability — plus an **optimized style line**.
+- **Same plumbing as Story to Lyrics:** the provider and model pickers from the 🎤 Song tab, so local Ollama, OpenCode's free models, or your OpenAI-compatible services all work with no new setup. The optimized lyrics are yours to edit, with **📋 Copy Optimized Lyrics** and **🎤 Make THESE Lyrics into a Song**, which carries them into Create Song with your standing boom-rap style and voice ready.
+
 ## Version 3.103 — AI Toolkit, Part 1: Story to Lyrics
 - **New 📖 Story to Lyrics tab in the AI Lab** (first of the AI Toolkit, built one tool at a time): type a story, concept or idea, pick a **Genre**, a **Mood** and a **Song Structure**, and the AI writes the full song — lyrics plus a **style suggestion** and **suggested titles**, laid out the way the reference toolkit does it.
 - **It reuses the AI Lab you already have:** the provider and model pickers from the 🎤 Song tab, so local Ollama, OpenCode's free models, or your OpenAI-compatible services all work with no new setup. The lyrics box is yours to edit, with **📋 Copy Lyrics** and **🎤 Make THESE Lyrics into a Song**, which carries them into Create Song with your standing boom-rap style and voice ready.
