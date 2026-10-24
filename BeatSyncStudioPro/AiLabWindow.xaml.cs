@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,6 +29,9 @@ namespace BeatSyncStudioPro
         private CancellationTokenSource? _storyCts;
         private CancellationTokenSource? _optCts;
         private CancellationTokenSource? _rwCts;
+        private CancellationTokenSource? _ytCts;
+        private string _ytTitle = "";
+        private string _ytAuthor = "";
 
         private static readonly Dictionary<string, string> InfoByProvider = new Dictionary<string, string>
         {
@@ -564,6 +568,162 @@ namespace BeatSyncStudioPro
             }
         }
 
+        // ---- ▶️ Youtube to Style (AI Toolkit, part 4) ----
+        // Reads a video's title + creator through YouTube's free oEmbed
+        // lookup (no API key), then the AI writes a style prompt and a
+        // lyrics CONCEPT for a NEW song in that style. No lyrics are ever
+        // copied from the video. If the link can't be read, the tab says
+        // so and generation still works from the user's notes alone.
+
+        private async void YtExtract_Click(object sender, RoutedEventArgs e)
+        {
+            string link = YtLinkBox.Text.Trim();
+            if (link.Length == 0)
+            {
+                YtFoundText.Text = "Paste a YouTube link first.";
+                return;
+            }
+            YtFoundText.Text = "Reading video…";
+            try
+            {
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+                string url = "https://www.youtube.com/oembed?url=" + Uri.EscapeDataString(link) + "&format=json";
+                string json = await client.GetStringAsync(url);
+                using var doc = JsonDocument.Parse(json);
+                _ytTitle = doc.RootElement.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
+                _ytAuthor = doc.RootElement.TryGetProperty("author_name", out var a) ? a.GetString() ?? "" : "";
+                YtFoundText.Text = _ytTitle.Length > 0
+                    ? $"Found: {_ytTitle}" + (_ytAuthor.Length > 0 ? $" — {_ytAuthor}" : "")
+                    : "That link didn't give back a title — you can still generate from your notes below.";
+            }
+            catch (Exception ex)
+            {
+                _ytTitle = "";
+                _ytAuthor = "";
+                YtFoundText.Text = "Couldn't read that link (" + ex.Message + ") — you can still generate from your notes below.";
+            }
+        }
+
+        private string BuildYtPrompt(string link, string title, string author, string notes)
+        {
+            string videoPart = title.Length > 0
+                ? $"Video title: {title}." + (author.Length > 0 ? $" Creator: {author}." : "")
+                : $"Video link: {link} (title could not be read).";
+            string notesPart = notes.Length > 0 ? $" Listener notes on the sound: {notes}." : "";
+            return "You are a music production analyst. The user wants a NEW original song in the style of a YouTube video — do not copy any lyrics from the video (you do not have them) and do not reproduce copyrighted lyrics. " +
+                   videoPart + notesPart +
+                   " Write a style prompt capturing this production's sound (genre, instruments, tempo feel, mood, vocal style) and a lyrics concept for a NEW song (theme, story angle, key imagery, suggested structure). " +
+                   "Output ONLY in this exact shape, no commentary outside these sections, and do not stop until you have written BOTH sections — both are required, not optional:\n" +
+                   "[STYLE]\nOne style prompt for a song generator, in the spirit of this production.\n" +
+                   "[CONCEPT]\nA lyrics concept prompt: theme, story angle, key imagery, and a suggested song structure for a NEW original song.";
+        }
+
+        private void FillYtResults(string reply)
+        {
+            string style = reply, concept = "";
+            int styleIdx = reply.IndexOf("[STYLE]", StringComparison.OrdinalIgnoreCase);
+            int conceptIdx = reply.IndexOf("[CONCEPT]", StringComparison.OrdinalIgnoreCase);
+            if (styleIdx >= 0 || conceptIdx >= 0)
+            {
+                int styleStart = styleIdx >= 0 ? styleIdx + "[STYLE]".Length : 0;
+                int styleEnd = conceptIdx >= 0 ? conceptIdx : reply.Length;
+                style = styleEnd > styleStart ? reply.Substring(styleStart, styleEnd - styleStart).Trim() : "";
+                if (conceptIdx >= 0)
+                {
+                    int conceptStart = conceptIdx + "[CONCEPT]".Length;
+                    concept = reply.Length > conceptStart ? reply.Substring(conceptStart).Trim() : "";
+                }
+            }
+            YtStyleBox.Text = style;
+            YtConceptBox.Text = concept.Length > 0 ? concept : "No concept came back — try again, or add notes about what you hear and the story you want.";
+        }
+
+        private async void YtGenerate_Click(object sender, RoutedEventArgs e)
+        {
+            string link = YtLinkBox.Text.Trim();
+            string notes = YtNotesBox.Text.Trim();
+            if (link.Length == 0 && notes.Length == 0)
+            {
+                YtStatusText.Text = "Paste a YouTube link or add notes about the sound first.";
+                return;
+            }
+            string model = (ModelPicker.Text ?? "").Trim();
+            _settings.Model = model;
+            _settings.ProviderId = Current.Id;
+            _settings.Save();
+
+            var provider = Current;
+            _ytCts = new CancellationTokenSource();
+            YtGenerateBtn.IsEnabled = false;
+            YtCancelBtn.IsEnabled = true;
+            YtStatusText.Text = $"Asking {provider.DisplayName} — free and local models can take a minute…";
+            try
+            {
+                string reply = await provider.ChatAsync(model, BuildYtPrompt(link, _ytTitle, _ytAuthor, notes), _ytCts.Token);
+                FillYtResults(reply);
+                YtStatusText.Text = "Done — edit the style and concept, then hit 🎤 Use This Style in Create Song to build on it.";
+            }
+            catch (OperationCanceledException)
+            {
+                YtStatusText.Text = "Cancelled.";
+            }
+            catch (Exception ex)
+            {
+                YtStatusText.Text = "Error: " + ex.Message;
+            }
+            finally
+            {
+                YtGenerateBtn.IsEnabled = true;
+                YtCancelBtn.IsEnabled = false;
+                _ytCts?.Dispose();
+                _ytCts = null;
+            }
+        }
+
+        private void YtCancel_Click(object sender, RoutedEventArgs e) => _ytCts?.Cancel();
+
+        private void YtCopyStyle_Click(object sender, RoutedEventArgs e)
+        {
+            if (YtStyleBox.Text.Length > 0)
+            {
+                Clipboard.SetText(YtStyleBox.Text);
+                YtStatusText.Text = "Style prompt copied ✓";
+            }
+        }
+
+        private void YtCopyConcept_Click(object sender, RoutedEventArgs e)
+        {
+            if (YtConceptBox.Text.Length > 0)
+            {
+                Clipboard.SetText(YtConceptBox.Text);
+                YtStatusText.Text = "Lyrics concept copied ✓";
+            }
+        }
+
+        private void YtMakeSong_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(YtStyleBox.Text))
+            {
+                YtStatusText.Text = "Make a style first — then this button carries it into Create Song with the lyrics left blank for you to fill.";
+                return;
+            }
+            if (_createSong != null) { _createSong.Activate(); return; }
+            // The extracted style goes in as the style; lyrics stay blank
+            // on purpose — the style is borrowed, the words must be his.
+            // Wrapped: a window-open error must never take the whole app down.
+            try
+            {
+                _createSong = new CreateSongWindow(_owner, "", YtStyleBox.Text) { Owner = this };
+                _createSong.Closed += (s, ev) => _createSong = null;
+                _createSong.Show();
+            }
+            catch (Exception ex)
+            {
+                _createSong = null;
+                YtStatusText.Text = "Create Song couldn't open: " + ex.Message;
+            }
+        }
+
         private void ReplicateSignup_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/signin");
 
         private void ReplicateToken_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/account/api-tokens");
@@ -933,6 +1093,7 @@ namespace BeatSyncStudioPro
             _storyCts?.Cancel();
             _optCts?.Cancel();
             _rwCts?.Cancel();
+            _ytCts?.Cancel();
             base.OnClosed(e);
         }
     }

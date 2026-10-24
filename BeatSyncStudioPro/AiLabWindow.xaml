@@ -467,6 +467,90 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="▶️ Youtube to Style" Foreground="White">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Paste a YouTube link and steal its SOUND — not its lyrics. BeatSync reads the video's title and creator (no YouTube key needed), then the AI writes a style prompt and a lyrics concept for a NEW song in that style." Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+
+                    <Grid Grid.Row="1" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="YtLinkBox" Height="36" VerticalContentAlignment="Center"
+                                 Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                        <Button x:Name="YtExtractBtn" Grid.Column="1" Content="🔍 Read Video" Click="YtExtract_Click" Height="36" Width="120" Margin="8,0,0,0"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                    </Grid>
+
+                    <TextBlock x:Name="YtFoundText" Grid.Row="2" Margin="0,6,0,0" Foreground="#1DB954" FontSize="11" TextWrapping="Wrap"/>
+
+                    <StackPanel Grid.Row="3" Margin="0,10,0,0">
+                        <TextBlock Text="What do you hear? (optional — instruments, tempo, mood, what it's about)" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="YtNotesBox" Height="60" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="4" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="YtGenerateBtn" Content="▶️ Make Style + Concept" Click="YtGenerate_Click" Height="36" Width="180"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                        <Button x:Name="YtCancelBtn" Grid.Column="1" Content="Cancel" Click="YtCancel_Click" Height="36" Width="80" Margin="8,0,0,0"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" IsEnabled="False"/>
+                        <TextBlock x:Name="YtStatusText" Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                    </Grid>
+
+                    <Grid Grid.Row="5" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="Style prompt (yours to edit)" Foreground="#A0A5B5" FontSize="11"/>
+                            <TextBox x:Name="YtStyleBox" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Lyrics concept for a NEW song" Foreground="#A0A5B5" FontSize="11"/>
+                            <TextBox x:Name="YtConceptBox" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Grid.Row="6" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Content="📋 Copy Style" Click="YtCopyStyle_Click" Padding="14,6" VerticalAlignment="Center"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        <Button Grid.Column="1" Content="📋 Copy Concept" Click="YtCopyConcept_Click" Padding="14,6" Margin="8,0,0,0" VerticalAlignment="Center"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        <TextBlock Grid.Column="2" Text="The style is the sound; the concept is only an idea — no lyrics are copied from the video."
+                                   Foreground="#666666" FontSize="10" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                        <Button Grid.Column="3" Content="🎤 Use This Style in Create Song →" Click="YtMakeSong_Click" Height="40" Padding="20,6"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" FontSize="13" BorderThickness="0" Cursor="Hand"
+                                ToolTip="Take this style into Create Song — lyrics stay blank for you to fill, so the style is yours and the words are yours"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
             <TabItem Header="🎬 Video" Foreground="White">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="4,2,4,4">
