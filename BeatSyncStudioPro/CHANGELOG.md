@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.110 — AI Toolkit, Part 8: Artist Persona
+- **New 🎭 Artist Persona tab in the AI Lab** (eighth of the AI Toolkit, built one tool at a time): type an **artist name** and a few **style hints**, and the AI builds a full persona — **genre tags**, **vocal style**, **visual style** (stage look, cover aesthetic), a **Suno prompt**, and a **backstory / bio**.
+- Every section is yours to edit. **📋 Copy Suno Prompt** grabs just the prompt, and **🎤 Use This Style in Create Song** carries it into Create Song with the lyrics left blank for you to fill — so the style is yours and the words are yours.
+
 ## Version 3.109 — AI Toolkit, Part 7: Style Generator
 - **New 🎛️ Style Generator tab in the AI Lab** (seventh of the AI Toolkit, built one tool at a time): pick a **base genre** and a **mood**, add **keywords** (like "808, banjo, Vermont, night drive"), and the AI writes **three style-prompt variations** — each one a full, usable prompt for a song generator, each different enough to choose between.
 - Every variation is yours to edit. Pick one with the **Use variation** picker, then **📋 Copy Selected** or **🎤 Use This Style in Create Song**, which carries the picked variation into Create Song with the lyrics left blank for you to fill — so the style is yours and the words are yours.
