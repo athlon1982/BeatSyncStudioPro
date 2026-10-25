@@ -3,6 +3,9 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.115 — AI Toolkit, Part 13: Dashboard
+- **New 🏠 Dashboard tab in the AI Lab** (thirteenth of the AI Toolkit, built one tool at a time): a card grid home for the whole Lab — one card per tool, from 🎤 Song through 📣 Social Kit. Tap a card and it jumps straight to that tab; the work itself still happens there, with the provider and model picked on the 🎤 Song tab.
+
 ## Version 3.114 — AI Toolkit, Part 12: Social Kit
 - **New 📣 Social Kit tab in the AI Lab** (twelfth of the AI Toolkit, built one tool at a time): give it a **song title** and **what the song is about**, and the AI writes ready-to-post copy in three sections — a **YouTube SEO description** (title line, description, tags), a **Facebook / Instagram caption**, and a **TikTok hashtag strategy**.
 - Every section is yours to edit, with **Copy YouTube**, **Copy Caption**, **Copy Hashtags**, and **Copy All** — the whole kit at once, labeled and ready to paste anywhere. It writes copy, not lyrics, so there is no Create Song carry-over on this tab.
