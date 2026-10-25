@@ -38,6 +38,9 @@ namespace BeatSyncStudioPro
         private CancellationTokenSource? _apCts;
         private CancellationTokenSource? _chCts;
         private CancellationTokenSource? _mvCts;
+        private CancellationTokenSource? _cvCts;
+        private byte[]? _cvBytes;
+        private bool _cvPromptDirty;
         private string _visImageBase64 = "";
         private string _ytTitle = "";
         private string _ytAuthor = "";
@@ -1475,6 +1478,173 @@ namespace BeatSyncStudioPro
             MvStatusText.Text = "Full treatment copied ✓";
         }
 
+        // ---- 🎨 Cover Art (AI Toolkit, part 10) ----
+        // Two engines, per Michael's call: local Stable Diffusion on Dayz
+        // (free, his own GPU) or an image API (endpoint + key he supplies;
+        // the API side expects an OpenAI-compatible images endpoint).
+        // The final prompt is his to edit — Generate uses the edited
+        // prompt when he changed it, otherwise it composes one fresh.
+        // The API key is stored DPAPI-encrypted like every other key.
+
+        private void CvFinalPrompt_Changed(object sender, TextChangedEventArgs e) => _cvPromptDirty = true;
+
+        private void CvShowBytes(byte[] bytes)
+        {
+            _cvBytes = bytes;
+            var bmp = new BitmapImage();
+            using (var stream = new MemoryStream(bytes))
+            {
+                bmp.BeginInit();
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.StreamSource = stream;
+                bmp.EndInit();
+            }
+            bmp.Freeze();
+            CvImage.Source = bmp;
+        }
+
+        private async Task<byte[]> CvGenerateLocalAsync(string prompt, int width, int height, CancellationToken ct)
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post, "http://192.168.1.238:11438/generate");
+            req.Content = new StringContent(
+                JsonSerializer.Serialize(new { prompt, width, height, steps = 30, guidance_scale = 7.5 }),
+                System.Text.Encoding.UTF8, "application/json");
+            using var res = await AiHttp.Client.SendAsync(req, ct);
+            string body = await res.Content.ReadAsStringAsync(ct);
+            if (!res.IsSuccessStatusCode)
+                throw new InvalidOperationException($"Local engine HTTP {(int)res.StatusCode}: {body.Trim()}");
+            return await res.Content.ReadAsByteArrayAsync(ct);
+        }
+
+        private async Task<byte[]> CvGenerateApiAsync(string prompt, string endpoint, string key, string shape, CancellationToken ct)
+        {
+            string size = shape.StartsWith("Portrait") ? "1024x1536"
+                : shape.StartsWith("Landscape") ? "1536x1024" : "1024x1024";
+            using var req = new HttpRequestMessage(HttpMethod.Post, endpoint);
+            req.Headers.TryAddWithoutValidation("Authorization", "Bearer " + key);
+            req.Content = new StringContent(
+                JsonSerializer.Serialize(new { prompt, size, n = 1 }),
+                System.Text.Encoding.UTF8, "application/json");
+            using var res = await AiHttp.Client.SendAsync(req, ct);
+            string body = await res.Content.ReadAsStringAsync(ct);
+            if (!res.IsSuccessStatusCode)
+                throw new InvalidOperationException($"Image API HTTP {(int)res.StatusCode}: {body.Trim()}");
+            using var doc = JsonDocument.Parse(body);
+            var data = doc.RootElement.GetProperty("data")[0];
+            if (data.TryGetProperty("b64_json", out var b64) && b64.GetString() is string b64Text && b64Text.Length > 0)
+                return Convert.FromBase64String(b64Text);
+            if (data.TryGetProperty("url", out var url) && url.GetString() is string urlText && urlText.Length > 0)
+            {
+                using var imgRes = await AiHttp.Client.GetAsync(urlText, ct);
+                if (!imgRes.IsSuccessStatusCode)
+                    throw new InvalidOperationException("Could not download the image the API returned.");
+                return await imgRes.Content.ReadAsByteArrayAsync(ct);
+            }
+            throw new InvalidOperationException("The API didn't return image data — check the endpoint (it expects an OpenAI-compatible images endpoint).");
+        }
+
+        private async void CvGenerate_Click(object sender, RoutedEventArgs e)
+        {
+            string concept = CvConceptBox.Text.Trim();
+            if (concept.Length == 0)
+            {
+                CvStatusText.Text = "Describe the cover first.";
+                return;
+            }
+            string style = (CvStylePicker.Text ?? "").Trim();
+            string shape = (CvShapePicker.Text ?? "").Trim();
+            string prompt;
+            if (_cvPromptDirty && CvFinalPromptBox.Text.Trim().Length > 0)
+            {
+                prompt = CvFinalPromptBox.Text.Trim();
+            }
+            else
+            {
+                prompt = concept + ", " + style + " style, album cover artwork, high detail";
+                CvFinalPromptBox.Text = prompt;
+                _cvPromptDirty = false;
+            }
+
+            bool useApi = CvEnginePicker.SelectedIndex == 1;
+            string apiKey = "";
+            string endpoint = "";
+            if (useApi)
+            {
+                apiKey = CvApiKeyBox.Password.Trim();
+                if (apiKey.Length == 0) apiKey = _settings.GetKey("cover-api");
+                if (apiKey.Length == 0)
+                {
+                    CvStatusText.Text = "Paste an image API key first — it's stored encrypted on this PC.";
+                    return;
+                }
+                endpoint = CvApiEndpointBox.Text.Trim();
+                if (endpoint.Length == 0) endpoint = "https://api.openai.com/v1/images/generations";
+            }
+
+            _cvCts = new CancellationTokenSource();
+            CvGenerateBtn.IsEnabled = false;
+            CvCancelBtn.IsEnabled = true;
+            CvStatusText.Text = useApi ? "Asking the image API…" : "Asking Dayz — first image loads the model, so it can take a couple minutes…";
+            try
+            {
+                byte[] bytes;
+                if (useApi)
+                {
+                    bytes = await CvGenerateApiAsync(prompt, endpoint, apiKey, shape, _cvCts.Token);
+                    _settings.SetKey("cover-api", apiKey);
+                    _settings.Save();
+                }
+                else
+                {
+                    int width = shape.StartsWith("Portrait") ? 512 : 768;
+                    int height = shape.StartsWith("Landscape") ? 512 : shape.StartsWith("Portrait") ? 768 : 768;
+                    bytes = await CvGenerateLocalAsync(prompt, width, height, _cvCts.Token);
+                }
+                CvShowBytes(bytes);
+                CvStatusText.Text = "Done — save it with 💾 Save Artwork.";
+            }
+            catch (OperationCanceledException)
+            {
+                CvStatusText.Text = "Cancelled.";
+            }
+            catch (Exception ex)
+            {
+                CvStatusText.Text = useApi ? "Error: " + ex.Message
+                    : "Local engine didn't answer — is the Dayz Stable Diffusion service up? " + ex.Message;
+            }
+            finally
+            {
+                CvGenerateBtn.IsEnabled = true;
+                CvCancelBtn.IsEnabled = false;
+                _cvCts?.Dispose();
+                _cvCts = null;
+            }
+        }
+
+        private void CvCancel_Click(object sender, RoutedEventArgs e) => _cvCts?.Cancel();
+
+        private void CvSave_Click(object sender, RoutedEventArgs e)
+        {
+            if (_cvBytes == null || _cvBytes.Length == 0)
+            {
+                CvStatusText.Text = "Generate some art first.";
+                return;
+            }
+            try
+            {
+                var dlg = new SaveFileDialog { Filter = "PNG image|*.png", FileName = "cover.png" };
+                if (dlg.ShowDialog() == true)
+                {
+                    File.WriteAllBytes(dlg.FileName, _cvBytes);
+                    CvStatusText.Text = "Saved ✓";
+                }
+            }
+            catch (Exception ex)
+            {
+                CvStatusText.Text = "Save failed: " + ex.Message;
+            }
+        }
+
         private void ReplicateSignup_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/signin");
 
         private void ReplicateToken_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/account/api-tokens");
@@ -1851,6 +2021,7 @@ namespace BeatSyncStudioPro
             _apCts?.Cancel();
             _chCts?.Cancel();
             _mvCts?.Cancel();
+            _cvCts?.Cancel();
             base.OnClosed(e);
         }
     }
