@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.109 — AI Toolkit, Part 7: Style Generator
+- **New 🎛️ Style Generator tab in the AI Lab** (seventh of the AI Toolkit, built one tool at a time): pick a **base genre** and a **mood**, add **keywords** (like "808, banjo, Vermont, night drive"), and the AI writes **three style-prompt variations** — each one a full, usable prompt for a song generator, each different enough to choose between.
+- Every variation is yours to edit. Pick one with the **Use variation** picker, then **📋 Copy Selected** or **🎤 Use This Style in Create Song**, which carries the picked variation into Create Song with the lyrics left blank for you to fill — so the style is yours and the words are yours.
+
 ## Version 3.108 — AI Toolkit, Part 6: Vision to Style
 - **New 👁️ Vision to Style tab in the AI Lab** (sixth of the AI Toolkit, built one tool at a time): pick an image and the AI describes what it sees, then writes a **style prompt**, a **title idea**, and **mood tags** for a new song in that picture's mood. Add optional notes (like "make it boom-rap, Vermont, family") to steer it.
 - **How it works, honestly:** moondream (local Ollama, free) looks at the image, then the model you picked in the 🎤 Song tab writes the style, title, and mood tags from what moondream saw. Two steps on purpose — the small vision model describes a picture fine but won't write four formatted sections in one call, so each model does the job it's good at. The picture never leaves your PC. The style is yours to edit, with **📋 Copy Style**, **📋 Copy Title**, and **🎤 Use This Style in Create Song**, which carries the style into Create Song with the lyrics left blank for you to fill.
