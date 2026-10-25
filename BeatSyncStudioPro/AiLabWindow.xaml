@@ -90,7 +90,7 @@
                     ToolTip="Connect your paid APIs and find the free ones — every provider labeled FREE or PAID, with signup and key links"/>
         </Grid>
 
-        <TabControl Grid.Row="1" Background="#1E222B" BorderBrush="#2A3446">
+        <TabControl x:Name="AiTabControl" Grid.Row="1" Background="#1E222B" BorderBrush="#2A3446">
             <TabItem Header="🎤 Song" Foreground="White">
                 <Grid Margin="10">
                     <Grid.RowDefinitions>
@@ -1265,6 +1265,55 @@
                         </StackPanel>
                     </StackPanel>
                 </Grid>
+            </TabItem>
+
+            <TabItem Header="🏠 Dashboard" Foreground="White">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="10">
+                        <TextBlock Text="Every tool in the AI Lab, one tap away. Pick a card and it jumps straight to that tab — the work itself still happens there, with the provider and model picked on the 🎤 Song tab." Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                        <UniformGrid Columns="3" Margin="0,12,0,0">
+                            <Button Tag="0" Click="DbCard_Click" Height="92" Margin="6" Background="#14171E" BorderBrush="#333">
+                                <StackPanel><TextBlock Text="🎤 Song" FontWeight="Bold" TextAlignment="Center"/><TextBlock Text="Chat, lyrics, titles, beats with any provider" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" TextAlignment="Center"/></StackPanel>
+                            </Button>
+                            <Button Tag="1" Click="DbCard_Click" Height="92" Margin="6" Background="#14171E" BorderBrush="#333">
+                                <StackPanel><TextBlock Text="📖 Story to Lyrics" FontWeight="Bold" TextAlignment="Center"/><TextBlock Text="Turn a story into lyrics, style, and titles" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" TextAlignment="Center"/></StackPanel>
+                            </Button>
+                            <Button Tag="2" Click="DbCard_Click" Height="92" Margin="6" Background="#14171E" BorderBrush="#333">
+                                <StackPanel><TextBlock Text="✨ Lyrics Optimizer" FontWeight="Bold" TextAlignment="Center"/><TextBlock Text="Tighten lyrics and style with coaching notes" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" TextAlignment="Center"/></StackPanel>
+                            </Button>
+                            <Button Tag="3" Click="DbCard_Click" Height="92" Margin="6" Background="#14171E" BorderBrush="#333">
+                                <StackPanel><TextBlock Text="🔄 Lyrics Rewriter" FontWeight="Bold" TextAlignment="Center"/><TextBlock Text="Fresh take, new mood, or bigger chorus" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" TextAlignment="Center"/></StackPanel>
+                            </Button>
+                            <Button Tag="4" Click="DbCard_Click" Height="92" Margin="6" Background="#14171E" BorderBrush="#333">
+                                <StackPanel><TextBlock Text="▶️ Youtube to Style" FontWeight="Bold" TextAlignment="Center"/><TextBlock Text="Borrow a video's style from its link" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" TextAlignment="Center"/></StackPanel>
+                            </Button>
+                            <Button Tag="5" Click="DbCard_Click" Height="92" Margin="6" Background="#14171E" BorderBrush="#333">
+                                <StackPanel><TextBlock Text="📊 Hit Analyzer" FontWeight="Bold" TextAlignment="Center"/><TextBlock Text="Score lyrics and get a polished draft" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" TextAlignment="Center"/></StackPanel>
+                            </Button>
+                            <Button Tag="6" Click="DbCard_Click" Height="92" Margin="6" Background="#14171E" BorderBrush="#333">
+                                <StackPanel><TextBlock Text="👁️ Vision to Style" FontWeight="Bold" TextAlignment="Center"/><TextBlock Text="A picture becomes a style, title, and mood" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" TextAlignment="Center"/></StackPanel>
+                            </Button>
+                            <Button Tag="7" Click="DbCard_Click" Height="92" Margin="6" Background="#14171E" BorderBrush="#333">
+                                <StackPanel><TextBlock Text="🎛️ Style Generator" FontWeight="Bold" TextAlignment="Center"/><TextBlock Text="Three style variations from genre + mood" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" TextAlignment="Center"/></StackPanel>
+                            </Button>
+                            <Button Tag="8" Click="DbCard_Click" Height="92" Margin="6" Background="#14171E" BorderBrush="#333">
+                                <StackPanel><TextBlock Text="🎭 Artist Persona" FontWeight="Bold" TextAlignment="Center"/><TextBlock Text="A full artist identity from a name" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" TextAlignment="Center"/></StackPanel>
+                            </Button>
+                            <Button Tag="9" Click="DbCard_Click" Height="92" Margin="6" Background="#14171E" BorderBrush="#333">
+                                <StackPanel><TextBlock Text="🎹 Chords" FontWeight="Bold" TextAlignment="Center"/><TextBlock Text="Key, verse and chorus progressions" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" TextAlignment="Center"/></StackPanel>
+                            </Button>
+                            <Button Tag="10" Click="DbCard_Click" Height="92" Margin="6" Background="#14171E" BorderBrush="#333">
+                                <StackPanel><TextBlock Text="🎬 MV Director" FontWeight="Bold" TextAlignment="Center"/><TextBlock Text="Concept, art direction, timed script" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" TextAlignment="Center"/></StackPanel>
+                            </Button>
+                            <Button Tag="11" Click="DbCard_Click" Height="92" Margin="6" Background="#14171E" BorderBrush="#333">
+                                <StackPanel><TextBlock Text="🎨 Cover Art" FontWeight="Bold" TextAlignment="Center"/><TextBlock Text="Artwork from your Dayz GPU or an API" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" TextAlignment="Center"/></StackPanel>
+                            </Button>
+                            <Button Tag="12" Click="DbCard_Click" Height="92" Margin="6" Background="#14171E" BorderBrush="#333">
+                                <StackPanel><TextBlock Text="📣 Social Kit" FontWeight="Bold" TextAlignment="Center"/><TextBlock Text="YouTube, caption, and hashtag copy" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" TextAlignment="Center"/></StackPanel>
+                            </Button>
+                        </UniformGrid>
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
 
             <TabItem Header="🎬 Video" Foreground="White">
