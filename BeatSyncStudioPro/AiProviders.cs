@@ -72,6 +72,10 @@ namespace BeatSyncStudioPro
         string DisplayName { get; }
         Task<List<string>> GetModelsAsync(CancellationToken ct);
         Task<string> ChatAsync(string model, string prompt, CancellationToken ct);
+        // Vision: only providers that take images implement this. The rest
+        // keep the default, which fails with a plain message the UI shows.
+        Task<string> ChatWithImageAsync(string model, string prompt, string imageBase64, CancellationToken ct)
+            => throw new NotSupportedException("This provider doesn't take images — switch to Ollama (local) with a vision model like moondream.");
     }
 
     internal static class AiHttp
@@ -128,6 +132,16 @@ namespace BeatSyncStudioPro
                 throw new InvalidOperationException("No Ollama model picked — install one first (e.g. run: ollama pull llama3.1:8b), then Refresh.");
             string json = await AiHttp.PostJsonAsync(Base + "/api/chat",
                 new { model, messages = new[] { new { role = "user", content = prompt } }, stream = false }, null, ct);
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.GetProperty("message").GetProperty("content").GetString() ?? "";
+        }
+
+        public async Task<string> ChatWithImageAsync(string model, string prompt, string imageBase64, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(model))
+                throw new InvalidOperationException("No Ollama model picked — pull a vision model first (e.g. run: ollama pull moondream), then Refresh.");
+            string json = await AiHttp.PostJsonAsync(Base + "/api/chat",
+                new { model, messages = new[] { new { role = "user", content = prompt, images = new[] { imageBase64 } } }, stream = false }, null, ct);
             using var doc = JsonDocument.Parse(json);
             return doc.RootElement.GetProperty("message").GetProperty("content").GetString() ?? "";
         }

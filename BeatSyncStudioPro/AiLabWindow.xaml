@@ -644,6 +644,110 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="👁️ Vision to Style" Foreground="White">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="140"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="130"/>
+                        <RowDefinition Height="80"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Show the AI a picture and it hears the song. moondream (local, free) looks at the image, then the model you picked in the 🎤 Song tab writes the style prompt, title idea, and mood tags for a new song in that picture's mood. moondream must be installed — it is on this PC; if it ever goes missing, pull it with: ollama pull moondream" Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+
+                    <Grid Grid.Row="1" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Content="🖼️ Pick Image…" Click="VisPick_Click" Height="36" Width="130"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        <TextBlock x:Name="VisPathText" Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Text="No image picked yet."/>
+                    </Grid>
+
+                    <Border Grid.Row="2" Margin="0,10,0,0" BorderBrush="#333" BorderThickness="1" Background="#14171E">
+                        <Image x:Name="VisPreview" Stretch="Uniform"/>
+                    </Border>
+
+                    <StackPanel Grid.Row="3" Margin="0,10,0,0">
+                        <TextBlock Text="Notes (optional — e.g. make it boom-rap, Vermont, family)" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="VisNotesBox" Height="36" Margin="0,4,0,0" VerticalContentAlignment="Center"
+                                 Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="4" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="VisGenerateBtn" Content="👁️ Read Image → Style" Click="VisGenerate_Click" Height="36" Width="170"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                        <Button x:Name="VisCancelBtn" Grid.Column="1" Content="Cancel" Click="VisCancel_Click" Height="36" Width="80" Margin="8,0,0,0"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" IsEnabled="False"/>
+                        <TextBlock x:Name="VisStatusText" Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                    </Grid>
+
+                    <Grid Grid.Row="5" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="What the AI sees" Foreground="#A0A5B5" FontSize="11"/>
+                            <TextBox x:Name="VisAnalysisBox" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap" IsReadOnly="True"
+                                     VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Style prompt (yours to edit)" Foreground="#A0A5B5" FontSize="11"/>
+                            <TextBox x:Name="VisStyleBox" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Grid.Row="6" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="Title idea" Foreground="#A0A5B5" FontSize="11"/>
+                            <TextBox x:Name="VisTitleBox" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Mood tags" Foreground="#A0A5B5" FontSize="11"/>
+                            <TextBox x:Name="VisMoodBox" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Grid.Row="7" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Content="📋 Copy Style" Click="VisCopyStyle_Click" Padding="14,6" VerticalAlignment="Center"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        <Button Grid.Column="1" Content="📋 Copy Title" Click="VisCopyTitle_Click" Padding="14,6" Margin="8,0,0,0" VerticalAlignment="Center"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        <TextBlock Grid.Column="2" Text="The picture stays on your PC — only the image goes to the model you picked."
+                                   Foreground="#666666" FontSize="10" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                        <Button Grid.Column="3" Content="🎤 Use This Style in Create Song →" Click="VisMakeSong_Click" Height="40" Padding="20,6"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" FontSize="13" BorderThickness="0" Cursor="Hand"
+                                ToolTip="Take this style into Create Song — lyrics stay blank for you to fill, so the style is yours and the words are yours"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
             <TabItem Header="🎬 Video" Foreground="White">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="4,2,4,4">
