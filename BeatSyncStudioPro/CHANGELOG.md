@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.112 — AI Toolkit, Part 11: MV Director
+- **New 🎬 MV Director tab in the AI Lab** (eleventh of the AI Toolkit, built one tool at a time — Cover Art is skipped for now until the image engine is picked): give it a **theme** and your **lyrics**, and the AI writes a music video treatment — the **concept**, the **art direction** (look, lighting, camera, color), and a **timed shot-by-shot script** that follows your words.
+- Every section is yours to edit, and **📋 Copy Full Treatment** grabs the whole thing at once, labeled and ready to paste anywhere.
+
 ## Version 3.111 — AI Toolkit, Part 9: Chords
 - **New 🎹 Chords tab in the AI Lab** (ninth of the AI Toolkit, built one tool at a time): paste your **lyrics**, pick a **mood**, and the AI writes a chord sheet — a **key** that fits the mood and words, a **verse progression**, a **chorus progression**, and **suggested instruments** to play them on.
 - Every section is yours to edit, and **📋 Copy Chord Sheet** grabs the whole sheet at once, labeled and ready to paste anywhere.
