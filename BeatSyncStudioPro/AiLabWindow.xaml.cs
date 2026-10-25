@@ -1755,6 +1755,19 @@ namespace BeatSyncStudioPro
             SkStatusText.Text = "Full social kit copied ✓";
         }
 
+        // ---- 🏠 Dashboard (AI Toolkit, part 13) ----
+        // A card grid home for the Lab: each card jumps to its tab. No AI
+        // work happens here, so there is no CTS to cancel.
+
+        private void DbCard_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string tag && int.TryParse(tag, out int index)
+                && index >= 0 && index < AiTabControl.Items.Count)
+            {
+                AiTabControl.SelectedIndex = index;
+            }
+        }
+
         private void ReplicateSignup_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/signin");
 
         private void ReplicateToken_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/account/api-tokens");
