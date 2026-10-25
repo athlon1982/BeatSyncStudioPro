@@ -943,6 +943,90 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="🎹 Chords" Foreground="White">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Paste your lyrics, pick a mood, and get back a chord sheet — a key that fits, a verse progression, a chorus progression, and the instruments to play them on." Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+
+                    <Grid Grid.Row="1" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Mood" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="ChMoodPicker" Grid.Column="1" SelectedIndex="0" Width="200" HorizontalAlignment="Left">
+                            <ComboBoxItem Content="Nostalgic"/>
+                            <ComboBoxItem Content="Happy"/>
+                            <ComboBoxItem Content="Melancholic"/>
+                            <ComboBoxItem Content="Hype"/>
+                            <ComboBoxItem Content="Reflective"/>
+                            <ComboBoxItem Content="Heartfelt"/>
+                            <ComboBoxItem Content="Party"/>
+                        </ComboBox>
+                    </Grid>
+
+                    <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                        <TextBlock Text="Lyrics (a verse, a chorus, or the whole song)" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="ChLyricsBox" Height="100" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="3" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="ChGenerateBtn" Content="🎹 Get Chords" Click="ChGenerate_Click" Height="36" Width="160"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                        <Button x:Name="ChCancelBtn" Grid.Column="1" Content="Cancel" Click="ChCancel_Click" Height="36" Width="80" Margin="8,0,0,0"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" IsEnabled="False"/>
+                        <TextBlock x:Name="ChStatusText" Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                    </Grid>
+
+                    <StackPanel Grid.Row="4" Margin="0,12,0,0">
+                        <TextBlock Text="Key" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="ChKeyBox" Height="40" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="5" Margin="0,10,0,0">
+                        <TextBlock Text="Verse progression" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="ChVerseBox" Height="56" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="6" Margin="0,10,0,0">
+                        <TextBlock Text="Chorus progression" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="ChChorusBox" Height="56" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="7" Margin="0,10,0,0">
+                        <TextBlock Text="Suggested instruments" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="ChInstBox" Height="56" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="8" Margin="0,12,0,0">
+                        <Button Content="📋 Copy Chord Sheet" Click="ChCopy_Click" Padding="14,6" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
             <TabItem Header="🎬 Video" Foreground="White">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="4,2,4,4">
