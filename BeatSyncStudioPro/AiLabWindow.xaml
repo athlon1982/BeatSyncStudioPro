@@ -748,6 +748,111 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="🎛️ Style Generator" Foreground="White">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Start from a mood and a few keywords, and get back style prompts you can actually use — three variations, pick the one that fits, and take it into Create Song." Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+
+                    <Grid Grid.Row="1" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Base genre" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="SgGenrePicker" Grid.Column="1" SelectedIndex="0">
+                            <ComboBoxItem Content="Boom-Rap (Rad-Dad style)"/>
+                            <ComboBoxItem Content="Country Rap"/>
+                            <ComboBoxItem Content="Americana / Indie Folk"/>
+                            <ComboBoxItem Content="Hip-Hop"/>
+                            <ComboBoxItem Content="Pop"/>
+                            <ComboBoxItem Content="Rock"/>
+                            <ComboBoxItem Content="Trap"/>
+                            <ComboBoxItem Content="Lo-Fi"/>
+                        </ComboBox>
+                        <TextBlock Text="Mood" FontWeight="Bold" VerticalAlignment="Center" Margin="14,0,8,0" Grid.Column="2"/>
+                        <ComboBox x:Name="SgMoodPicker" Grid.Column="3" SelectedIndex="0">
+                            <ComboBoxItem Content="Nostalgic"/>
+                            <ComboBoxItem Content="Happy"/>
+                            <ComboBoxItem Content="Melancholic"/>
+                            <ComboBoxItem Content="Hype"/>
+                            <ComboBoxItem Content="Reflective"/>
+                            <ComboBoxItem Content="Heartfelt"/>
+                            <ComboBoxItem Content="Party"/>
+                        </ComboBox>
+                    </Grid>
+
+                    <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                        <TextBlock Text="Keywords (e.g. 808, banjo, Vermont, night drive)" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="SgKeywordsBox" Height="40" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="3" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="SgGenerateBtn" Content="🎛️ Generate Styles" Click="SgGenerate_Click" Height="36" Width="160"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                        <Button x:Name="SgCancelBtn" Grid.Column="1" Content="Cancel" Click="SgCancel_Click" Height="36" Width="80" Margin="8,0,0,0"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" IsEnabled="False"/>
+                        <TextBlock x:Name="SgStatusText" Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                    </Grid>
+
+                    <StackPanel Grid.Row="4" Margin="0,12,0,0">
+                        <TextBlock Text="Variation 1 (yours to edit)" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="SgStyle1Box" Height="56" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="5" Margin="0,10,0,0">
+                        <TextBlock Text="Variation 2 (yours to edit)" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="SgStyle2Box" Height="56" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="6" Margin="0,10,0,0">
+                        <TextBlock Text="Variation 3 (yours to edit)" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="SgStyle3Box" Height="56" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="7" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Use variation" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="SgPickPicker" Grid.Column="1" SelectedIndex="0" Width="120">
+                            <ComboBoxItem Content="Variation 1"/>
+                            <ComboBoxItem Content="Variation 2"/>
+                            <ComboBoxItem Content="Variation 3"/>
+                        </ComboBox>
+                        <Button Grid.Column="2" Content="📋 Copy Selected" Click="SgCopy_Click" Padding="14,6" Margin="8,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        <Button Grid.Column="3" Content="🎤 Use This Style in Create Song →" Click="SgMakeSong_Click" Height="40" Padding="20,6"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" FontSize="13" BorderThickness="0" Cursor="Hand"
+                                ToolTip="Take the picked variation into Create Song — lyrics stay blank for you to fill, so the style is yours and the words are yours"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
             <TabItem Header="🎬 Video" Foreground="White">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="4,2,4,4">
