@@ -35,6 +35,7 @@ namespace BeatSyncStudioPro
         private CancellationTokenSource? _hitCts;
         private CancellationTokenSource? _visCts;
         private CancellationTokenSource? _sgCts;
+        private CancellationTokenSource? _apCts;
         private string _visImageBase64 = "";
         private string _ytTitle = "";
         private string _ytAuthor = "";
@@ -1137,6 +1138,117 @@ namespace BeatSyncStudioPro
             }
         }
 
+        // ---- 🎭 Artist Persona (AI Toolkit, part 8) ----
+        // Same provider/model plumbing as the tabs before it. An artist
+        // name + style hints go in; a full persona comes out in five
+        // sections. The Suno prompt carries into Create Song with the
+        // lyrics left blank.
+
+        private string BuildApPrompt(string name, string hints)
+        {
+            string hintsPart = hints.Length > 0 ? $" Style influences: {hints}." : "";
+            return $"You are an artist persona builder for a song generator. Artist name: {name}." + hintsPart +
+                   " Write a full persona for this artist: genre tags (a comma list), vocal style, visual style (stage look and cover aesthetic), a Suno-style prompt that captures the sound, and a short backstory/bio. " +
+                   "Output ONLY in this exact shape, in this order, no commentary outside these sections, and do not stop until you have written ALL FIVE sections — all are required, not optional:\n" +
+                   "[GENRE TAGS]\nThe genre tags.\n" +
+                   "[VOCAL STYLE]\nThe vocal style.\n" +
+                   "[VISUAL STYLE]\nThe visual style.\n" +
+                   "[SUNO PROMPT]\nThe Suno prompt.\n" +
+                   "[BIO]\nThe backstory/bio.";
+        }
+
+        private void FillApResults(string reply)
+        {
+            ApGenreBox.Text = HitSection(reply, "[GENRE TAGS]", "[VOCAL STYLE]");
+            ApVocalBox.Text = HitSection(reply, "[VOCAL STYLE]", "[VISUAL STYLE]");
+            ApVisualBox.Text = HitSection(reply, "[VISUAL STYLE]", "[SUNO PROMPT]");
+            ApSunoBox.Text = HitSection(reply, "[SUNO PROMPT]", "[BIO]");
+            ApBioBox.Text = HitSection(reply, "[BIO]", null);
+            if (ApGenreBox.Text.Length == 0 && ApVocalBox.Text.Length == 0 && ApVisualBox.Text.Length == 0
+                && ApSunoBox.Text.Length == 0 && ApBioBox.Text.Length == 0)
+            {
+                ApStatusText.Text = "The persona didn't come back in the expected shape — try again.";
+            }
+        }
+
+        private async void ApGenerate_Click(object sender, RoutedEventArgs e)
+        {
+            string name = ApNameBox.Text.Trim();
+            if (name.Length == 0)
+            {
+                ApStatusText.Text = "Give the artist a name first.";
+                return;
+            }
+            string hints = ApHintsBox.Text.Trim();
+            string model = (ModelPicker.Text ?? "").Trim();
+            _settings.Model = model;
+            _settings.ProviderId = Current.Id;
+            _settings.Save();
+
+            var provider = Current;
+            _apCts = new CancellationTokenSource();
+            ApGenerateBtn.IsEnabled = false;
+            ApCancelBtn.IsEnabled = true;
+            ApStatusText.Text = $"Asking {provider.DisplayName} — free and local models can take a minute…";
+            try
+            {
+                string reply = await provider.ChatAsync(model, BuildApPrompt(name, hints), _apCts.Token);
+                FillApResults(reply);
+                if (ApSunoBox.Text.Length > 0)
+                    ApStatusText.Text = "Done — copy the Suno prompt, or hit 🎤 Use This Style in Create Song to build on it.";
+            }
+            catch (OperationCanceledException)
+            {
+                ApStatusText.Text = "Cancelled.";
+            }
+            catch (Exception ex)
+            {
+                ApStatusText.Text = "Error: " + ex.Message;
+            }
+            finally
+            {
+                ApGenerateBtn.IsEnabled = true;
+                ApCancelBtn.IsEnabled = false;
+                _apCts?.Dispose();
+                _apCts = null;
+            }
+        }
+
+        private void ApCancel_Click(object sender, RoutedEventArgs e) => _apCts?.Cancel();
+
+        private void ApCopy_Click(object sender, RoutedEventArgs e)
+        {
+            if (ApSunoBox.Text.Length > 0)
+            {
+                Clipboard.SetText(ApSunoBox.Text);
+                ApStatusText.Text = "Suno prompt copied ✓";
+            }
+        }
+
+        private void ApMakeSong_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(ApSunoBox.Text))
+            {
+                ApStatusText.Text = "Build a persona first — then this button carries the Suno prompt into Create Song with the lyrics left blank for you to fill.";
+                return;
+            }
+            if (_createSong != null) { _createSong.Activate(); return; }
+            // The Suno prompt goes in as the style; lyrics stay blank
+            // on purpose — the style is generated, the words must be his.
+            // Wrapped: a window-open error must never take the whole app down.
+            try
+            {
+                _createSong = new CreateSongWindow(_owner, "", ApSunoBox.Text) { Owner = this };
+                _createSong.Closed += (s, ev) => _createSong = null;
+                _createSong.Show();
+            }
+            catch (Exception ex)
+            {
+                _createSong = null;
+                ApStatusText.Text = "Create Song couldn't open: " + ex.Message;
+            }
+        }
+
         private void ReplicateSignup_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/signin");
 
         private void ReplicateToken_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/account/api-tokens");
@@ -1510,6 +1622,7 @@ namespace BeatSyncStudioPro
             _hitCts?.Cancel();
             _visCts?.Cancel();
             _sgCts?.Cancel();
+            _apCts?.Cancel();
             base.OnClosed(e);
         }
     }
