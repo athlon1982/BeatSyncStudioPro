@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.114 — AI Toolkit, Part 12: Social Kit
+- **New 📣 Social Kit tab in the AI Lab** (twelfth of the AI Toolkit, built one tool at a time): give it a **song title** and **what the song is about**, and the AI writes ready-to-post copy in three sections — a **YouTube SEO description** (title line, description, tags), a **Facebook / Instagram caption**, and a **TikTok hashtag strategy**.
+- Every section is yours to edit, with **Copy YouTube**, **Copy Caption**, **Copy Hashtags**, and **Copy All** — the whole kit at once, labeled and ready to paste anywhere. It writes copy, not lyrics, so there is no Create Song carry-over on this tab.
+
 ## Version 3.113 — AI Toolkit, Part 10: Cover Art
 - **New 🎨 Cover Art tab in the AI Lab** (tenth of the AI Toolkit, built one tool at a time): describe the **concept**, pick an **art style** and a **shape**, and generate the artwork — with **two engines**, per Michael's call: **Local — Dayz Stable Diffusion** (free, on his own GPU) or **Image API** (paste an endpoint + key; the API side expects an OpenAI-compatible images endpoint, and a pasted key is stored encrypted on this PC).
 - The **final prompt** is yours to edit — Generate uses your edited prompt if you changed it. **💾 Save Artwork** saves the image as a PNG. Honest scope: generated art is preview-size — a RouteNote cover still needs an exact 3000×3000 master.
