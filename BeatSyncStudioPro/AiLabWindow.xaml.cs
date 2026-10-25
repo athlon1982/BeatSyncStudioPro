@@ -37,6 +37,7 @@ namespace BeatSyncStudioPro
         private CancellationTokenSource? _sgCts;
         private CancellationTokenSource? _apCts;
         private CancellationTokenSource? _chCts;
+        private CancellationTokenSource? _mvCts;
         private string _visImageBase64 = "";
         private string _ytTitle = "";
         private string _ytAuthor = "";
@@ -1386,6 +1387,94 @@ namespace BeatSyncStudioPro
             ChStatusText.Text = "Chord sheet copied ✓";
         }
 
+        // ---- 🎬 MV Director (AI Toolkit, part 11) ----
+        // Same provider/model plumbing as the tabs before it. A theme +
+        // lyrics go in; a video treatment comes out in three sections.
+        // The treatment copies out labeled, ready to paste anywhere.
+
+        private string BuildMvPrompt(string theme, string lyrics)
+        {
+            return $"You are a music video director. Theme: {theme}. Lyrics:\n{lyrics}\n" +
+                   "Write a music video treatment for this song: the concept (what happens, in a few sentences), the art direction (look, lighting, camera, color), and a timed shot-by-shot script with timestamps that follows the lyrics from start to finish. " +
+                   "Output ONLY in this exact shape, in this order, no commentary outside these sections, and do not stop until you have written ALL THREE sections — all are required, not optional:\n" +
+                   "[CONCEPT]\nThe concept.\n" +
+                   "[ART DIRECTION]\nThe art direction.\n" +
+                   "[SCRIPT]\nThe timed script.";
+        }
+
+        private void FillMvResults(string reply)
+        {
+            MvConceptBox.Text = HitSection(reply, "[CONCEPT]", "[ART DIRECTION]");
+            MvArtBox.Text = HitSection(reply, "[ART DIRECTION]", "[SCRIPT]");
+            MvScriptBox.Text = HitSection(reply, "[SCRIPT]", null);
+            if (MvConceptBox.Text.Length == 0 && MvArtBox.Text.Length == 0 && MvScriptBox.Text.Length == 0)
+            {
+                MvStatusText.Text = "The treatment didn't come back in the expected shape — try again.";
+            }
+        }
+
+        private async void MvGenerate_Click(object sender, RoutedEventArgs e)
+        {
+            string theme = MvThemeBox.Text.Trim();
+            if (theme.Length == 0)
+            {
+                MvStatusText.Text = "Give it a theme first — that's what the video is about.";
+                return;
+            }
+            string lyrics = MvLyricsBox.Text.Trim();
+            if (lyrics.Length == 0)
+            {
+                MvStatusText.Text = "Paste the lyrics first — the script is timed to your words.";
+                return;
+            }
+            string model = (ModelPicker.Text ?? "").Trim();
+            _settings.Model = model;
+            _settings.ProviderId = Current.Id;
+            _settings.Save();
+
+            var provider = Current;
+            _mvCts = new CancellationTokenSource();
+            MvGenerateBtn.IsEnabled = false;
+            MvCancelBtn.IsEnabled = true;
+            MvStatusText.Text = $"Asking {provider.DisplayName} — free and local models can take a minute…";
+            try
+            {
+                string reply = await provider.ChatAsync(model, BuildMvPrompt(theme, lyrics), _mvCts.Token);
+                FillMvResults(reply);
+                if (MvConceptBox.Text.Length > 0)
+                    MvStatusText.Text = "Done — copy the full treatment, or edit any section first.";
+            }
+            catch (OperationCanceledException)
+            {
+                MvStatusText.Text = "Cancelled.";
+            }
+            catch (Exception ex)
+            {
+                MvStatusText.Text = "Error: " + ex.Message;
+            }
+            finally
+            {
+                MvGenerateBtn.IsEnabled = true;
+                MvCancelBtn.IsEnabled = false;
+                _mvCts?.Dispose();
+                _mvCts = null;
+            }
+        }
+
+        private void MvCancel_Click(object sender, RoutedEventArgs e) => _mvCts?.Cancel();
+
+        private void MvCopy_Click(object sender, RoutedEventArgs e)
+        {
+            if (MvConceptBox.Text.Length == 0 && MvArtBox.Text.Length == 0 && MvScriptBox.Text.Length == 0)
+            {
+                return;
+            }
+            string treatment = "Concept: " + MvConceptBox.Text + "\n\nArt direction: " + MvArtBox.Text
+                + "\n\nScript: " + MvScriptBox.Text;
+            Clipboard.SetText(treatment);
+            MvStatusText.Text = "Full treatment copied ✓";
+        }
+
         private void ReplicateSignup_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/signin");
 
         private void ReplicateToken_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/account/api-tokens");
@@ -1761,6 +1850,7 @@ namespace BeatSyncStudioPro
             _sgCts?.Cancel();
             _apCts?.Cancel();
             _chCts?.Cancel();
+            _mvCts?.Cancel();
             base.OnClosed(e);
         }
     }
