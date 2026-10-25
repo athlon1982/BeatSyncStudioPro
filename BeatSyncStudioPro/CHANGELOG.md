@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.111 — AI Toolkit, Part 9: Chords
+- **New 🎹 Chords tab in the AI Lab** (ninth of the AI Toolkit, built one tool at a time): paste your **lyrics**, pick a **mood**, and the AI writes a chord sheet — a **key** that fits the mood and words, a **verse progression**, a **chorus progression**, and **suggested instruments** to play them on.
+- Every section is yours to edit, and **📋 Copy Chord Sheet** grabs the whole sheet at once, labeled and ready to paste anywhere.
+
 ## Version 3.110 — AI Toolkit, Part 8: Artist Persona
 - **New 🎭 Artist Persona tab in the AI Lab** (eighth of the AI Toolkit, built one tool at a time): type an **artist name** and a few **style hints**, and the AI builds a full persona — **genre tags**, **vocal style**, **visual style** (stage look, cover aesthetic), a **Suno prompt**, and a **backstory / bio**.
 - Every section is yours to edit. **📋 Copy Suno Prompt** grabs just the prompt, and **🎤 Use This Style in Create Song** carries it into Create Song with the lyrics left blank for you to fill — so the style is yours and the words are yours.
