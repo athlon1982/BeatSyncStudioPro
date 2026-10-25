@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.113 — AI Toolkit, Part 10: Cover Art
+- **New 🎨 Cover Art tab in the AI Lab** (tenth of the AI Toolkit, built one tool at a time): describe the **concept**, pick an **art style** and a **shape**, and generate the artwork — with **two engines**, per Michael's call: **Local — Dayz Stable Diffusion** (free, on his own GPU) or **Image API** (paste an endpoint + key; the API side expects an OpenAI-compatible images endpoint, and a pasted key is stored encrypted on this PC).
+- The **final prompt** is yours to edit — Generate uses your edited prompt if you changed it. **💾 Save Artwork** saves the image as a PNG. Honest scope: generated art is preview-size — a RouteNote cover still needs an exact 3000×3000 master.
+
 ## Version 3.112 — AI Toolkit, Part 11: MV Director
 - **New 🎬 MV Director tab in the AI Lab** (eleventh of the AI Toolkit, built one tool at a time — Cover Art is skipped for now until the image engine is picked): give it a **theme** and your **lyrics**, and the AI writes a music video treatment — the **concept**, the **art direction** (look, lighting, camera, color), and a **timed shot-by-shot script** that follows your words.
 - Every section is yours to edit, and **📋 Copy Full Treatment** grabs the whole thing at once, labeled and ready to paste anywhere.
