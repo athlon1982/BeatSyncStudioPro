@@ -34,6 +34,7 @@ namespace BeatSyncStudioPro
         private CancellationTokenSource? _ytCts;
         private CancellationTokenSource? _hitCts;
         private CancellationTokenSource? _visCts;
+        private CancellationTokenSource? _sgCts;
         private string _visImageBase64 = "";
         private string _ytTitle = "";
         private string _ytAuthor = "";
@@ -1023,6 +1024,119 @@ namespace BeatSyncStudioPro
             }
         }
 
+        // ---- 🎛️ Style Generator (AI Toolkit, part 7) ----
+        // Same provider/model plumbing as the tabs before it. Base genre
+        // + mood + keywords go in; three distinct, usable style prompts
+        // come out, each in its own editable box. The picked variation
+        // carries into Create Song with the lyrics left blank.
+
+        private string BuildSgPrompt(string genre, string mood, string keywords)
+        {
+            string keywordsPart = keywords.Length > 0 ? $" Keywords to weave in: {keywords}." : "";
+            return "You are a music style prompt writer for a song generator. The artist is Rad-Dad, Vermont country-rap — when the base genre is Boom-Rap, keep the heavy 808 sub-bass identity in all three; for other genres, blend that identity in only if it fits. " +
+                   $"Base genre: {genre}. Mood: {mood}." + keywordsPart +
+                   " Write THREE distinct style prompts, each one line naming genre, instruments, tempo feel, mood, and vocal style, each different enough to choose between. " +
+                   "Output ONLY in this exact shape, in this order, no commentary outside these sections, and do not stop until you have written ALL THREE sections — all are required, not optional:\n" +
+                   "[STYLE 1]\nThe first style prompt.\n" +
+                   "[STYLE 2]\nThe second style prompt.\n" +
+                   "[STYLE 3]\nThe third style prompt.";
+        }
+
+        private void FillSgResults(string reply)
+        {
+            SgStyle1Box.Text = HitSection(reply, "[STYLE 1]", "[STYLE 2]");
+            SgStyle2Box.Text = HitSection(reply, "[STYLE 2]", "[STYLE 3]");
+            SgStyle3Box.Text = HitSection(reply, "[STYLE 3]", null);
+            if (SgStyle1Box.Text.Length == 0 && SgStyle2Box.Text.Length == 0 && SgStyle3Box.Text.Length == 0)
+            {
+                SgStatusText.Text = "The styles didn't come back in the expected shape — try again.";
+            }
+        }
+
+        private string SgPickedStyle()
+        {
+            int idx = SgPickPicker.SelectedIndex;
+            if (idx == 1) return SgStyle2Box.Text;
+            if (idx == 2) return SgStyle3Box.Text;
+            return SgStyle1Box.Text;
+        }
+
+        private async void SgGenerate_Click(object sender, RoutedEventArgs e)
+        {
+            string genre = (SgGenrePicker.Text ?? "").Trim();
+            string mood = (SgMoodPicker.Text ?? "").Trim();
+            string keywords = SgKeywordsBox.Text.Trim();
+            string model = (ModelPicker.Text ?? "").Trim();
+            _settings.Model = model;
+            _settings.ProviderId = Current.Id;
+            _settings.Save();
+
+            var provider = Current;
+            _sgCts = new CancellationTokenSource();
+            SgGenerateBtn.IsEnabled = false;
+            SgCancelBtn.IsEnabled = true;
+            SgStatusText.Text = $"Asking {provider.DisplayName} — free and local models can take a minute…";
+            try
+            {
+                string reply = await provider.ChatAsync(model, BuildSgPrompt(genre, mood, keywords), _sgCts.Token);
+                FillSgResults(reply);
+                if (SgStyle1Box.Text.Length > 0)
+                    SgStatusText.Text = "Done — pick a variation, then hit 🎤 Use This Style in Create Song to build on it.";
+            }
+            catch (OperationCanceledException)
+            {
+                SgStatusText.Text = "Cancelled.";
+            }
+            catch (Exception ex)
+            {
+                SgStatusText.Text = "Error: " + ex.Message;
+            }
+            finally
+            {
+                SgGenerateBtn.IsEnabled = true;
+                SgCancelBtn.IsEnabled = false;
+                _sgCts?.Dispose();
+                _sgCts = null;
+            }
+        }
+
+        private void SgCancel_Click(object sender, RoutedEventArgs e) => _sgCts?.Cancel();
+
+        private void SgCopy_Click(object sender, RoutedEventArgs e)
+        {
+            string picked = SgPickedStyle();
+            if (picked.Length > 0)
+            {
+                Clipboard.SetText(picked);
+                SgStatusText.Text = "Selected variation copied ✓";
+            }
+        }
+
+        private void SgMakeSong_Click(object sender, RoutedEventArgs e)
+        {
+            string picked = SgPickedStyle();
+            if (string.IsNullOrWhiteSpace(picked))
+            {
+                SgStatusText.Text = "Generate some variations first — then this button carries the picked one into Create Song with the lyrics left blank for you to fill.";
+                return;
+            }
+            if (_createSong != null) { _createSong.Activate(); return; }
+            // The picked variation goes in as the style; lyrics stay blank
+            // on purpose — the style is generated, the words must be his.
+            // Wrapped: a window-open error must never take the whole app down.
+            try
+            {
+                _createSong = new CreateSongWindow(_owner, "", picked) { Owner = this };
+                _createSong.Closed += (s, ev) => _createSong = null;
+                _createSong.Show();
+            }
+            catch (Exception ex)
+            {
+                _createSong = null;
+                SgStatusText.Text = "Create Song couldn't open: " + ex.Message;
+            }
+        }
+
         private void ReplicateSignup_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/signin");
 
         private void ReplicateToken_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/account/api-tokens");
@@ -1395,6 +1509,7 @@ namespace BeatSyncStudioPro
             _ytCts?.Cancel();
             _hitCts?.Cancel();
             _visCts?.Cancel();
+            _sgCts?.Cancel();
             base.OnClosed(e);
         }
     }
