@@ -1093,6 +1093,110 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="🎨 Cover Art" Foreground="White">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Describe the cover, pick a style and a shape, and generate the artwork — free on your own Dayz GPU, or through an image API. Generated art is preview-size — a RouteNote cover still needs an exact 3000×3000 master." Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+
+                    <StackPanel Grid.Row="1" Margin="0,12,0,0">
+                        <TextBlock Text="Concept (e.g. crowned dad, Vermont mountains, gold and black)" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="CvConceptBox" Height="40" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="2" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Art style" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="CvStylePicker" Grid.Column="1" SelectedIndex="0">
+                            <ComboBoxItem Content="Digital painting"/>
+                            <ComboBoxItem Content="Photorealistic"/>
+                            <ComboBoxItem Content="Comic / cartoon"/>
+                            <ComboBoxItem Content="Vintage poster"/>
+                            <ComboBoxItem Content="Neon / synthwave"/>
+                            <ComboBoxItem Content="Watercolor"/>
+                            <ComboBoxItem Content="3D render"/>
+                        </ComboBox>
+                        <TextBlock Text="Shape" FontWeight="Bold" VerticalAlignment="Center" Margin="14,0,8,0" Grid.Column="2"/>
+                        <ComboBox x:Name="CvShapePicker" Grid.Column="3" SelectedIndex="0">
+                            <ComboBoxItem Content="Square 1:1"/>
+                            <ComboBoxItem Content="Portrait 2:3"/>
+                            <ComboBoxItem Content="Landscape 3:2"/>
+                        </ComboBox>
+                    </Grid>
+
+                    <Grid Grid.Row="3" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Engine" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="CvEnginePicker" Grid.Column="1" SelectedIndex="0">
+                            <ComboBoxItem Content="Local — Dayz Stable Diffusion"/>
+                            <ComboBoxItem Content="Image API"/>
+                        </ComboBox>
+                        <TextBlock Text="API endpoint" FontWeight="Bold" VerticalAlignment="Center" Margin="14,0,8,0" Grid.Column="2"/>
+                        <TextBox x:Name="CvApiEndpointBox" Grid.Column="3" Height="32" Text="https://api.openai.com/v1/images/generations"
+                                 Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </Grid>
+
+                    <Grid Grid.Row="4" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="API key" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <PasswordBox x:Name="CvApiKeyBox" Grid.Column="1" Height="32" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                        <TextBlock Grid.Column="2" Grid.ColumnSpan="2" Text="API fields are only used when the engine is Image API. A pasted key is stored encrypted on this PC — leave the box blank next time to reuse it." Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                    </Grid>
+
+                    <StackPanel Grid.Row="5" Margin="0,10,0,0">
+                        <TextBlock Text="Final prompt (yours to edit — Generate uses this if you changed it)" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="CvFinalPromptBox" Height="56" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap" TextChanged="CvFinalPrompt_Changed"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="6" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="CvGenerateBtn" Content="🎨 Generate Cover" Click="CvGenerate_Click" Height="36" Width="160"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                        <Button x:Name="CvCancelBtn" Grid.Column="1" Content="Cancel" Click="CvCancel_Click" Height="36" Width="80" Margin="8,0,0,0"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" IsEnabled="False"/>
+                        <TextBlock x:Name="CvStatusText" Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                        <Button Grid.Column="3" Content="💾 Save Artwork" Click="CvSave_Click" Height="36" Padding="14,6"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                    </Grid>
+
+                    <Border Grid.Row="7" Margin="0,12,0,0" Background="#14171E" BorderBrush="#333" BorderThickness="1" Height="300">
+                        <Image x:Name="CvImage" Stretch="Uniform"/>
+                    </Border>
+                </Grid>
+            </TabItem>
+
             <TabItem Header="🎬 Video" Foreground="White">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="4,2,4,4">
