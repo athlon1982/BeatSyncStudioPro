@@ -1197,6 +1197,76 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="📣 Social Kit" Foreground="White">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Turn a song into ready-to-post copy: a YouTube SEO description, a Facebook/Instagram caption, and a TikTok hashtag strategy. Written by the same AI provider and model picked on the 🎤 Song tab." Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+
+                    <StackPanel Grid.Row="1" Margin="0,12,0,0">
+                        <TextBlock Text="Song title" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="SkTitleBox" Height="32" Margin="0,4,0,0"
+                                 Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                        <TextBlock Text="What the song is about (a few lines of theme, or paste the hook)" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="SkThemeBox" Height="64" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="3" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="SkGenerateBtn" Content="📣 Write the Social Kit" Click="SkGenerate_Click" Height="36" Width="180"
+                                Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                        <Button x:Name="SkCancelBtn" Grid.Column="1" Content="Cancel" Click="SkCancel_Click" Height="36" Width="80" Margin="8,0,0,0"
+                                Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand" IsEnabled="False"/>
+                        <TextBlock x:Name="SkStatusText" Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap"/>
+                    </Grid>
+
+                    <StackPanel Grid.Row="4" Margin="0,10,0,0">
+                        <TextBlock Text="YouTube SEO description (editable)" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="SkYoutubeBox" Height="110" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="5" Margin="0,10,0,0">
+                        <TextBlock Text="Facebook / Instagram caption (editable)" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="SkCaptionBox" Height="80" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="6" Margin="0,10,0,0">
+                        <TextBlock Text="TikTok hashtag strategy (editable)" Foreground="#A0A5B5" FontSize="11"/>
+                        <TextBox x:Name="SkHashtagsBox" Height="80" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" Background="#14171E" Foreground="White" BorderBrush="#333" Padding="8"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <Button Content="Copy YouTube" Click="SkCopyYoutube_Click" Height="32" Padding="14,6"
+                                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                            <Button Content="Copy Caption" Click="SkCopyCaption_Click" Height="32" Padding="14,6" Margin="8,0,0,0"
+                                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                            <Button Content="Copy Hashtags" Click="SkCopyHashtags_Click" Height="32" Padding="14,6" Margin="8,0,0,0"
+                                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                            <Button Content="Copy All" Click="SkCopyAll_Click" Height="32" Padding="14,6" Margin="8,0,0,0"
+                                    Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
             <TabItem Header="🎬 Video" Foreground="White">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="4,2,4,4">
