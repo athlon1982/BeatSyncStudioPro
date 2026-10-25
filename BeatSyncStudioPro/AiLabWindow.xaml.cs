@@ -39,6 +39,7 @@ namespace BeatSyncStudioPro
         private CancellationTokenSource? _chCts;
         private CancellationTokenSource? _mvCts;
         private CancellationTokenSource? _cvCts;
+        private CancellationTokenSource? _skCts;
         private byte[]? _cvBytes;
         private bool _cvPromptDirty;
         private string _visImageBase64 = "";
@@ -1645,6 +1646,115 @@ namespace BeatSyncStudioPro
             }
         }
 
+        // ---- 📣 Social Kit (AI Toolkit, part 12) ----
+        // A song title + what it's about go in; ready-to-post copy comes
+        // out in three sections. Nothing here is lyrics, so the outputs
+        // copy out instead of feeding Create Song.
+
+        private string BuildSkPrompt(string title, string theme)
+        {
+            return $"You write social-media copy for a song. The song is called \"{title}\". What it is about:\n{theme}\n" +
+                   "Write the social kit for this song: a YouTube SEO description (one title line, a 2-3 sentence description, a tags line), a Facebook/Instagram caption (2-3 sentences plus a call to listen), and a TikTok hashtag strategy (8-12 hashtags plus one sentence on why they fit). " +
+                   "Output ONLY in this exact shape, in this order, no commentary outside these sections, and do not stop until you have written ALL THREE sections — all are required, not optional:\n" +
+                   "[YOUTUBE]\nThe YouTube description.\n" +
+                   "[CAPTION]\nThe caption.\n" +
+                   "[HASHTAGS]\nThe hashtag strategy.";
+        }
+
+        private void FillSkResults(string reply)
+        {
+            SkYoutubeBox.Text = HitSection(reply, "[YOUTUBE]", "[CAPTION]");
+            SkCaptionBox.Text = HitSection(reply, "[CAPTION]", "[HASHTAGS]");
+            SkHashtagsBox.Text = HitSection(reply, "[HASHTAGS]", null);
+            if (SkYoutubeBox.Text.Length == 0 && SkCaptionBox.Text.Length == 0 && SkHashtagsBox.Text.Length == 0)
+            {
+                SkStatusText.Text = "The social kit didn't come back in the expected shape — try again.";
+            }
+        }
+
+        private async void SkGenerate_Click(object sender, RoutedEventArgs e)
+        {
+            string title = SkTitleBox.Text.Trim();
+            if (title.Length == 0)
+            {
+                SkStatusText.Text = "Give the song a title first — the copy is written for that song.";
+                return;
+            }
+            string theme = SkThemeBox.Text.Trim();
+            if (theme.Length == 0)
+            {
+                SkStatusText.Text = "Say what the song is about first — the copy is written from that.";
+                return;
+            }
+            string model = (ModelPicker.Text ?? "").Trim();
+            _settings.Model = model;
+            _settings.ProviderId = Current.Id;
+            _settings.Save();
+
+            var provider = Current;
+            _skCts = new CancellationTokenSource();
+            SkGenerateBtn.IsEnabled = false;
+            SkCancelBtn.IsEnabled = true;
+            SkStatusText.Text = $"Asking {provider.DisplayName} — free and local models can take a minute…";
+            try
+            {
+                string reply = await provider.ChatAsync(model, BuildSkPrompt(title, theme), _skCts.Token);
+                FillSkResults(reply);
+                if (SkYoutubeBox.Text.Length > 0)
+                    SkStatusText.Text = "Done — copy any section, or edit it first.";
+            }
+            catch (OperationCanceledException)
+            {
+                SkStatusText.Text = "Cancelled.";
+            }
+            catch (Exception ex)
+            {
+                SkStatusText.Text = "Error: " + ex.Message;
+            }
+            finally
+            {
+                SkGenerateBtn.IsEnabled = true;
+                SkCancelBtn.IsEnabled = false;
+                _skCts?.Dispose();
+                _skCts = null;
+            }
+        }
+
+        private void SkCancel_Click(object sender, RoutedEventArgs e) => _skCts?.Cancel();
+
+        private void SkCopyYoutube_Click(object sender, RoutedEventArgs e)
+        {
+            if (SkYoutubeBox.Text.Length == 0) return;
+            Clipboard.SetText(SkYoutubeBox.Text);
+            SkStatusText.Text = "YouTube description copied ✓";
+        }
+
+        private void SkCopyCaption_Click(object sender, RoutedEventArgs e)
+        {
+            if (SkCaptionBox.Text.Length == 0) return;
+            Clipboard.SetText(SkCaptionBox.Text);
+            SkStatusText.Text = "Caption copied ✓";
+        }
+
+        private void SkCopyHashtags_Click(object sender, RoutedEventArgs e)
+        {
+            if (SkHashtagsBox.Text.Length == 0) return;
+            Clipboard.SetText(SkHashtagsBox.Text);
+            SkStatusText.Text = "Hashtags copied ✓";
+        }
+
+        private void SkCopyAll_Click(object sender, RoutedEventArgs e)
+        {
+            if (SkYoutubeBox.Text.Length == 0 && SkCaptionBox.Text.Length == 0 && SkHashtagsBox.Text.Length == 0)
+            {
+                return;
+            }
+            string kit = "YouTube: " + SkYoutubeBox.Text + "\n\nCaption: " + SkCaptionBox.Text
+                + "\n\nHashtags: " + SkHashtagsBox.Text;
+            Clipboard.SetText(kit);
+            SkStatusText.Text = "Full social kit copied ✓";
+        }
+
         private void ReplicateSignup_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/signin");
 
         private void ReplicateToken_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/account/api-tokens");
@@ -2022,6 +2132,7 @@ namespace BeatSyncStudioPro
             _chCts?.Cancel();
             _mvCts?.Cancel();
             _cvCts?.Cancel();
+            _skCts?.Cancel();
             base.OnClosed(e);
         }
     }
