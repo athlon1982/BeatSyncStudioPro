@@ -36,6 +36,7 @@ namespace BeatSyncStudioPro
         private CancellationTokenSource? _visCts;
         private CancellationTokenSource? _sgCts;
         private CancellationTokenSource? _apCts;
+        private CancellationTokenSource? _chCts;
         private string _visImageBase64 = "";
         private string _ytTitle = "";
         private string _ytAuthor = "";
@@ -1249,6 +1250,142 @@ namespace BeatSyncStudioPro
             }
         }
 
+        // ---- 🎹 Chords (AI Toolkit, part 9) ----
+        // Same provider/model plumbing as the tabs before it. A mood +
+        // lyrics go in; a chord sheet comes out in four sections. The
+        // sheet copies out labeled, ready to paste anywhere.
+
+        private string BuildChPrompt(string mood, string lyrics)
+        {
+            return $"You are a music theory assistant for a songwriter. Mood: {mood}. Lyrics:\n{lyrics}\n" +
+                   "Suggest a key that fits the mood and the words, a verse chord progression, a chorus chord progression, and the instruments that should play them. Keep each progression as chord names in order, with a one-line note on why it fits. " +
+                   "Output exactly four labeled sections, in this order, each label on its own line, with nothing before the first label, and do not stop until you have written ALL FOUR — all are required, not optional:\n" +
+                   "Key: the key\n" +
+                   "Verse: the verse progression\n" +
+                   "Chorus: the chorus progression\n" +
+                   "Instruments: the suggested instruments";
+        }
+
+        // Label slicer: text after "Label:" up to the next label or the end.
+        private static string ChSection(string reply, string marker, string? nextMarker)
+        {
+            int start = reply.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (start < 0) return "";
+            start += marker.Length;
+            int end = reply.Length;
+            if (nextMarker != null)
+            {
+                int n = reply.IndexOf(nextMarker, start, StringComparison.OrdinalIgnoreCase);
+                if (n >= 0) end = n;
+            }
+            return reply.Substring(start, end - start).Trim();
+        }
+
+        private static bool LooksLikeKey(string line)
+        {
+            string t = line.Trim();
+            if (t.Length == 0 || t.Length > 14) return false;
+            char first = t[0];
+            if (first < 'A' || first > 'G') return false;
+            string rest = t.Substring(1).Trim().ToLowerInvariant();
+            return rest == "" || rest == "#" || rest == "b" || rest == "major" || rest == "minor"
+                || rest == "maj" || rest == "min" || rest == "m" || rest == "# major" || rest == "# minor"
+                || rest == "b major" || rest == "b minor";
+        }
+
+        private void FillChResults(string reply)
+        {
+            ChKeyBox.Text = ChSection(reply, "Key:", "Verse:");
+            ChVerseBox.Text = ChSection(reply, "Verse:", "Chorus:");
+            ChChorusBox.Text = ChSection(reply, "Chorus:", "Instruments:");
+            ChInstBox.Text = ChSection(reply, "Instruments:", null);
+            // Mixed case: labels present but the key line dropped — the
+            // first line of the reply is almost always the key itself.
+            if (ChKeyBox.Text.Length == 0)
+            {
+                string firstLine = reply.Split('\n')[0].Trim();
+                if (LooksLikeKey(firstLine)) ChKeyBox.Text = firstLine;
+            }
+            // Unlabeled case: small models sometimes answer in order with
+            // no labels at all — key first, progressions next, instruments
+            // last. Split on blank lines and map by position (any extra
+            // middle chunk joins the chorus, where variations belong).
+            if (ChKeyBox.Text.Length == 0 && ChVerseBox.Text.Length == 0 && ChChorusBox.Text.Length == 0
+                && ChInstBox.Text.Length == 0)
+            {
+                string[] chunks = reply.Split(new[] { "\n\n" }, StringSplitOptions.RemoveEmptyEntries);
+                for (int i = 0; i < chunks.Length; i++) chunks[i] = chunks[i].Trim();
+                if (chunks.Length >= 4)
+                {
+                    ChKeyBox.Text = chunks[0];
+                    ChVerseBox.Text = chunks[1];
+                    ChChorusBox.Text = string.Join("\n\n", chunks, 2, chunks.Length - 3);
+                    ChInstBox.Text = chunks[chunks.Length - 1];
+                    ChStatusText.Text = "Parsed from the reply's layout — give the sections a quick look.";
+                    return;
+                }
+                ChStatusText.Text = "The chords didn't come back in the expected shape — try again.";
+            }
+        }
+
+        private async void ChGenerate_Click(object sender, RoutedEventArgs e)
+        {
+            string lyrics = ChLyricsBox.Text.Trim();
+            if (lyrics.Length == 0)
+            {
+                ChStatusText.Text = "Paste some lyrics first — the key and progressions are picked to fit your words.";
+                return;
+            }
+            string mood = (ChMoodPicker.Text ?? "").Trim();
+            string model = (ModelPicker.Text ?? "").Trim();
+            _settings.Model = model;
+            _settings.ProviderId = Current.Id;
+            _settings.Save();
+
+            var provider = Current;
+            _chCts = new CancellationTokenSource();
+            ChGenerateBtn.IsEnabled = false;
+            ChCancelBtn.IsEnabled = true;
+            ChStatusText.Text = $"Asking {provider.DisplayName} — free and local models can take a minute…";
+            try
+            {
+                string reply = await provider.ChatAsync(model, BuildChPrompt(mood, lyrics), _chCts.Token);
+                FillChResults(reply);
+                if (ChKeyBox.Text.Length > 0)
+                    ChStatusText.Text = "Done — copy the whole sheet, or edit any section first.";
+            }
+            catch (OperationCanceledException)
+            {
+                ChStatusText.Text = "Cancelled.";
+            }
+            catch (Exception ex)
+            {
+                ChStatusText.Text = "Error: " + ex.Message;
+            }
+            finally
+            {
+                ChGenerateBtn.IsEnabled = true;
+                ChCancelBtn.IsEnabled = false;
+                _chCts?.Dispose();
+                _chCts = null;
+            }
+        }
+
+        private void ChCancel_Click(object sender, RoutedEventArgs e) => _chCts?.Cancel();
+
+        private void ChCopy_Click(object sender, RoutedEventArgs e)
+        {
+            if (ChKeyBox.Text.Length == 0 && ChVerseBox.Text.Length == 0 && ChChorusBox.Text.Length == 0
+                && ChInstBox.Text.Length == 0)
+            {
+                return;
+            }
+            string sheet = "Key: " + ChKeyBox.Text + "\n\nVerse: " + ChVerseBox.Text
+                + "\n\nChorus: " + ChChorusBox.Text + "\n\nInstruments: " + ChInstBox.Text;
+            Clipboard.SetText(sheet);
+            ChStatusText.Text = "Chord sheet copied ✓";
+        }
+
         private void ReplicateSignup_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/signin");
 
         private void ReplicateToken_Click(object sender, RoutedEventArgs e) => OpenUrl("https://replicate.com/account/api-tokens");
@@ -1623,6 +1760,7 @@ namespace BeatSyncStudioPro
             _visCts?.Cancel();
             _sgCts?.Cancel();
             _apCts?.Cancel();
+            _chCts?.Cancel();
             base.OnClosed(e);
         }
     }
