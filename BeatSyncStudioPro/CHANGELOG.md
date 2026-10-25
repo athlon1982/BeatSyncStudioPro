@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.108 — AI Toolkit, Part 6: Vision to Style
+- **New 👁️ Vision to Style tab in the AI Lab** (sixth of the AI Toolkit, built one tool at a time): pick an image and the AI describes what it sees, then writes a **style prompt**, a **title idea**, and **mood tags** for a new song in that picture's mood. Add optional notes (like "make it boom-rap, Vermont, family") to steer it.
+- **How it works, honestly:** moondream (local Ollama, free) looks at the image, then the model you picked in the 🎤 Song tab writes the style, title, and mood tags from what moondream saw. Two steps on purpose — the small vision model describes a picture fine but won't write four formatted sections in one call, so each model does the job it's good at. The picture never leaves your PC. The style is yours to edit, with **📋 Copy Style**, **📋 Copy Title**, and **🎤 Use This Style in Create Song**, which carries the style into Create Song with the lyrics left blank for you to fill.
+
 ## Version 3.107 — AI Toolkit, Part 5: Hit Analyzer
 - **New 📊 Hit Analyzer tab in the AI Lab** (fifth of the AI Toolkit, built one tool at a time): paste lyrics, add optional style/genre context, and the AI scores the song **out of 100**, names **what's working**, flags the **issues found**, gives a **genre trends read**, and hands back a **polished draft with the fixes applied** — yours to edit, with **📋 Copy Polished Lyrics** and **🎤 Make THESE Lyrics into a Song** into Create Song with your standing boom-rap style and voice ready.
 - **Said plainly:** the score is the AI's opinion on the lyrics as written — not a chart prediction and not streaming data — and the trends read is the model's genre knowledge, not live chart data.
