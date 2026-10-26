@@ -1,0 +1,73 @@
+<Window x:Class="BeatSyncStudioPro.SceneCutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Scene Cut / Paste" Icon="/Assets/app.ico"
+        Width="760" Height="620" MinWidth="640" MinHeight="480"
+        Background="#1E222B" Foreground="#FFFFFF" WindowStartupLocation="CenterOwner">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="✂️ Scene Cut / Paste" FontSize="16" FontWeight="Bold"/>
+        <TextBlock Grid.Row="0" Text="Cut scenes out of a video, paste them in a new order, export once. The song audio stays locked — only the picture moves."
+                   Foreground="#A0A5B5" FontSize="11" TextWrapping="Wrap" Margin="0,24,0,0"/>
+
+        <!-- Main video -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,6">
+            <TextBlock Text="Main video:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <TextBox x:Name="VideoBox" Width="420" Height="28" Background="#14171E" Foreground="White" BorderBrush="#333" VerticalContentAlignment="Center"/>
+            <Button Content="Browse..." Click="BrowseVideo_Click" Width="80" Height="28" Margin="8,0,0,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="GMS lyric moves" Click="GmsPreset_Click" Height="28" Margin="8,0,0,0" Padding="10,0" Background="#7C3AED" Foreground="White" BorderThickness="0" Cursor="Hand" ToolTip="Fill the list with the Green Mountain State lyric-move order (from v2d + Flow mud + Kling finale)."/>
+        </StackPanel>
+
+        <!-- Scene list -->
+        <ListBox Grid.Row="2" x:Name="SceneList" Background="#14171E" Foreground="White" BorderBrush="#333" FontSize="13"/>
+
+        <!-- Add / edit a scene -->
+        <StackPanel Grid.Row="3" Margin="0,8,0,0">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Name:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <TextBox x:Name="NameBox" Width="150" Height="28" Background="#14171E" Foreground="White" BorderBrush="#333" VerticalContentAlignment="Center"/>
+                <TextBlock Text="Start (s):" VerticalAlignment="Center" Margin="10,0,4,0"/>
+                <TextBox x:Name="StartBox" Width="80" Height="28" Background="#14171E" Foreground="White" BorderBrush="#333" VerticalContentAlignment="Center"/>
+                <TextBlock Text="End (s):" VerticalAlignment="Center" Margin="10,0,4,0"/>
+                <TextBox x:Name="EndBox" Width="80" Height="28" Background="#14171E" Foreground="White" BorderBrush="#333" VerticalContentAlignment="Center"/>
+                <Button Content="Add scene" Click="AddScene_Click" Height="28" Margin="10,0,0,0" Padding="10,0" Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                <TextBlock Text="Different clip for this scene (optional — leave blank for main video):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#A0A5B5" FontSize="11"/>
+                <TextBox x:Name="SourceBox" Width="340" Height="28" Background="#14171E" Foreground="White" BorderBrush="#333" VerticalContentAlignment="Center"/>
+                <Button Content="Browse..." Click="BrowseSource_Click" Width="80" Height="28" Margin="8,0,0,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Scene actions -->
+        <WrapPanel Grid.Row="4" Margin="0,10,0,0">
+            <Button Content="✂️ Cut" Click="Cut_Click" Width="80" Height="30" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="📋 Copy" Click="Copy_Click" Width="80" Height="30" Margin="6,0,0,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="📌 Paste" Click="Paste_Click" Width="80" Height="30" Margin="6,0,0,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="🗑️ Delete" Click="Delete_Click" Width="80" Height="30" Margin="6,0,0,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="⬆️ Move up" Click="MoveUp_Click" Width="90" Height="30" Margin="6,0,0,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="⬇️ Move down" Click="MoveDown_Click" Width="100" Height="30" Margin="6,0,0,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="Clear all" Click="Clear_Click" Width="80" Height="30" Margin="6,0,0,0" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <CheckBox x:Name="CropBox" Content="Crop clips to 9:16 (1080x1920)" IsChecked="True" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="White"/>
+        </WrapPanel>
+
+        <!-- Totals + export -->
+        <StackPanel Grid.Row="5" Margin="0,12,0,0">
+            <TextBlock x:Name="TotalText" FontSize="13" FontWeight="Bold"/>
+            <TextBlock x:Name="WarnText" Foreground="#FBBF24" FontSize="12" TextWrapping="Wrap"/>
+            <TextBlock x:Name="StatusText" Foreground="#A0A5B5" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                <Button Content="Close" Click="Close_Click" Width="80" Height="32" Background="#2A303C" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                <Button Content="🎬 Export reordered video..." Click="Export_Click" Width="200" Height="32" Margin="8,0,0,0" Background="#1DB954" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>

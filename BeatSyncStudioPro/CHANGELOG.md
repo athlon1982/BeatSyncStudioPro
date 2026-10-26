@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.117 — Scene Cut / Paste (DJ Sync Pro idea, built into BeatSync)
+- **New ✂️ Scene Cut / Paste window** (menu: **Video → Scene Cut / Paste...**): load a video, build a list of named scenes with start and end seconds, then **Cut, Copy, Paste, Delete, Move Up, Move Down** to reorder them and **Export** once. A scene can come from a different clip file, so outside footage (a Flow clip, a Kling clip) drops into the order without touching the main video.
+- **The song audio stays locked:** export renders the reordered picture in one ffmpeg pass, then muxes the FULL original audio untouched on top. A running total is shown against the locked song length, with a plain warning (not a silent break) when the scene total does not match it.
+- **Green Mountain State preset built in:** the "GMS lyric moves" button fills the lyric-move order — intro to 49s, Flow mud 49–57s before the barn, barn-through-throne 57–225s, Kling finale 220–225s, crowd cheering to the end — totalling exactly 236.833s, so the next lyric move can be done in the app instead of by hand.
+
 ## Version 3.116 — AI Toolkit: shared knowledge in every tab
 - **New 🧠 Shared knowledge in the AI Lab**: every tab now answers with the knowledge Michael and Jarvis built together — boom-rap style and voice rules, the v2-is-the-video and action-clip and finale specs, bare-arms and crown rules, pool roles, and the standing don'ts — injected once in the shared provider layer, so no tab prompt changed and all 13 tabs pick it up at once. The pack lives in the app itself (no sidecar file to lose) and contains no passwords, keys, or personal details by design.
 - **Fixed 🖥️ Splash screen version**: the splash screen showed the wrong version (3.65) — it now shows the real version, 3.116, in the same build.

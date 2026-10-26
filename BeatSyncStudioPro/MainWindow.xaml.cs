@@ -2890,6 +2890,15 @@ namespace BeatSyncStudioPro
             _changelogWindow.Show();
         }
 
+        private SceneCutWindow? _sceneCutWindow;
+        private void BtnSceneCut_Click(object sender, RoutedEventArgs e)
+        {
+            if (_sceneCutWindow != null) { _sceneCutWindow.Activate(); return; }
+            _sceneCutWindow = new SceneCutWindow { Owner = this };
+            _sceneCutWindow.Closed += (s, ev) => _sceneCutWindow = null;
+            _sceneCutWindow.Show();
+        }
+
         private AiLabWindow? _aiLabWindow;
         private void BtnAiLab_Click(object sender, RoutedEventArgs e)
         {
