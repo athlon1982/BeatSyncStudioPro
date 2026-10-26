@@ -131,13 +131,17 @@ namespace BeatSyncStudioPro
             if (string.IsNullOrWhiteSpace(model))
                 throw new InvalidOperationException("No Ollama model picked — install one first (e.g. run: ollama pull llama3.1:8b), then Refresh.");
             string json = await AiHttp.PostJsonAsync(Base + "/api/chat",
-                new { model, messages = new[] { new { role = "user", content = prompt } }, stream = false }, null, ct);
+                new { model, messages = new[] { new { role = "system", content = AiKnowledge.ForChatSystem() }, new { role = "user", content = prompt } }, stream = false }, null, ct);
             using var doc = JsonDocument.Parse(json);
             return doc.RootElement.GetProperty("message").GetProperty("content").GetString() ?? "";
         }
 
         public async Task<string> ChatWithImageAsync(string model, string prompt, string imageBase64, CancellationToken ct)
         {
+            // No knowledge injection here on purpose: this is the Vision tab's
+            // moondream describe step, and the description must stay a pure read
+            // of the image. The pack arrives at the writing step, which goes
+            // through ChatAsync above.
             if (string.IsNullOrWhiteSpace(model))
                 throw new InvalidOperationException("No Ollama model picked — pull a vision model first (e.g. run: ollama pull moondream), then Refresh.");
             string json = await AiHttp.PostJsonAsync(Base + "/api/chat",
@@ -221,7 +225,7 @@ namespace BeatSyncStudioPro
         public async Task<string> ChatAsync(string model, string prompt, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(model)) model = "opencode/nemotron-3-ultra-free";
-            var (stdout, stderr, code) = await RunCliAsync(new[] { "run", "-m", model, prompt }, ct);
+            var (stdout, stderr, code) = await RunCliAsync(new[] { "run", "-m", model, AiKnowledge.ForCli(prompt) }, ct);
             string text = stdout.Trim();
             if (text.Length == 0)
                 throw new InvalidOperationException($"OpenCode returned nothing (exit {code}). {stderr.Trim()}");
@@ -273,7 +277,7 @@ namespace BeatSyncStudioPro
                 throw new InvalidOperationException($"No API key saved for {DisplayName} — paste your key above and Save it first.");
             if (string.IsNullOrWhiteSpace(model)) model = DefaultModel;
             string json = await AiHttp.PostJsonAsync(BaseUrl + "/chat/completions",
-                new { model, messages = new[] { new { role = "user", content = prompt } } }, Key, ct);
+                new { model, messages = new[] { new { role = "system", content = AiKnowledge.ForChatSystem() }, new { role = "user", content = prompt } } }, Key, ct);
             using var doc = JsonDocument.Parse(json);
             return doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? "";
         }
