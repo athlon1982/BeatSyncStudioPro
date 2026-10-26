@@ -3,6 +3,10 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.116 — AI Toolkit: shared knowledge in every tab
+- **New 🧠 Shared knowledge in the AI Lab**: every tab now answers with the knowledge Michael and Jarvis built together — boom-rap style and voice rules, the v2-is-the-video and action-clip and finale specs, bare-arms and crown rules, pool roles, and the standing don'ts — injected once in the shared provider layer, so no tab prompt changed and all 13 tabs pick it up at once. The pack lives in the app itself (no sidecar file to lose) and contains no passwords, keys, or personal details by design.
+- **Fixed 🖥️ Splash screen version**: the splash screen showed the wrong version (3.65) — it now shows the real version, 3.116, in the same build.
+
 ## Version 3.115 — AI Toolkit, Part 13: Dashboard
 - **New 🏠 Dashboard tab in the AI Lab** (thirteenth of the AI Toolkit, built one tool at a time): a card grid home for the whole Lab — one card per tool, from 🎤 Song through 📣 Social Kit. Tap a card and it jumps straight to that tab; the work itself still happens there, with the provider and model picked on the 🎤 Song tab.
 
