@@ -3018,7 +3018,7 @@ namespace BeatSyncStudioPro
                 var stemLabel = new TextBlock { Text = "Stems", Foreground = MutedText, FontSize = 11, Width = 72, VerticalAlignment = VerticalAlignment.Center };
                 _stemBtn = MakeButton("\U0001F9EC Split Stems", 118);
                 _stemBtn.Click += async (s, e) => await SplitStemsAsync();
-                _stemStatus = new TextBlock { Foreground = MutedText, FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
+                _stemStatus = new TextBlock { Foreground = MutedText, FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), MaxWidth = 170, TextTrimming = TextTrimming.CharacterEllipsis };
                 stemRow.Children.Add(stemLabel);
                 stemRow.Children.Add(_stemBtn);
                 stemRow.Children.Add(_stemStatus);
@@ -3043,12 +3043,25 @@ namespace BeatSyncStudioPro
                 }
                 rightStack.Children.Add(_stemChipRow);
 
-                // Transport row
+                // Transport row: skip back / play / skip forward, then cue + sync.
+                // (v3.119: the skip buttons used to live only in the track-list
+                // row at the bottom of the deck — now they flank PLAY, where
+                // a DJ's hand already is.)
                 var transport = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 2) };
+                var skipBackBtn = MakeButton("⏮", 52);
+                skipBackBtn.ToolTip = "Previous track in this deck's track list.";
+                skipBackBtn.Click += (s, e) => SkipPrev();
+                transport.Children.Add(skipBackBtn);
                 _playButton = MakeButton("▶ PLAY", 84);
+                _playButton.Margin = new Thickness(6, 0, 0, 0);
                 _playButton.Background = accent;
                 _playButton.Click += (s, e) => PlayPause();
                 transport.Children.Add(_playButton);
+                var skipFwdBtn = MakeButton("⏭", 52);
+                skipFwdBtn.Margin = new Thickness(6, 0, 0, 0);
+                skipFwdBtn.ToolTip = "Next track in this deck's track list.";
+                skipFwdBtn.Click += (s, e) => SkipNext();
+                transport.Children.Add(skipFwdBtn);
                 var cueBtn = MakeButton("CUE", 56);
                 cueBtn.Margin = new Thickness(6, 0, 0, 0);
                 cueBtn.Click += (s, e) => Cue();
@@ -3057,16 +3070,33 @@ namespace BeatSyncStudioPro
                 syncBtn.Margin = new Thickness(6, 0, 0, 0);
                 syncBtn.Click += (s, e) => SyncToOther();
                 transport.Children.Add(syncBtn);
+                rightStack.Children.Add(transport);
+
+                // Transport row 2: per-deck stop + reset, then FX + PFL.
+                // (v3.119: there was no per-deck Stop button at all — only
+                // "Stop Both Decks" in the mixer — and Reset lived only in
+                // the small header row. Both now sit with the transport.)
+                var transport2 = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 2) };
+                var stopBtn = MakeButton("⏹ STOP", 64);
+                stopBtn.Background = new SolidColorBrush(Color.FromRgb(0xA1, 0x24, 0x24));
+                stopBtn.ToolTip = "Stop this deck and rewind to its cue point — same as Stop Both Decks, but just this deck.";
+                stopBtn.Click += (s, e) => StopDeck();
+                transport2.Children.Add(stopBtn);
+                var transportResetBtn = MakeButton("⟲ RESET", 72);
+                transportResetBtn.Margin = new Thickness(6, 0, 0, 0);
+                transportResetBtn.ToolTip = "Reset THIS deck to defaults: tempo 0%, original key, manual BPM cleared, EQ flat, gain + fader at unity, loop off, scratch/slip off.";
+                transportResetBtn.Click += async (s, e) => await ResetDeckToDefaults();
+                transport2.Children.Add(transportResetBtn);
                 var fxBtn = MakeButton("🎛️ FX", 56);
                 fxBtn.Margin = new Thickness(6, 0, 0, 0);
                 fxBtn.Click += (s, e) => _window.OpenFx(_fx, _name);
-                transport.Children.Add(fxBtn);
+                transport2.Children.Add(fxBtn);
                 var pflBtn = MakeButton("🎧 PFL", 56);
                 pflBtn.Margin = new Thickness(6, 0, 0, 0);
                 pflBtn.IsEnabled = false;
                 pflBtn.ToolTip = "Headphone cueing needs a second audio output — it unlocks when the hardware is there.";
-                transport.Children.Add(pflBtn);
-                rightStack.Children.Add(transport);
+                transport2.Children.Add(pflBtn);
+                rightStack.Children.Add(transport2);
 
                 // v3.90: one-tap transition FX row
                 var fxRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
@@ -3108,7 +3138,7 @@ namespace BeatSyncStudioPro
                 bendDown.PreviewMouseLeftButtonUp += (s, e) => _deck.Bend = 1.0;
                 bendDown.MouseLeave += (s, e) => _deck.Bend = 1.0;
                 tempoRow.Children.Add(bendDown);
-                _tempoSlider = new Slider { Minimum = -8, Maximum = 8, Value = 0, Width = 140, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 4, 0) };
+                _tempoSlider = new Slider { Minimum = -8, Maximum = 8, Value = 0, Width = 130, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 4, 0) };
                 _tempoSlider.Style = _window.TryFindResource("HwSliderH") as Style;
                 _tempoSlider.ValueChanged += (s, e) => SetTempo(_tempoSlider.Value);
                 tempoRow.Children.Add(_tempoSlider);
@@ -3139,7 +3169,10 @@ namespace BeatSyncStudioPro
                 bpmRow.Children.Add(_effBpmText);
                 midL.Children.Add(bpmRow);
 
-                // Key row (v3.28): detected key + Camelot, key sync, wheel
+                // Key rows (v3.28): detected key + Camelot, key sync, wheel.
+                // (v3.119: this was ONE row ~476px wide in a 335px column,
+                // so Key Lock / Suggest ran underneath the right-hand
+                // column and looked smashed. Now two rows — nothing hidden.)
                 var keyRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
                 keyRow.Children.Add(new TextBlock { Text = "Key", Foreground = MutedText, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Width = 42 });
                 _keyText = new TextBlock { Text = "-", Foreground = MutedText, FontSize = 11, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Width = 118 };
@@ -3151,17 +3184,19 @@ namespace BeatSyncStudioPro
                 wheelBtn.Margin = new Thickness(6, 0, 0, 0);
                 wheelBtn.Click += (s, e) => _window.ShowCamelotWheel(this);
                 keyRow.Children.Add(wheelBtn);
+                midL.Children.Add(keyRow);
+                var keyRow2 = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+                keyRow2.Children.Add(new TextBlock { Text = "", Foreground = MutedText, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Width = 42 });
                 _keyLockBtn = MakeButton("\U0001F512 Key Lock", 88);
-                _keyLockBtn.Margin = new Thickness(6, 0, 0, 0);
                 _keyLockBtn.ToolTip = "Key Lock: tempo changes speed WITHOUT changing pitch (master tempo). Off = vinyl style, pitch follows tempo.";
                 _keyLockBtn.Click += async (s, e) => await ToggleKeyLockAsync();
-                keyRow.Children.Add(_keyLockBtn);
+                keyRow2.Children.Add(_keyLockBtn);
                 _suggestBtn = MakeButton("\U0001F3AF Suggest", 84);
                 _suggestBtn.Margin = new Thickness(6, 0, 0, 0);
                 _suggestBtn.ToolTip = "Suggest Next: find library songs that mix well after this deck's track (matching key, close BPM) and load your pick onto the other deck.";
                 _suggestBtn.Click += async (s, e) => await SuggestNextAsync();
-                keyRow.Children.Add(_suggestBtn);
-                midL.Children.Add(keyRow);
+                keyRow2.Children.Add(_suggestBtn);
+                midL.Children.Add(keyRow2);
 
                 // Hot cues
                 var hotRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
@@ -3176,7 +3211,7 @@ namespace BeatSyncStudioPro
                     _hotButtons[i] = b;
                     hotRow.Children.Add(b);
                 }
-                hotRow.Children.Add(new TextBlock { Text = "(right-click clears)", Foreground = MutedText, FontSize = 9, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) });
+                hotRow.Children.Add(new TextBlock { Text = "(R-click clears)", Foreground = MutedText, FontSize = 9, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) });
                 midR.Children.Add(hotRow);
 
                 // Loops
@@ -3231,9 +3266,13 @@ namespace BeatSyncStudioPro
                 _autoGainBtn.ToolTip = "Auto-Gain: measures each song's loudness when it loads and trims this deck so every track plays at the same level. Your Gain knob still trims on top.";
                 _autoGainBtn.Click += (s, e) => ToggleAutoGain();
                 gainRow.Children.Add(_autoGainBtn);
-                _autoGainText = new TextBlock { Text = "", Foreground = MutedText, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
-                gainRow.Children.Add(_autoGainText);
                 midR.Children.Add(gainRow);
+                // (v3.119: the loudness readout used to sit on this same row
+                // and the longer v3.118 "auto +1.5 dB | -15.5 LUFS" text ran
+                // past the column and clipped at the deck edge. It now gets
+                // its own line under the button, full text, nothing squeezed.)
+                _autoGainText = new TextBlock { Text = "", Foreground = MutedText, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(48, 2, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis };
+                midR.Children.Add(_autoGainText);
 
                 // Track list for this deck: queue songs, step through them, mix on
                 var qHead = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 0) };
@@ -4808,6 +4847,40 @@ namespace BeatSyncStudioPro
                     _deck.CueSeconds = SnapToBeat(_deck.PositionSeconds);
                     _window.SetStatus($"{_name}: cue point set at {FmtTime(_deck.CueSeconds)}.");
                 }
+            }
+
+            // v3.119: per-deck Stop — the same stop-and-rewind-to-cue the
+            // mixer's "Stop Both Decks" already used, but for just this deck.
+            private void StopDeck()
+            {
+                _window.CruiseManualOverride();
+                _deck.CancelFx();
+                MixStopAndRewindToCue();
+                _window.SetStatus($"{_name}: stopped and rewound to the cue point.");
+            }
+
+            // v3.119: transport skip buttons — the same track-list stepping
+            // the track-list Prev/Next buttons and the phone companion use,
+            // with a plain hint when the list is empty so the buttons never
+            // look dead for no reason.
+            private void SkipNext()
+            {
+                if (_queuePaths.Count == 0)
+                {
+                    _window.SetStatus($"{_name}: the track list is empty — use Add Songs… below, then ⏭ steps through it.");
+                    return;
+                }
+                RemoteNext();
+            }
+
+            private void SkipPrev()
+            {
+                if (_queuePaths.Count == 0)
+                {
+                    _window.SetStatus($"{_name}: the track list is empty — use Add Songs… below, then ⏮ steps through it.");
+                    return;
+                }
+                RemotePrev();
             }
 
             private void SyncToOther()

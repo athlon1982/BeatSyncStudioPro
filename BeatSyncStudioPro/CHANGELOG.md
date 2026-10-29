@@ -3,6 +3,12 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.119 — Deck transport: Stop + Reset + Skip, and breathing room 🎧
+- **NEW: ⏹ STOP button on each deck:** stops that deck and rewinds it to its cue point — the same move "Stop Both Decks" in the mixer already did, but for just the one deck.
+- **NEW: ⟲ RESET button with the transport:** reset-to-defaults (tempo 0%, original key, EQ flat, gain + fader at unity, loop/scratch/slip off) now sits in the transport row on each deck, next to Stop — the small header Reset is still there too.
+- **NEW: ⏮ ⏭ skip buttons flanking PLAY:** step backward/forward through the deck's track list, left and right of the play button where your hand already is. Same stepping the track-list Prev/Next buttons use; if the list is empty the status line says so instead of the buttons silently doing nothing.
+- **Fixed the smashed-together deck rows:** the Key row was ~476px wide in a 335px column, so Key Lock and Suggest ran underneath the right-hand column — it's now two rows and everything is visible. The auto-gain loudness readout got its own line under the button so the longer LUFS text can't clip at the deck edge, the tempo slider gave the 0% button its room back, and long stem status messages now trim instead of pushing the row over. No control was removed to make room.
+
 ## Version 3.118 — Auto-Level: true loudness matching + leveled encodes 🔊
 - **Auto-gain now measures real loudness (LUFS):** each deck's auto-gain uses K-weighted integrated loudness (the same measurement the batch converter already uses) instead of plain RMS, targeting -14 LUFS with the peak capped at -1 dB — quiet songs come up, loud songs come down, and every track plays at the same volume without touching the knob.
 - **Measured once, remembered:** loudness is cached by file in the app settings folder (loudness-cache.json), so a song is only measured the first time it loads — later loads on either deck pick up the stored level instantly.
