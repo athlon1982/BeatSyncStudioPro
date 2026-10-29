@@ -18,10 +18,13 @@ namespace BeatSyncStudioPro
     public sealed class EncodeWindow : Window
     {
         private readonly DjDeck _deck;
+        private readonly AutoLevelInfo _autoLevel;
         private readonly ComboBox _formatBox = new ComboBox();
         private readonly ComboBox _bitrateBox = new ComboBox();
         private readonly ComboBox _rateBox = new ComboBox();
         private readonly ComboBox _depthBox = new ComboBox();
+        private readonly CheckBox _autoLevelBox = new CheckBox();
+        private readonly TextBlock _autoLevelInfo = new TextBlock();
         private readonly TextBox _folderBox = new TextBox();
         private readonly TextBlock _status = new TextBlock();
         private readonly Button _encodeBtn = new Button();
@@ -31,9 +34,10 @@ namespace BeatSyncStudioPro
         private string _lastOutput = "";
         private CancellationTokenSource? _cts;
 
-        public EncodeWindow(DjDeck deck, string deckName)
+        public EncodeWindow(DjDeck deck, string deckName, AutoLevelInfo autoLevel)
         {
             _deck = deck;
+            _autoLevel = autoLevel;
             Title = "💾 Encode — " + deckName;
             Width = 470;
             SizeToContent = SizeToContent.Height;
@@ -83,6 +87,27 @@ namespace BeatSyncStudioPro
 
             _formatBox.SelectionChanged += (s, e) => RefreshRows();
             RefreshRows();
+
+            // Auto-Level (v3.118): bake the deck's measured trim into the
+            // export. Defaults to the deck's auto-gain switch; the user
+            // can override it per encode. The source file is never changed.
+            var levelRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
+            _autoLevelBox.Content = "Apply Auto-Level";
+            _autoLevelBox.Foreground = Brushes.White;
+            _autoLevelBox.FontSize = 12;
+            _autoLevelBox.VerticalAlignment = VerticalAlignment.Center;
+            _autoLevelBox.IsChecked = _autoLevel.On;
+            _autoLevelBox.ToolTip = "Level this export to -14 LUFS using the same measurement as the deck's auto-gain, so it plays at the same volume everywhere. The original file is never changed.";
+            levelRow.Children.Add(_autoLevelBox);
+            _autoLevelInfo.Foreground = Muted;
+            _autoLevelInfo.FontSize = 12;
+            _autoLevelInfo.VerticalAlignment = VerticalAlignment.Center;
+            _autoLevelInfo.Margin = new Thickness(8, 0, 0, 0);
+            _autoLevelInfo.Text = _autoLevel.Measured
+                ? $"measured {_autoLevel.Lufs:0.0} LUFS, {_autoLevel.GainDb:+0.0;-0.0} dB"
+                : "loudness not measured yet";
+            levelRow.Children.Add(_autoLevelInfo);
+            root.Children.Add(levelRow);
 
             var folderRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
             folderRow.Children.Add(new TextBlock { Text = "Save to", Foreground = Muted, FontSize = 12, Width = 110, VerticalAlignment = VerticalAlignment.Center });
@@ -158,7 +183,9 @@ namespace BeatSyncStudioPro
                 Format = _formatBox.SelectedIndex switch { 1 => "MP3", 2 => "WAV", _ => "FLAC" },
                 Mp3BitrateKbps = _bitrateBox.SelectedIndex switch { 1 => 256, 2 => 192, 3 => 128, _ => 320 },
                 SampleRate = _rateBox.SelectedIndex == 1 ? 48000 : 44100,
-                BitDepth = _depthBox.SelectedIndex == 1 ? 24 : 16
+                BitDepth = _depthBox.SelectedIndex == 1 ? 24 : 16,
+                ApplyAutoLevel = _autoLevelBox.IsChecked == true,
+                AutoLevelDb = _autoLevel.GainDb
             };
             _cts = new CancellationTokenSource();
             _encodeBtn.Content = "⏹ Cancel";
@@ -171,6 +198,8 @@ namespace BeatSyncStudioPro
                 {
                     _lastOutput = result.OutputPath;
                     _openBtn.IsEnabled = true;
+                    if (options.ApplyAutoLevel && options.AutoLevelDb != 0)
+                        _status.Text = result.Message + " (auto-leveled to -14 LUFS)";
                 }
             }
             finally

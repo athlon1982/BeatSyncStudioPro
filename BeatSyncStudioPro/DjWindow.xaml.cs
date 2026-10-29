@@ -2617,6 +2617,8 @@ namespace BeatSyncStudioPro
             internal bool AutoGainOn = true;
             private double _autoGainFactor = 1.0;
             private double _autoGainDb;
+            private double _measuredLufs;
+            private bool _hasLoudness;
             private bool _quantize = true;
             private readonly Button _quantizeBtn;
             private int _loadGen;
@@ -3093,7 +3095,7 @@ namespace BeatSyncStudioPro
                 encodeBtn.Click += (s, e) =>
                 {
                     if (!_deck.IsLoaded) { _window.SetStatus($"{_name}: load a song first, then Encode can save it in your format."); return; }
-                    new EncodeWindow(_deck, _name) { Owner = _window }.Show();
+                    new EncodeWindow(_deck, _name, new AutoLevelInfo(AutoGainOn, _autoGainDb, _measuredLufs, _hasLoudness)) { Owner = _window }.Show();
                 };
                 fxRow.Children.Add(encodeBtn);
                 rightStack.Children.Add(fxRow);
@@ -4032,54 +4034,63 @@ namespace BeatSyncStudioPro
 
             private void UpdateAutoGainLabel()
             {
-                _autoGainText.Text = !_deck.IsLoaded ? "" : AutoGainOn ? $"auto {_autoGainDb:+0.0;-0.0} dB" : "auto off";
+                if (!_deck.IsLoaded) { _autoGainText.Text = ""; return; }
+                string lufs = _hasLoudness ? $" | {_measuredLufs:0.0} LUFS" : "";
+                _autoGainText.Text = AutoGainOn ? $"auto {_autoGainDb:+0.0;-0.0} dB{lufs}" : "auto off" + lufs;
             }
 
-            /// <summary>Measure the loaded track's loudness (RMS + peak off
-            /// the decoded buffers) and set the deck's auto-gain trim so
-            /// every song plays at the same level: RMS target ≈ -14 dBFS,
-            /// gain clamped to about ±10 dB, peak-capped at 0.94.</summary>
+            /// <summary>Measure the loaded track's loudness (K-weighted LUFS
+            /// + sample peak off the decoded buffers) and set the deck's
+            /// auto-gain trim so every song plays at the same level: -14
+            /// LUFS target, gain clamped to +/-24 dB, peak-capped at -1 dB.
+            /// Results are cached by file hash (LoudnessCache) so a track is
+            /// only measured once ever; the same cached gain feeds the
+            /// encode-time Auto-Level option.</summary>
             private void StartAutoGainAnalysis()
             {
                 int gen = _loadGen;
                 _autoGainFactor = 1.0;
                 _autoGainDb = 0;
+                _hasLoudness = false;
                 _deck.AutoGain = 1.0;
                 UpdateAutoGainLabel();
+                byte[]? bytes = _lastBytes;
                 _ = Task.Run(() =>
                 {
-                    double factor = 1.0, db = 0;
+                    double factor = 1.0, db = 0, lufs = -70;
+                    bool measured = false;
                     try
                     {
-                        var (l, r) = _deck.GetChannelBuffers();
-                        long n = Math.Min(l.Length, r.Length);
-                        if (n > 0)
+                        string? key = bytes != null && bytes.Length > 0 ? LoudnessAnalyzer.HashBytes(bytes) : null;
+                        if (key != null && LoudnessCache.TryGet(key, out var hit))
                         {
-                            double sum = 0;
-                            float peak = 0;
-                            for (long i = 0; i < n; i++)
-                            {
-                                sum += (double)l[i] * l[i] + (double)r[i] * r[i];
-                                float a = Math.Max(Math.Abs(l[i]), Math.Abs(r[i]));
-                                if (a > peak) peak = a;
-                            }
-                            double rms = Math.Sqrt(sum / (2.0 * n));
-                            if (rms > 1e-6)
-                            {
-                                const double target = 0.20;
-                                factor = Math.Clamp(target / rms, 0.30, 3.0);
-                                if (peak > 0 && peak * factor > 0.94) factor = 0.94 / peak;
-                                db = 20 * Math.Log10(factor);
-                            }
+                            lufs = hit.Lufs;
+                            db = hit.GainDb;
+                            factor = Math.Pow(10, db / 20.0);
+                            measured = true;
+                        }
+                        else
+                        {
+                            var (l, r) = _deck.GetChannelBuffers();
+                            var (mLufs, mPeak) = LoudnessAnalyzer.Measure(l, r);
+                            lufs = mLufs;
+                            db = LoudnessAnalyzer.GainDbFor(mLufs, mPeak);
+                            factor = Math.Pow(10, db / 20.0);
+                            measured = true;
+                            if (key != null)
+                                LoudnessCache.Put(key, new LoudnessEntry(mLufs, mPeak, db, DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
                         }
                     }
-                    catch { factor = 1.0; db = 0; }
-                    double f2 = factor, d2 = db;
+                    catch { factor = 1.0; db = 0; measured = false; }
+                    double f2 = factor, d2 = db, l2 = lufs;
+                    bool m2 = measured;
                     _window.Dispatcher.BeginInvoke(new Action(() =>
                     {
                         if (gen != _loadGen) return;
                         _autoGainFactor = f2;
                         _autoGainDb = d2;
+                        _measuredLufs = l2;
+                        _hasLoudness = m2;
                         if (AutoGainOn) _deck.AutoGain = f2;
                         UpdateAutoGainLabel();
                     }));

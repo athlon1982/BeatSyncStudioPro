@@ -22,6 +22,15 @@ namespace BeatSyncStudioPro
         public int SampleRate { get; set; } = 44100;       // 44100 | 48000
         public int BitDepth { get; set; } = 16;            // WAV/FLAC: 16 | 24
 
+        /// <summary>Auto-Level (v3.118): bake the deck's measured loudness
+        /// trim into the exported file so it lands at -14 LUFS. The
+        /// source file is never modified; the trim is the cached gain
+        /// from LoudnessCache, applied here as an ffmpeg volume filter.
+        /// Off (or a 0 dB gain) leaves the ffmpeg args exactly as before,
+        /// so raw encodes are bit-identical to previous versions.</summary>
+        public bool ApplyAutoLevel { get; set; }
+        public double AutoLevelDb { get; set; }
+
         public string Extension => Format switch
         {
             "MP3" => ".mp3",
@@ -50,7 +59,9 @@ namespace BeatSyncStudioPro
             return s.Length == 0 ? "track" : s;
         }
 
-        /// <summary>The ffmpeg argument string for a conversion (pure — tested).</summary>
+        /// <summary>The ffmpeg argument string for a conversion (pure — tested).
+        /// With ApplyAutoLevel and a nonzero gain, a volume filter carries
+        /// the trim; otherwise the args are exactly the historical ones.</summary>
         public static string BuildFfmpegArgs(string inputWav, string outputPath, EncodeOptions o)
         {
             string ar = o.SampleRate.ToString();
@@ -60,7 +71,10 @@ namespace BeatSyncStudioPro
                 "WAV" => o.BitDepth == 24 ? "-codec:a pcm_s24le" : "-codec:a pcm_s16le",
                 _ => o.BitDepth == 24 ? "-codec:a flac -sample_fmt s32" : "-codec:a flac -sample_fmt s16"
             };
-            return $"-y -hide_banner -loglevel error -i \"{inputWav}\" -ar {ar} {codec} \"{outputPath}\"";
+            string filter = o.ApplyAutoLevel && o.AutoLevelDb != 0
+                ? $" -af volume={o.AutoLevelDb.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}dB"
+                : "";
+            return $"-y -hide_banner -loglevel error -i \"{inputWav}\"{filter} -ar {ar} {codec} \"{outputPath}\"";
         }
 
         /// <summary>

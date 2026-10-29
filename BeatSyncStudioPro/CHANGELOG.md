@@ -3,6 +3,13 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.118 — Auto-Level: true loudness matching + leveled encodes 🔊
+- **Auto-gain now measures real loudness (LUFS):** each deck's auto-gain uses K-weighted integrated loudness (the same measurement the batch converter already uses) instead of plain RMS, targeting -14 LUFS with the peak capped at -1 dB — quiet songs come up, loud songs come down, and every track plays at the same volume without touching the knob.
+- **Measured once, remembered:** loudness is cached by file in the app settings folder (loudness-cache.json), so a song is only measured the first time it loads — later loads on either deck pick up the stored level instantly.
+- **Per-deck readout:** the auto-gain label now shows the measured loudness and the trim being applied (e.g. "auto +1.7 dB | -15.7 LUFS"), next to the existing per-deck Auto-Gain ON/OFF switch.
+- **NEW: "Apply Auto-Level" on Encode:** the Encode window has a checkbox (on by default when the deck's auto-gain is on) that bakes the same -14 LUFS leveling into the exported file, so the file itself plays evenly anywhere — truck, phone, anywhere. The original file is never changed, and leaving it unchecked gives the same raw encode as before.
+- **No double-boost:** a leveled export played back with auto-gain on already measures right, so it gets ~0 dB of extra trim.
+
 ## Version 3.117 — Scene Cut / Paste (DJ Sync Pro idea, built into BeatSync)
 - **New ✂️ Scene Cut / Paste window** (menu: **Video → Scene Cut / Paste...**): load a video, build a list of named scenes with start and end seconds, then **Cut, Copy, Paste, Delete, Move Up, Move Down** to reorder them and **Export** once. A scene can come from a different clip file, so outside footage (a Flow clip, a Kling clip) drops into the order without touching the main video.
 - **The song audio stays locked:** export renders the reordered picture in one ffmpeg pass, then muxes the FULL original audio untouched on top. A running total is shown against the locked song length, with a plain warning (not a silent break) when the scene total does not match it.
