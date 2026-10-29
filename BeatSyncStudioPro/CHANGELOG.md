@@ -3,6 +3,11 @@
 Every update since the first working build: what was added, improved, and fixed.
 Created by Michael DeCato.
 
+## Version 3.120 — Transport labels: STOP / PREV / NEXT / PFL fully readable 🔎
+- **Fixed clipped transport labels:** the red STOP button read "STOI" and PFL read "PFI" — the app-wide button padding left too little room for the icon + text at those widths. STOP and PFL are wider now with tighter padding, so the full label shows with room to spare.
+- **Skip buttons are real labeled buttons now:** "⏮ PREV" and "NEXT ⏭" flank PLAY at the same size as CUE/SYNC, instead of small bare icons that were hard to make out. Same stepping as before.
+- No behavior changed: Stop still stops the deck and rewinds to cue, Reset still resets to defaults, and the skips still step through the deck's track list.
+
 ## Version 3.119 — Deck transport: Stop + Reset + Skip, and breathing room 🎧
 - **NEW: ⏹ STOP button on each deck:** stops that deck and rewinds it to its cue point — the same move "Stop Both Decks" in the mixer already did, but for just the one deck.
 - **NEW: ⟲ RESET button with the transport:** reset-to-defaults (tempo 0%, original key, EQ flat, gain + fader at unity, loop/scratch/slip off) now sits in the transport row on each deck, next to Stop — the small header Reset is still there too.

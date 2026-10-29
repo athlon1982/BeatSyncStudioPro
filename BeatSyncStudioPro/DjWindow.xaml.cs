@@ -3048,7 +3048,12 @@ namespace BeatSyncStudioPro
                 // row at the bottom of the deck — now they flank PLAY, where
                 // a DJ's hand already is.)
                 var transport = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 2) };
-                var skipBackBtn = MakeButton("⏮", 52);
+                // v3.120: labeled buttons, same family as PLAY/CUE/SYNC.
+                // The bare-glyph squares were unreadable, and the app-wide
+                // button Padding="10,5" left too little room — so these get
+                // tight padding (4px sides) plus roomy widths.
+                var skipBackBtn = MakeButton("⏮ PREV", 72);
+                skipBackBtn.Padding = new Thickness(4, 5, 4, 5);
                 skipBackBtn.ToolTip = "Previous track in this deck's track list.";
                 skipBackBtn.Click += (s, e) => SkipPrev();
                 transport.Children.Add(skipBackBtn);
@@ -3057,7 +3062,8 @@ namespace BeatSyncStudioPro
                 _playButton.Background = accent;
                 _playButton.Click += (s, e) => PlayPause();
                 transport.Children.Add(_playButton);
-                var skipFwdBtn = MakeButton("⏭", 52);
+                var skipFwdBtn = MakeButton("NEXT ⏭", 72);
+                skipFwdBtn.Padding = new Thickness(4, 5, 4, 5);
                 skipFwdBtn.Margin = new Thickness(6, 0, 0, 0);
                 skipFwdBtn.ToolTip = "Next track in this deck's track list.";
                 skipFwdBtn.Click += (s, e) => SkipNext();
@@ -3077,7 +3083,8 @@ namespace BeatSyncStudioPro
                 // "Stop Both Decks" in the mixer — and Reset lived only in
                 // the small header row. Both now sit with the transport.)
                 var transport2 = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 2) };
-                var stopBtn = MakeButton("⏹ STOP", 64);
+                var stopBtn = MakeButton("⏹ STOP", 76);
+                stopBtn.Padding = new Thickness(4, 5, 4, 5);
                 stopBtn.Background = new SolidColorBrush(Color.FromRgb(0xA1, 0x24, 0x24));
                 stopBtn.ToolTip = "Stop this deck and rewind to its cue point — same as Stop Both Decks, but just this deck.";
                 stopBtn.Click += (s, e) => StopDeck();
@@ -3091,7 +3098,8 @@ namespace BeatSyncStudioPro
                 fxBtn.Margin = new Thickness(6, 0, 0, 0);
                 fxBtn.Click += (s, e) => _window.OpenFx(_fx, _name);
                 transport2.Children.Add(fxBtn);
-                var pflBtn = MakeButton("🎧 PFL", 56);
+                var pflBtn = MakeButton("🎧 PFL", 64);
+                pflBtn.Padding = new Thickness(4, 5, 4, 5);
                 pflBtn.Margin = new Thickness(6, 0, 0, 0);
                 pflBtn.IsEnabled = false;
                 pflBtn.ToolTip = "Headphone cueing needs a second audio output — it unlocks when the hardware is there.";
